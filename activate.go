@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	systemd "github.com/coreos/go-systemd/v22/dbus"
-	"github.com/redhatinsights/yggdrasil"
 )
 
 func activate() error {
@@ -14,7 +13,7 @@ func activate() error {
 	}
 	defer conn.Close()
 
-	unitName := yggdrasil.ShortName + "d.service"
+	unitName := ShortName + "d.service"
 
 	if _, _, err := conn.EnableUnitFiles([]string{unitName}, false, true); err != nil {
 		return err
@@ -44,7 +43,7 @@ func deactivate() error {
 	}
 	defer conn.Close()
 
-	unitName := yggdrasil.ShortName + "d.service"
+	unitName := ShortName + "d.service"
 
 	done := make(chan string)
 	if _, err := conn.StopUnit(unitName, "replace", done); err != nil {

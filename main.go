@@ -14,8 +14,6 @@ import (
 
 	"github.com/briandowns/spinner"
 	systemd "github.com/coreos/go-systemd/v22/dbus"
-	"github.com/redhatinsights/yggdrasil"
-	internal "github.com/redhatinsights/yggdrasil/internal"
 	"github.com/urfave/cli/v2"
 	"golang.org/x/crypto/ssh/terminal"
 )
@@ -25,10 +23,10 @@ const failPrefix = "\033[31m●\033[0m"
 
 func main() {
 	app := cli.NewApp()
-	app.Name = yggdrasil.ShortName
-	app.Version = yggdrasil.Version
-	app.Usage = "control the system's connection to " + yggdrasil.Provider
-	app.Description = "The " + app.Name + " command controls the system's connection to " + yggdrasil.Provider + ".\n\n" +
+	app.Name = ShortName
+	app.Version = Version
+	app.Usage = "control the system's connection to " + Provider
+	app.Description = "The " + app.Name + " command controls the system's connection to " + Provider + ".\n\n" +
 		"To connect the system using an activation key:\n" +
 		"\t" + app.Name + " connect --organization ID --activation-key KEY\n\n" +
 		"To connect the system using a username and password:\n" +
@@ -84,16 +82,16 @@ func main() {
 					Usage: "register against `URL`",
 				},
 			},
-			Usage:       "Connects the system to " + yggdrasil.Provider,
+			Usage:       "Connects the system to " + Provider,
 			UsageText:   fmt.Sprintf("%v connect [command options]", app.Name),
-			Description: fmt.Sprintf("The connect command connects the system to Red Hat Subscription Management and %v and activates the %v daemon that enables %v to interact with the system. For details visit: https://red.ht/connector", yggdrasil.Provider, yggdrasil.BrandName, yggdrasil.Provider),
+			Description: fmt.Sprintf("The connect command connects the system to Red Hat Subscription Management and %v and activates the %v daemon that enables %v to interact with the system. For details visit: https://red.ht/connector", Provider, BrandName, Provider),
 			Action: func(c *cli.Context) error {
 				hostname, err := os.Hostname()
 				if err != nil {
 					return cli.Exit(err, 1)
 				}
 
-				fmt.Printf("Connecting %v to %v.\nThis might take a few seconds.\n\n", hostname, yggdrasil.Provider)
+				fmt.Printf("Connecting %v to %v.\nThis might take a few seconds.\n\n", hostname, Provider)
 
 				uuid, err := getConsumerUUID()
 				if err != nil {
@@ -143,14 +141,14 @@ func main() {
 				}
 
 				s := spinner.New(spinner.CharSets[9], 100*time.Millisecond)
-				s.Suffix = fmt.Sprintf(" Activating the %v daemon", yggdrasil.BrandName)
+				s.Suffix = fmt.Sprintf(" Activating the %v daemon", BrandName)
 				s.Start()
 				if err := activate(); err != nil {
 					s.Stop()
 					return cli.Exit(err, 1)
 				}
 				s.Stop()
-				fmt.Printf(successPrefix+" Activated the %v daemon\n", yggdrasil.BrandName)
+				fmt.Printf(successPrefix+" Activated the %v daemon\n", BrandName)
 
 				fmt.Printf("\nManage your Red Hat connector systems: https://red.ht/connector\n")
 
@@ -159,24 +157,24 @@ func main() {
 		},
 		{
 			Name:        "disconnect",
-			Usage:       "Disconnects the system from " + yggdrasil.Provider,
+			Usage:       "Disconnects the system from " + Provider,
 			UsageText:   fmt.Sprintf("%v disconnect", app.Name),
-			Description: fmt.Sprintf("The disconnect command disconnects the system from Red Hat Subscription Management and %v and deactivates the %v daemon. %v will no longer be able to interact with the system.", yggdrasil.Provider, yggdrasil.BrandName, yggdrasil.Provider),
+			Description: fmt.Sprintf("The disconnect command disconnects the system from Red Hat Subscription Management and %v and deactivates the %v daemon. %v will no longer be able to interact with the system.", Provider, BrandName, Provider),
 			Action: func(c *cli.Context) error {
 				hostname, err := os.Hostname()
 				if err != nil {
 					return cli.Exit(err, 1)
 				}
-				fmt.Printf("Disconnecting %v from %v.\nThis might take a few seconds.\n\n", hostname, yggdrasil.Provider)
+				fmt.Printf("Disconnecting %v from %v.\nThis might take a few seconds.\n\n", hostname, Provider)
 
 				s := spinner.New(spinner.CharSets[9], 100*time.Millisecond)
-				s.Suffix = fmt.Sprintf(" Deactivating the %v daemon", yggdrasil.BrandName)
+				s.Suffix = fmt.Sprintf(" Deactivating the %v daemon", BrandName)
 				s.Start()
 				if err := deactivate(); err != nil {
 					return cli.Exit(err, 1)
 				}
 				s.Stop()
-				fmt.Printf(failPrefix+" Deactivated the %v daemon\n", yggdrasil.BrandName)
+				fmt.Printf(failPrefix+" Deactivated the %v daemon\n", BrandName)
 
 				s.Suffix = " Disconnecting from Red Hat Subscription Management..."
 				s.Start()
@@ -196,9 +194,9 @@ func main() {
 			Hidden:      true,
 			Usage:       "Prints canonical facts about the system.",
 			UsageText:   fmt.Sprintf("%v canonical-facts", app.Name),
-			Description: fmt.Sprintf("The canonical-facts command prints data that uniquely identifies the system in the %v inventory service. Use only as directed for debugging purposes.", yggdrasil.Provider),
+			Description: fmt.Sprintf("The canonical-facts command prints data that uniquely identifies the system in the %v inventory service. Use only as directed for debugging purposes.", Provider),
 			Action: func(c *cli.Context) error {
-				facts, err := yggdrasil.GetCanonicalFacts()
+				facts, err := GetCanonicalFacts()
 				if err != nil {
 					return cli.Exit(err, 1)
 				}
@@ -254,9 +252,9 @@ func main() {
 		},
 		{
 			Name:        "status",
-			Usage:       "Prints status of the system's connection to " + yggdrasil.Provider,
+			Usage:       "Prints status of the system's connection to " + Provider,
 			UsageText:   fmt.Sprintf("%v status", app.Name),
-			Description: fmt.Sprintf("The status command prints the state of the connection to Red Hat Subscription Management and %v.", yggdrasil.Provider),
+			Description: fmt.Sprintf("The status command prints the state of the connection to Red Hat Subscription Management and %v.", Provider),
 			Action: func(c *cli.Context) error {
 				hostname, err := os.Hostname()
 				if err != nil {
@@ -281,7 +279,7 @@ func main() {
 				}
 				defer conn.Close()
 
-				unitName := yggdrasil.ShortName + "d.service"
+				unitName := ShortName + "d.service"
 
 				properties, err := conn.GetUnitProperties(unitName)
 				if err != nil {
@@ -290,9 +288,9 @@ func main() {
 
 				activeState := properties["ActiveState"]
 				if activeState.(string) == "active" {
-					fmt.Printf(successPrefix+" The %v daemon is active\n", yggdrasil.BrandName)
+					fmt.Printf(successPrefix+" The %v daemon is active\n", BrandName)
 				} else {
-					fmt.Printf(failPrefix+" The %v daemon is inactive\n", yggdrasil.BrandName)
+					fmt.Printf(failPrefix+" The %v daemon is inactive\n", BrandName)
 				}
 
 				fmt.Printf("\nManage your Red Hat connector systems: https://red.ht/connector\n")
@@ -302,7 +300,7 @@ func main() {
 		},
 	}
 	app.EnableBashCompletion = true
-	app.BashComplete = internal.BashComplete
+	app.BashComplete = BashComplete
 	app.Action = func(c *cli.Context) error {
 		type GenerationFunc func() (string, error)
 		var generationFunc GenerationFunc
