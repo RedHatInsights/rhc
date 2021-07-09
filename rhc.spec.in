@@ -1,0 +1,106 @@
+# This RPM spec file exists primarily to enable CI/CD pipelines and automatic
+# testing of built RPMs. This RPM can be used as a suitable baseline for a
+# proper distribution package, but changes should be made to suit the needs of
+# the package.
+
+%define debug_package %{nil}
+
+
+Name:    @LONGNAME@
+Version: @VERSION@
+Release: @RELEASE@
+Summary: Client for registering Red Hat Enterprise Linux systems
+License: GPLv3
+URL:     https://github.com/redhatinsights/rhc
+
+Source0: %{name}-%{version}-%{release}.tar.gz
+Source1: https://github.com/RedHatInsights/yggdrasil/archive/refs/heads/main.tar.gz
+
+ExclusiveArch: %{go_arches}
+
+BuildRequires: git
+BuildRequires: golang
+BuildRequires: dbus-devel
+BuildRequires: systemd-devel
+
+
+%description
+rhc is a client that registers a system with RHSM and activates the Red Hat yggd
+MQTT client.
+
+
+%prep
+%setup -n %{name}-%{version}-%{release} -a 0
+%setup -n %{name}-%{version}-%{release} -a 1
+
+
+%build
+cd yggdrasil-main
+make PREFIX=%{_prefix} \
+     SYSCONFDIR=%{_sysconfdir} \
+     LOCALSTATEDIR=%{_localstatedir} \
+     SHORTNAME=@SHORTNAME@ \
+     LONGNAME=@LONGNAME@ \
+     PKGNAME=@PKGNAME@ \
+     BRANDNAME=@BRANDNAME@ \
+     TOPICPREFIX=@TOPICPREFIX@ \
+     VERSION=%{version} \
+     DATAHOST=@DATAHOST@ \
+     'PROVIDER=@PROVIDER@'
+cd ..
+make PREFIX=%{_prefix} \
+     SYSCONFDIR=%{_sysconfdir} \
+     LOCALSTATEDIR=%{_localstatedir} \
+     SHORTNAME=@SHORTNAME@ \
+     LONGNAME=@LONGNAME@ \
+     PKGNAME=@PKGNAME@ \
+     BRANDNAME=@BRANDNAME@ \
+     TOPICPREFIX=@TOPICPREFIX@ \
+     VERSION=%{version} \
+     DATAHOST=@DATAHOST@ \
+     'PROVIDER=@PROVIDER@'
+
+
+%install
+cd yggdrasil-main
+make PREFIX=%{_prefix} \
+     SYSCONFDIR=%{_sysconfdir} \
+     LOCALSTATEDIR=%{_localstatedir} \
+     DESTDIR=%{buildroot} \
+     SHORTNAME=@SHORTNAME@ \
+     LONGNAME=@LONGNAME@ \
+     PKGNAME=@PKGNAME@ \
+     BRANDNAME=@BRANDNAME@ \
+     TOPICPREFIX=@TOPICPREFIX@ \
+     VERSION=%{version} \
+     DATAHOST=@DATAHOST@ \
+     'PROVIDER=@PROVIDER@' \
+     install
+cd ..
+make PREFIX=%{_prefix} \
+     SYSCONFDIR=%{_sysconfdir} \
+     LOCALSTATEDIR=%{_localstatedir} \
+     DESTDIR=%{buildroot} \
+     SHORTNAME=@SHORTNAME@ \
+     LONGNAME=@LONGNAME@ \
+     PKGNAME=@PKGNAME@ \
+     BRANDNAME=@BRANDNAME@ \
+     TOPICPREFIX=@TOPICPREFIX@ \
+     VERSION=%{version} \
+     DATAHOST=@DATAHOST@ \
+     'PROVIDER=@PROVIDER@' \
+     install
+
+%files
+%doc README.md
+%{_bindir}/@SHORTNAME@
+%{_sbindir}/@SHORTNAME@d
+%config(noreplace) %{_sysconfdir}/@LONGNAME@/config.toml
+%{_unitdir}/@SHORTNAME@d.service
+%{_datadir}/bash-completion/completions/*
+%{_mandir}/man1/*
+%{_prefix}/share/pkgconfig/@LONGNAME@.pc
+%{_libexecdir}/@LONGNAME@
+
+
+%changelog
