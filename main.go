@@ -5,9 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"sort"
 	"strings"
-	"text/tabwriter"
 	"time"
 
 	"git.sr.ht/~spc/go-log"
@@ -205,48 +203,6 @@ func main() {
 					return err
 				}
 				fmt.Print(string(data))
-				return nil
-			},
-		},
-		{
-			Name:        "facts",
-			Usage:       "Prints information about the system.",
-			UsageText:   fmt.Sprintf("%v facts", app.Name),
-			Description: "The facts command queries the system's dmiinfo to determine relevant facts about it (e.g. system architecture, etc.).",
-			Flags: []cli.Flag{
-				&cli.StringFlag{
-					Name:    "format",
-					Usage:   `specify output format ("table", "json")`,
-					Aliases: []string{"f"},
-					Value:   "table",
-				},
-			},
-			Action: func(c *cli.Context) error {
-				facts, err := getFacts()
-				if err != nil {
-					return cli.Exit(err, 1)
-				}
-				switch c.String("format") {
-				case "json":
-					data, err := json.Marshal(facts)
-					if err != nil {
-						return cli.Exit(err, 1)
-					}
-					fmt.Print(string(data))
-				case "table":
-					keys := make([]string, 0, len(facts))
-					for k := range facts {
-						keys = append(keys, k)
-					}
-					sort.Strings(keys)
-					w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-					for _, k := range keys {
-						fmt.Fprintf(w, "%v\t%v\n", k, facts[k])
-					}
-					w.Flush()
-				default:
-					return cli.Exit(fmt.Errorf("unsupported value for '--format': %v", c.String("format")), 1)
-				}
 				return nil
 			},
 		},
