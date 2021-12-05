@@ -198,11 +198,11 @@ func main() {
 				if err != nil {
 					return cli.Exit(err, 1)
 				}
-				data, err := json.Marshal(facts)
+				data, err := json.MarshalIndent(facts, "", "   ")
 				if err != nil {
 					return err
 				}
-				fmt.Print(string(data))
+				fmt.Println(string(data))
 				return nil
 			},
 		},
