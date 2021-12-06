@@ -154,3 +154,11 @@ clean:
 	go mod tidy
 	rm $(BIN)
 	rm $(DATA)
+
+.PHONY: tests
+tests:
+	go test -v ./...
+
+.PHONY: vet
+vet:
+	go vet -v ./...
