@@ -18,9 +18,6 @@ var (
 	// TopicPrefix is used as a prefix to all MQTT topics in the client.
 	TopicPrefix string
 
-	// DataHost is used to force sending all HTTP traffic to a specific host.
-	DataHost string
-
 	// Provider is used when constructing user-facing string output to identify
 	// the agency providing the connection broker.
 	Provider string

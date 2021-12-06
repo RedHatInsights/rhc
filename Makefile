@@ -58,7 +58,6 @@ LDFLAGS += -X 'main.ManDir=$(MANDIR)'
 LDFLAGS += -X 'main.DocDir=$(DOCDIR)'
 LDFLAGS += -X 'main.LocalstateDir=$(LOCALSTATEDIR)'
 LDFLAGS += -X 'main.TopicPrefix=$(TOPICPREFIX)'
-LDFLAGS += -X 'main.DataHost=$(DATAHOST)'
 LDFLAGS += -X 'main.Provider=$(PROVIDER)'
 
 BUILDFLAGS ?=
