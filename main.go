@@ -13,7 +13,7 @@ import (
 	"github.com/briandowns/spinner"
 	systemd "github.com/coreos/go-systemd/v22/dbus"
 	"github.com/urfave/cli/v2"
-	"golang.org/x/crypto/ssh/terminal"
+	"golang.org/x/term"
 )
 
 const successPrefix = "\033[32m●\033[0m"
@@ -110,7 +110,7 @@ func main() {
 						}
 						if password == "" {
 							fmt.Print("Password: ")
-							data, err := terminal.ReadPassword(int(os.Stdin.Fd()))
+							data, err := term.ReadPassword(int(os.Stdin.Fd()))
 							if err != nil {
 								return cli.Exit(err, 1)
 							}
