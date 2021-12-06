@@ -4,7 +4,7 @@ go 1.16
 
 require (
 	git.sr.ht/~spc/go-log v0.0.0-20210611184941-ce2f05edb627
-	github.com/briandowns/spinner v1.16.0
+	github.com/briandowns/spinner v1.13.0
 	github.com/coreos/go-systemd/v22 v22.1.0
 	github.com/godbus/dbus/v5 v5.0.3
 	github.com/google/go-cmp v0.5.6
