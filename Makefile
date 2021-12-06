@@ -84,6 +84,10 @@ bin: $(BIN)
 $(BIN): $(GOSRC)
 	go build $(BUILDFLAGS) -ldflags "$(LDFLAGS)" -o $@ .
 
+.PHONY: tests
+tests:
+    go test -v ./...
+
 .PHONY: data
 data: $(DATA)
 
