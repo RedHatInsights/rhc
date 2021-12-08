@@ -82,7 +82,7 @@ func main() {
 			},
 			Usage:       "Connects the system to " + Provider,
 			UsageText:   fmt.Sprintf("%v connect [command options]", app.Name),
-			Description: fmt.Sprintf("The connect command connects the system to Red Hat Subscription Management and %v and activates the %v daemon that enables %v to interact with the system. For details visit: https://red.ht/connector", Provider, BrandName, Provider),
+			Description: fmt.Sprintf("The connect command connects the system to Red Hat Subscription Management, Red Hat Insights and %v and activates the %v daemon that enables %v to interact with the system. For details visit: https://red.ht/connector", Provider, BrandName, Provider),
 			Action: func(c *cli.Context) error {
 				hostname, err := os.Hostname()
 				if err != nil {
@@ -139,6 +139,16 @@ func main() {
 				}
 
 				s := spinner.New(spinner.CharSets[9], 100*time.Millisecond)
+
+				s.Suffix = " Connecting to Red Hat Insights..."
+				s.Start()
+				if err := registerInsights(); err != nil {
+					s.Stop()
+					return cli.Exit(err, 1)
+				}
+				s.Stop()
+				fmt.Printf(successPrefix + " Connected to Red Hat Insights\n")
+
 				s.Suffix = fmt.Sprintf(" Activating the %v daemon", BrandName)
 				s.Start()
 				if err := activate(); err != nil {
@@ -157,7 +167,7 @@ func main() {
 			Name:        "disconnect",
 			Usage:       "Disconnects the system from " + Provider,
 			UsageText:   fmt.Sprintf("%v disconnect", app.Name),
-			Description: fmt.Sprintf("The disconnect command disconnects the system from Red Hat Subscription Management and %v and deactivates the %v daemon. %v will no longer be able to interact with the system.", Provider, BrandName, Provider),
+			Description: fmt.Sprintf("The disconnect command disconnects the system from Red Hat Subscription Management, Red Hat Insights and %v and deactivates the %v daemon. %v will no longer be able to interact with the system.", Provider, BrandName, Provider),
 			Action: func(c *cli.Context) error {
 				hostname, err := os.Hostname()
 				if err != nil {
@@ -166,6 +176,7 @@ func main() {
 				fmt.Printf("Disconnecting %v from %v.\nThis might take a few seconds.\n\n", hostname, Provider)
 
 				s := spinner.New(spinner.CharSets[9], 100*time.Millisecond)
+
 				s.Suffix = fmt.Sprintf(" Deactivating the %v daemon", BrandName)
 				s.Start()
 				if err := deactivate(); err != nil {
@@ -173,6 +184,14 @@ func main() {
 				}
 				s.Stop()
 				fmt.Printf(failPrefix+" Deactivated the %v daemon\n", BrandName)
+
+				s.Suffix = " Disconnecting from Red Hat Insights..."
+				s.Start()
+				if err := unregisterInsights(); err != nil {
+					return cli.Exit(err, 1)
+				}
+				s.Stop()
+				fmt.Print(failPrefix + " Disconnected from Red Hat Insights\n")
 
 				s.Suffix = " Disconnecting from Red Hat Subscription Management..."
 				s.Start()
@@ -210,7 +229,7 @@ func main() {
 			Name:        "status",
 			Usage:       "Prints status of the system's connection to " + Provider,
 			UsageText:   fmt.Sprintf("%v status", app.Name),
-			Description: fmt.Sprintf("The status command prints the state of the connection to Red Hat Subscription Management and %v.", Provider),
+			Description: fmt.Sprintf("The status command prints the state of the connection to Red Hat Subscription Management, Red Hat Insights and %v.", Provider),
 			Action: func(c *cli.Context) error {
 				hostname, err := os.Hostname()
 				if err != nil {
@@ -227,6 +246,19 @@ func main() {
 					fmt.Printf(failPrefix + " Not connected to Red Hat Subscription Management\n")
 				} else {
 					fmt.Printf(successPrefix + " Connected to Red Hat Subscription Management\n")
+				}
+
+				s := spinner.New(spinner.CharSets[9], 100*time.Millisecond)
+
+				s.Suffix = " Checking Red Hat Insights..."
+				s.Start()
+				isRegistered := insightsIsRegistered()
+				s.Stop()
+
+				if isRegistered {
+					fmt.Print(successPrefix + " Connected to Red Hat Insights\n")
+				} else {
+					fmt.Print(failPrefix + " Not connected to Red Hat Insights\n")
 				}
 
 				conn, err := systemd.NewSystemConnection()
