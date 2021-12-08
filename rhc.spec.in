@@ -18,6 +18,8 @@ Source1: https://github.com/RedHatInsights/yggdrasil/archive/refs/heads/main.tar
 
 ExclusiveArch: %{go_arches}
 
+Requires:      insights-client
+
 BuildRequires: git
 BuildRequires: golang
 BuildRequires: dbus-devel
