@@ -2,4 +2,9 @@
 /rhc.1.gz
 /rhc.bash
 /USAGE.md
-/rhc.spec
+rhc.spec
+BUILD
+BUILDROOT
+RPMS
+SOURCES
+SRPMS
