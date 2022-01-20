@@ -8,13 +8,15 @@
 
 Name:    @LONGNAME@
 Version: @VERSION@
-Release: @RELEASE@
+Release: @RELEASE@%{?dist}
+Epoch:   1
 Summary: Client for registering Red Hat Enterprise Linux systems
 License: GPLv3
 URL:     https://github.com/redhatinsights/rhc
 
-Source0: %{name}-%{version}-%{release}.tar.gz
-Source1: https://github.com/RedHatInsights/yggdrasil/archive/refs/heads/main.tar.gz
+Source0: %{name}-%{version}-@RELEASE@.tar.gz
+Source1: https://github.com/RedHatInsights/yggdrasil/releases/download/0.2.1/yggdrasil-0.2.1.tar.gz
+Source2: https://github.com/RedHatInsights/yggdrasil-worker-package-manager/releases/download/0.1.0/yggdrasil-worker-package-manager-0.1.0.tar.gz
 
 ExclusiveArch: %{go_arches}
 
@@ -32,12 +34,13 @@ MQTT client.
 
 
 %prep
-%setup -n %{name}-%{version}-%{release} -a 0
-%setup -n %{name}-%{version}-%{release} -a 1
+%setup -T -D -c -n %{name} -a 0
+%setup -T -D -c -n %{name} -a 1
+%setup -T -D -c -n %{name} -a 2
 
 
 %build
-cd yggdrasil-main
+cd %{_builddir}/%{name}/yggdrasil-0.2.1
 make PREFIX=%{_prefix} \
      SYSCONFDIR=%{_sysconfdir} \
      LOCALSTATEDIR=%{_localstatedir} \
@@ -49,7 +52,11 @@ make PREFIX=%{_prefix} \
      VERSION=%{version} \
      DATAHOST=@DATAHOST@ \
      'PROVIDER=@PROVIDER@'
-cd ..
+
+cd %{_builddir}/%{name}/yggdrasil-worker-package-manager
+go build -o rhc-package-manager-worker -mod=vendor .
+
+cd %{_builddir}/%{name}/%{name}-%{version}-@RELEASE@
 make PREFIX=%{_prefix} \
      SYSCONFDIR=%{_sysconfdir} \
      LOCALSTATEDIR=%{_localstatedir} \
@@ -64,7 +71,7 @@ make PREFIX=%{_prefix} \
 
 
 %install
-cd yggdrasil-main
+cd %{_builddir}/%{name}/yggdrasil-0.2.1
 make PREFIX=%{_prefix} \
      SYSCONFDIR=%{_sysconfdir} \
      LOCALSTATEDIR=%{_localstatedir} \
@@ -78,7 +85,12 @@ make PREFIX=%{_prefix} \
      DATAHOST=@DATAHOST@ \
      'PROVIDER=@PROVIDER@' \
      install
-cd ..
+
+cd %{_builddir}/%{name}/yggdrasil-worker-package-manager
+install -D -m 755 rhc-package-manager-worker %{buildroot}%{_libexecdir}/@LONGNAME@/
+install -D -m 644 config.toml %{buildroot}%{_sysconfdir}/@LONGNAME@/workers/rhc-package-manager.toml
+
+cd %{_builddir}/%{name}/%{name}-%{version}-@RELEASE@
 make PREFIX=%{_prefix} \
      SYSCONFDIR=%{_sysconfdir} \
      LOCALSTATEDIR=%{_localstatedir} \
@@ -94,9 +106,10 @@ make PREFIX=%{_prefix} \
      install
 
 %files
-%doc README.md
+%doc %{name}-%{version}-@RELEASE@/README.md
 %{_bindir}/@SHORTNAME@
 %{_sbindir}/@SHORTNAME@d
+%{_sysconfdir}/@LONGNAME@/
 %config(noreplace) %{_sysconfdir}/@LONGNAME@/config.toml
 %{_unitdir}/@SHORTNAME@d.service
 %{_datadir}/bash-completion/completions/*
