@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"text/tabwriter"
 	"time"
 
 	"git.sr.ht/~spc/go-log"
@@ -18,6 +19,7 @@ import (
 
 const successPrefix = "\033[32m●\033[0m"
 const failPrefix = "\033[31m●\033[0m"
+const errorPrefix = "\033[31m!\033[0m"
 
 func main() {
 	app := cli.NewApp()
@@ -169,6 +171,7 @@ func main() {
 			UsageText:   fmt.Sprintf("%v disconnect", app.Name),
 			Description: fmt.Sprintf("The disconnect command disconnects the system from Red Hat Subscription Management, Red Hat Insights and %v and deactivates the %v daemon. %v will no longer be able to interact with the system.", Provider, BrandName, Provider),
 			Action: func(c *cli.Context) error {
+				errorMessages := make(map[string]error)
 				hostname, err := os.Hostname()
 				if err != nil {
 					return cli.Exit(err, 1)
@@ -180,28 +183,49 @@ func main() {
 				s.Suffix = fmt.Sprintf(" Deactivating the %v daemon", BrandName)
 				s.Start()
 				if err := deactivate(); err != nil {
-					return cli.Exit(err, 1)
+					errorMessages[BrandName] = fmt.Errorf("cannot deactivate daemon: %w", err)
+					s.Stop()
+					fmt.Printf(errorPrefix+" Cannot deactivate the %v daemon\n", BrandName)
+				} else {
+					s.Stop()
+					fmt.Printf(failPrefix+" Deactivated the %v daemon\n", BrandName)
 				}
-				s.Stop()
-				fmt.Printf(failPrefix+" Deactivated the %v daemon\n", BrandName)
 
 				s.Suffix = " Disconnecting from Red Hat Insights..."
 				s.Start()
 				if err := unregisterInsights(); err != nil {
-					return cli.Exit(err, 1)
+					errorMessages["insights"] = fmt.Errorf("cannot disconnect from Red Hat Insights: %w", err)
+					s.Stop()
+					fmt.Printf(errorPrefix + " Cannot disconnect from Red Hat Insights\n")
+				} else {
+					s.Stop()
+					fmt.Print(failPrefix + " Disconnected from Red Hat Insights\n")
 				}
-				s.Stop()
-				fmt.Print(failPrefix + " Disconnected from Red Hat Insights\n")
 
 				s.Suffix = " Disconnecting from Red Hat Subscription Management..."
 				s.Start()
 				if err := unregister(); err != nil {
-					return cli.Exit(err, 1)
+					errorMessages["rhsm"] = fmt.Errorf("cannot disconnect from Red Hat Subscription Management: %w", err)
+					s.Stop()
+					fmt.Printf(errorPrefix + " Cannot disconnect from Red Hat Subscription Management\n")
+				} else {
+					s.Stop()
+					fmt.Printf(failPrefix + " Disconnected from Red Hat Subscription Management\n")
 				}
-				s.Stop()
-				fmt.Printf(failPrefix + " Disconnected from Red Hat Subscription Management\n")
 
 				fmt.Printf("\nManage your Red Hat connector systems: https://red.ht/connector\n")
+
+				if len(errorMessages) > 0 {
+					fmt.Println()
+					fmt.Printf("The following errors were encountered during disconnect:\n\n")
+					w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+					fmt.Fprintln(w, "STEP\tERROR\t")
+					for svc, err := range errorMessages {
+						fmt.Fprintf(w, "%v\t%v\n", svc, err)
+					}
+					w.Flush()
+					return cli.Exit("", 1)
+				}
 
 				return nil
 			},
