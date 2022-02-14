@@ -86,6 +86,8 @@ func main() {
 			UsageText:   fmt.Sprintf("%v connect [command options]", app.Name),
 			Description: fmt.Sprintf("The connect command connects the system to Red Hat Subscription Management, Red Hat Insights and %v and activates the %v daemon that enables %v to interact with the system. For details visit: https://red.ht/connector", Provider, BrandName, Provider),
 			Action: func(c *cli.Context) error {
+				var start time.Time
+				durations := make(map[string]time.Duration)
 				hostname, err := os.Hostname()
 				if err != nil {
 					return cli.Exit(err, 1)
@@ -93,6 +95,7 @@ func main() {
 
 				fmt.Printf("Connecting %v to %v.\nThis might take a few seconds.\n\n", hostname, Provider)
 
+				start = time.Now()
 				uuid, err := getConsumerUUID()
 				if err != nil {
 					return cli.Exit(err, 1)
@@ -139,7 +142,9 @@ func main() {
 				} else {
 					fmt.Printf(successPrefix + " This system is already connected to Red Hat Subscription Management\n")
 				}
+				durations["rhsm"] = time.Since(start)
 
+				start = time.Now()
 				s := spinner.New(spinner.CharSets[9], 100*time.Millisecond)
 
 				s.Suffix = " Connecting to Red Hat Insights..."
@@ -150,7 +155,9 @@ func main() {
 				}
 				s.Stop()
 				fmt.Printf(successPrefix + " Connected to Red Hat Insights\n")
+				durations["insights"] = time.Since(start)
 
+				start = time.Now()
 				s.Suffix = fmt.Sprintf(" Activating the %v daemon", BrandName)
 				s.Start()
 				if err := activate(); err != nil {
@@ -159,8 +166,19 @@ func main() {
 				}
 				s.Stop()
 				fmt.Printf(successPrefix+" Activated the %v daemon\n", BrandName)
+				durations[BrandName] = time.Since(start)
 
 				fmt.Printf("\nManage your Red Hat connector systems: https://red.ht/connector\n")
+
+				if log.CurrentLevel() >= log.LevelDebug {
+					fmt.Println()
+					w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+					fmt.Fprintln(w, "STEP\tDURATION\t")
+					for step, duration := range durations {
+						fmt.Fprintf(w, "%v\t%v\t\n", step, duration.Truncate(time.Millisecond))
+					}
+					w.Flush()
+				}
 
 				return nil
 			},
@@ -171,6 +189,8 @@ func main() {
 			UsageText:   fmt.Sprintf("%v disconnect", app.Name),
 			Description: fmt.Sprintf("The disconnect command disconnects the system from Red Hat Subscription Management, Red Hat Insights and %v and deactivates the %v daemon. %v will no longer be able to interact with the system.", Provider, BrandName, Provider),
 			Action: func(c *cli.Context) error {
+				var start time.Time
+				durations := make(map[string]time.Duration)
 				errorMessages := make(map[string]error)
 				hostname, err := os.Hostname()
 				if err != nil {
@@ -180,6 +200,7 @@ func main() {
 
 				s := spinner.New(spinner.CharSets[9], 100*time.Millisecond)
 
+				start = time.Now()
 				s.Suffix = fmt.Sprintf(" Deactivating the %v daemon", BrandName)
 				s.Start()
 				if err := deactivate(); err != nil {
@@ -190,7 +211,9 @@ func main() {
 					s.Stop()
 					fmt.Printf(failPrefix+" Deactivated the %v daemon\n", BrandName)
 				}
+				durations[BrandName] = time.Since(start)
 
+				start = time.Now()
 				s.Suffix = " Disconnecting from Red Hat Insights..."
 				s.Start()
 				if err := unregisterInsights(); err != nil {
@@ -201,7 +224,9 @@ func main() {
 					s.Stop()
 					fmt.Print(failPrefix + " Disconnected from Red Hat Insights\n")
 				}
+				durations["insights"] = time.Since(start)
 
+				start = time.Now()
 				s.Suffix = " Disconnecting from Red Hat Subscription Management..."
 				s.Start()
 				if err := unregister(); err != nil {
@@ -212,8 +237,19 @@ func main() {
 					s.Stop()
 					fmt.Printf(failPrefix + " Disconnected from Red Hat Subscription Management\n")
 				}
+				durations["rhsm"] = time.Since(start)
 
 				fmt.Printf("\nManage your Red Hat connector systems: https://red.ht/connector\n")
+
+				if log.CurrentLevel() >= log.LevelDebug {
+					fmt.Println()
+					w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+					fmt.Fprintln(w, "STEP\tDURATION\t")
+					for step, duration := range durations {
+						fmt.Fprintf(w, "%v\t%v\t\n", step, duration.Truncate(time.Millisecond))
+					}
+					w.Flush()
+				}
 
 				if len(errorMessages) > 0 {
 					fmt.Println()
