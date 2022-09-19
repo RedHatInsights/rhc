@@ -17,9 +17,13 @@ import (
 	"golang.org/x/term"
 )
 
-const successPrefix = "\033[32m●\033[0m"
-const failPrefix = "\033[31m●\033[0m"
-const errorPrefix = "\033[31m!\033[0m"
+const redColor = "\u001B[31m"
+const greenColor = "\u001B[32m"
+const endColor = "\u001B[0m"
+
+const successPrefix = greenColor + "●" + endColor
+const failPrefix = redColor + "●" + endColor
+const errorPrefix = redColor + "!" + endColor
 
 func main() {
 	app := cli.NewApp()
@@ -312,13 +316,17 @@ func main() {
 
 				s.Suffix = " Checking Red Hat Insights..."
 				s.Start()
-				isRegistered := insightsIsRegistered()
+				isRegistered, err := insightsIsRegistered()
 				s.Stop()
 
 				if isRegistered {
 					fmt.Print(successPrefix + " Connected to Red Hat Insights\n")
 				} else {
-					fmt.Print(failPrefix + " Not connected to Red Hat Insights\n")
+					if err == nil {
+						fmt.Print(failPrefix + " Not connected to Red Hat Insights\n")
+					} else {
+						fmt.Printf(errorPrefix+" Cannot execute insights-client: %v\n", err)
+					}
 				}
 
 				conn, err := systemd.NewSystemConnection()
