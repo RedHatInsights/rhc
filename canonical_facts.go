@@ -4,7 +4,6 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
@@ -165,7 +164,7 @@ func GetCanonicalFacts() (*CanonicalFacts, error) {
 // readFile reads the contents of filename into a string, trims whitespace,
 // and returns the result.
 func readFile(filename string) (string, error) {
-	data, err := ioutil.ReadFile(filename)
+	data, err := os.ReadFile(filename)
 	if err != nil {
 		return "", err
 	}
@@ -178,7 +177,7 @@ func readCert(filename string) (string, error) {
 	var asn1Data []byte
 	switch filepath.Ext(filename) {
 	case ".pem":
-		data, err := ioutil.ReadFile(filename)
+		data, err := os.ReadFile(filename)
 		if err != nil {
 			return "", err
 		}
@@ -190,7 +189,7 @@ func readCert(filename string) (string, error) {
 		asn1Data = append(asn1Data, block.Bytes...)
 	default:
 		var err error
-		asn1Data, err = ioutil.ReadFile(filename)
+		asn1Data, err = os.ReadFile(filename)
 		if err != nil {
 			return "", err
 		}
