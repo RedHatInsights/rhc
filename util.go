@@ -5,7 +5,14 @@ import (
 	"io"
 
 	"github.com/urfave/cli/v2"
+	"golang.org/x/sys/unix"
 )
+
+// isTerminal returns true if the file descriptor is terminal.
+func isTerminal(fd uintptr) bool {
+	_, err := unix.IoctlGetTermios(int(fd), unix.TCGETS)
+	return err == nil
+}
 
 // BashCompleteCommand prints all visible flag options for the given command,
 // and then recursively calls itself on each subcommand.
