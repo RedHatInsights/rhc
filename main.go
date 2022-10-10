@@ -21,9 +21,15 @@ const redColor = "\u001B[31m"
 const greenColor = "\u001B[32m"
 const endColor = "\u001B[0m"
 
-const successPrefix = greenColor + "●" + endColor
-const failPrefix = redColor + "●" + endColor
-const errorPrefix = redColor + "!" + endColor
+// Colorful prefixes
+const ttySuccessPrefix = greenColor + "●" + endColor
+const ttyFailPrefix = redColor + "●" + endColor
+const ttyErrorPrefix = redColor + "!" + endColor
+
+// Black & white prefixes. Unicode characters
+const bwSuccessPrefix = "✓"
+const bwFailPrefix = "𐄂"
+const bwErrorPrefix = "!"
 
 func main() {
 	app := cli.NewApp()
@@ -42,6 +48,12 @@ func main() {
 	log.SetFlags(0)
 	log.SetPrefix("")
 
+	isColorful := true
+
+	successPrefix := ttySuccessPrefix
+	failPrefix := ttyFailPrefix
+	errorPrefix := ttyErrorPrefix
+
 	app.Flags = []cli.Flag{
 		&cli.BoolFlag{
 			Name:   "generate-man-page",
@@ -55,6 +67,12 @@ func main() {
 			Name:   "log-level",
 			Hidden: true,
 			Value:  "error",
+		},
+		&cli.BoolFlag{
+			Name:   "no-color",
+			Hidden: false,
+			Value:  false,
+			EnvVars: []string{"NO_COLOR"},
 		},
 	}
 	app.Commands = []*cli.Command{
@@ -128,20 +146,24 @@ func main() {
 						}
 					}
 
-					s := spinner.New(spinner.CharSets[9], 100*time.Millisecond)
-					s.Suffix = " Connecting to Red Hat Subscription Management..."
-					s.Start()
+					var s *spinner.Spinner
+					if isColorful {
+						s = spinner.New(spinner.CharSets[9], 100*time.Millisecond)
+						s.Suffix = " Connecting to Red Hat Subscription Management..."
+						s.Start()
+					}
 					var err error
 					if c.String("organization") != "" {
 						err = registerActivationKey(c.String("organization"), c.StringSlice("activation-key"), c.String("server"))
 					} else {
 						err = registerPassword(username, password, c.String("server"))
 					}
-					if err != nil {
+					if isColorful {
 						s.Stop()
+					}
+					if err != nil {
 						return cli.Exit(err, 1)
 					}
-					s.Stop()
 					fmt.Printf(successPrefix + " Connected to Red Hat Subscription Management\n")
 				} else {
 					fmt.Printf(successPrefix + " This system is already connected to Red Hat Subscription Management\n")
@@ -149,26 +171,34 @@ func main() {
 				durations["rhsm"] = time.Since(start)
 
 				start = time.Now()
-				s := spinner.New(spinner.CharSets[9], 100*time.Millisecond)
-
-				s.Suffix = " Connecting to Red Hat Insights..."
-				s.Start()
-				if err := registerInsights(); err != nil {
+				var s *spinner.Spinner
+				if isColorful {
+					s = spinner.New(spinner.CharSets[9], 100*time.Millisecond)
+					s.Suffix = " Connecting to Red Hat Insights..."
+					s.Start()
+				}
+				err = registerInsights()
+				if isColorful {
 					s.Stop()
+				}
+				if err != nil {
 					return cli.Exit(err, 1)
 				}
-				s.Stop()
 				fmt.Printf(successPrefix + " Connected to Red Hat Insights\n")
 				durations["insights"] = time.Since(start)
 
 				start = time.Now()
-				s.Suffix = fmt.Sprintf(" Activating the %v daemon", BrandName)
-				s.Start()
-				if err := activate(); err != nil {
+				if isColorful {
+					s.Suffix = fmt.Sprintf(" Activating the %v daemon", BrandName)
+					s.Start()
+				}
+				err = activate()
+				if isColorful {
 					s.Stop()
+				}
+				if err != nil {
 					return cli.Exit(err, 1)
 				}
-				s.Stop()
 				fmt.Printf(successPrefix+" Activated the %v daemon\n", BrandName)
 				durations[BrandName] = time.Since(start)
 
@@ -205,40 +235,52 @@ func main() {
 				s := spinner.New(spinner.CharSets[9], 100*time.Millisecond)
 
 				start = time.Now()
-				s.Suffix = fmt.Sprintf(" Deactivating the %v daemon", BrandName)
-				s.Start()
-				if err := deactivate(); err != nil {
-					errorMessages[BrandName] = fmt.Errorf("cannot deactivate daemon: %w", err)
+				if isColorful {
+					s.Suffix = fmt.Sprintf(" Deactivating the %v daemon", BrandName)
+					s.Start()
+				}
+				err = deactivate()
+				if isColorful {
 					s.Stop()
+				}
+				if err != nil {
+					errorMessages[BrandName] = fmt.Errorf("cannot deactivate daemon: %w", err)
 					fmt.Printf(errorPrefix+" Cannot deactivate the %v daemon\n", BrandName)
 				} else {
-					s.Stop()
 					fmt.Printf(failPrefix+" Deactivated the %v daemon\n", BrandName)
 				}
 				durations[BrandName] = time.Since(start)
 
 				start = time.Now()
-				s.Suffix = " Disconnecting from Red Hat Insights..."
-				s.Start()
-				if err := unregisterInsights(); err != nil {
-					errorMessages["insights"] = fmt.Errorf("cannot disconnect from Red Hat Insights: %w", err)
+				if isColorful {
+					s.Suffix = " Disconnecting from Red Hat Insights..."
+					s.Start()
+				}
+				err = unregisterInsights()
+				if isColorful {
 					s.Stop()
+				}
+				if err != nil {
+					errorMessages["insights"] = fmt.Errorf("cannot disconnect from Red Hat Insights: %w", err)
 					fmt.Printf(errorPrefix + " Cannot disconnect from Red Hat Insights\n")
 				} else {
-					s.Stop()
 					fmt.Print(failPrefix + " Disconnected from Red Hat Insights\n")
 				}
 				durations["insights"] = time.Since(start)
 
 				start = time.Now()
-				s.Suffix = " Disconnecting from Red Hat Subscription Management..."
-				s.Start()
-				if err := unregister(); err != nil {
-					errorMessages["rhsm"] = fmt.Errorf("cannot disconnect from Red Hat Subscription Management: %w", err)
+				if isColorful {
+					s.Suffix = " Disconnecting from Red Hat Subscription Management..."
+					s.Start()
+				}
+				err = unregister()
+				if isColorful {
 					s.Stop()
+				}
+				if err != nil {
+					errorMessages["rhsm"] = fmt.Errorf("cannot disconnect from Red Hat Subscription Management: %w", err)
 					fmt.Printf(errorPrefix + " Cannot disconnect from Red Hat Subscription Management\n")
 				} else {
-					s.Stop()
 					fmt.Printf(failPrefix + " Disconnected from Red Hat Subscription Management\n")
 				}
 				durations["rhsm"] = time.Since(start)
@@ -312,12 +354,16 @@ func main() {
 					fmt.Printf(successPrefix + " Connected to Red Hat Subscription Management\n")
 				}
 
-				s := spinner.New(spinner.CharSets[9], 100*time.Millisecond)
-
-				s.Suffix = " Checking Red Hat Insights..."
-				s.Start()
+				var s *spinner.Spinner
+				if isColorful {
+					s = spinner.New(spinner.CharSets[9], 100*time.Millisecond)
+					s.Suffix = " Checking Red Hat Insights..."
+					s.Start()
+				}
 				isRegistered, err := insightsIsRegistered()
-				s.Stop()
+				if isColorful {
+					s.Stop()
+				}
 
 				if isRegistered {
 					fmt.Print(successPrefix + " Connected to Red Hat Insights\n")
@@ -380,6 +426,17 @@ func main() {
 			return cli.Exit(err, 1)
 		}
 		log.SetLevel(level)
+
+		// When environment variable NO_COLOR or --no-color CLI option is set, then do not display colors
+		// and animations too. BTW: We do not care about value of NO_COLOR variable.
+		// When no-color is not set, then try to detect if the output goes to some file. In this case
+		// colors nor animations will not be printed to file.
+		if c.Bool("no-color") || !isTerminal(os.Stdout.Fd()) {
+			successPrefix = bwSuccessPrefix
+			failPrefix = bwFailPrefix
+			errorPrefix = bwErrorPrefix
+			isColorful = false
+		}
 
 		return nil
 	}
