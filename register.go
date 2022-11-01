@@ -23,7 +23,7 @@ func getConsumerUUID() (string, error) {
 	return uuid, nil
 }
 
-func registerPassword(username, password, serverURL string) error {
+func registerPassword(username, password, organization, serverURL string) error {
 	if serverURL != "" {
 		if err := configureRHSM(serverURL); err != nil {
 			return fmt.Errorf("cannot configure RHSM: %w", err)
@@ -61,7 +61,7 @@ func registerPassword(username, password, serverURL string) error {
 		return err
 	}
 
-	if err := privConn.Object("com.redhat.RHSM1", "/com/redhat/RHSM1/Register").Call("com.redhat.RHSM1.Register.Register", dbus.Flags(0), "", username, password, map[string]string{}, map[string]string{}, "").Err; err != nil {
+	if err := privConn.Object("com.redhat.RHSM1", "/com/redhat/RHSM1/Register").Call("com.redhat.RHSM1.Register.Register", dbus.Flags(0), organization, username, password, map[string]string{}, map[string]string{}, "").Err; err != nil {
 		return unpackError(err)
 	}
 
