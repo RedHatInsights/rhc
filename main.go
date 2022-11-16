@@ -95,10 +95,10 @@ func showErrorMessages(action string, errorMessages map[string]error) error {
 }
 
 // registerRHSM tries to register system against Red Hat Subscription Management server (candlepin server)
-func registerRHSM(ctx *cli.Context) (error, string) {
+func registerRHSM(ctx *cli.Context) (string, error) {
 	uuid, err := getConsumerUUID()
 	if err != nil {
-		return cli.Exit(err, 1), "Unable to get consumer UUID"
+		return "Unable to get consumer UUID", cli.Exit(err, 1)
 	}
 	var successMsg string
 
@@ -122,7 +122,7 @@ func registerRHSM(ctx *cli.Context) (error, string) {
 				fmt.Print("Password: ")
 				data, err := term.ReadPassword(int(os.Stdin.Fd()))
 				if err != nil {
-					return cli.Exit(err, 1), "Unable to read password"
+					return "Unable to read password", cli.Exit(err, 1)
 				}
 				password = string(data)
 				fmt.Printf("\n\n")
@@ -144,28 +144,55 @@ func registerRHSM(ctx *cli.Context) (error, string) {
 				ctx.StringSlice("activation-key"),
 				ctx.String("server"))
 		} else {
+			var orgs []string
 			if organization != "" {
-				err = registerPassword(username, password, organization, ctx.String("server"))
+				_, err = registerUsernamePassword(username, password, organization, ctx.String("server"))
 			} else {
-				/* TODO: When organization was not specified using CLI option --organization and it is
+				orgs, err = registerUsernamePassword(username, password, "", ctx.String("server"))
+				/* When organization was not specified using CLI option --organization, and it is
 				   required, because user is member of more than one organization, then ask for
-				   the organization. RHSM D-Bus API can provide list of available organizations
-				   in this case. */
-				err = registerPassword(username, password, "", ctx.String("server"))
+				   the organization. */
+				if len(orgs) > 0 {
+					// Stop spinner to be able to display message and ask for organization
+					if isColorful {
+						s.Stop()
+					}
+
+					// Ask for organization and display hint with list of organizations
+					fmt.Printf("Available Organizations:\n")
+					for _, org := range orgs {
+						fmt.Printf(" - %v\n", org)
+					}
+					fmt.Printf("\n")
+
+					scanner := bufio.NewScanner(os.Stdin)
+					fmt.Print("Organization: ")
+					_ = scanner.Scan()
+					organization = strings.TrimSpace(scanner.Text())
+					fmt.Printf("\n")
+
+					// Start spinner again
+					if isColorful {
+						s.Start()
+					}
+
+					// Try to register once again with given organization
+					_, err = registerUsernamePassword(username, password, organization, ctx.String("server"))
+				}
 			}
 		}
 		if err != nil {
-			return cli.Exit(err, 1), "Unable to register system to RHSM"
+			return "Unable to register system to RHSM", cli.Exit(err, 1)
 		}
 		successMsg = "Connected to Red Hat Subscription Management"
 	} else {
 		successMsg = "This system is already connected to Red Hat Subscription Management"
 	}
-	return nil, successMsg
+	return successMsg, nil
 }
 
 // connectAction tries to register system against Red Hat Subscription Management,
-// connect system to Red Hat Insights and it also tries to start rhcd service
+// connect system to Red Hat Insights, and it also tries to start rhcd service
 func connectAction(ctx *cli.Context) error {
 	uid := os.Getuid()
 	if uid != 0 {
@@ -187,7 +214,7 @@ func connectAction(ctx *cli.Context) error {
 	/* 1. Register to RHSM, because we need to get consumer certificate. This blocks following action */
 	start = time.Now()
 	var returnedMsg string
-	err, returnedMsg = registerRHSM(ctx)
+	returnedMsg, err = registerRHSM(ctx)
 	if err != nil {
 		errorMessages["rhsm"] = fmt.Errorf("cannot connect to Red Hat Subscription Management: %w", err)
 		fmt.Printf(errorPrefix + " Cannot connect to Red Hat Subscription Management\n")
