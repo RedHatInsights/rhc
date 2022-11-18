@@ -314,7 +314,7 @@ func canonicalFactAction(_ *cli.Context) error {
 // answer on following questions:
 // 1. Is system registered to Red Hat Subscription Management?
 // 2. Is system connected to red Hat Insights?
-// 3. Is rhsm.service running?
+// 3. Is rhcd.service running?
 func statusAction(ctx *cli.Context) error {
 	hostname, err := os.Hostname()
 	if err != nil {
