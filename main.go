@@ -40,14 +40,14 @@ func showProgress(progressMessage string, isColorful bool, function func() error
 		s.Suffix = progressMessage
 		s.Start()
 		// Stop spinner after running function
-		defer func() {s.Stop()}()
+		defer func() { s.Stop() }()
 	}
 	return function()
 }
 
 // getColorPreferences tries to get color preferences form context
 func getColorPreferences(ctx *cli.Context) (connectedPrefix string, disconnectedPrefix string,
-		errorPrefix string, isColorful bool) {
+	errorPrefix string, isColorful bool) {
 	noColor := ctx.Bool("no-color")
 
 	if noColor {
@@ -207,7 +207,7 @@ func connectAction(ctx *cli.Context) error {
 
 	/* 3. Start rhcd daemon */
 	if _, exist := errorMessages["rhsm"]; exist {
-		fmt.Printf(disconnectedPrefix + " Skipping activation of %v daemon\n", BrandName)
+		fmt.Printf(disconnectedPrefix+" Skipping activation of %v daemon\n", BrandName)
 	} else {
 		start = time.Now()
 		progressMessage := fmt.Sprintf(" Activating the %v daemon", BrandName)
