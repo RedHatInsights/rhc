@@ -310,20 +310,73 @@ func canonicalFactAction(_ *cli.Context) error {
 	return nil
 }
 
+// SystemStatus is structure holding information about system status
+type SystemStatus struct {
+	SystemHostname      string `json:"hostname"`
+	HostnameError       error  `json:"hostname_error,omitempty"`
+	RHSMConnected       bool   `json:"rhsm_connected"`
+	RHSMError           error  `json:"rhsm_error,omitempty"`
+	InsightsConnected   bool   `json:"insights_connected"`
+	InsightsError       error  `json:"insights_error,omitempty"`
+	RHCDRunning         bool   `json:"rhcd_running"`
+	RHCDError           error  `json:"rhcd_error,omitempty"`
+}
+
+// printJSONStatus tries to print the system status as JSON to stdout.
+// When marshaling of systemStatus fails, then error is returned
+func printJSONStatus(systemStatus *SystemStatus) error {
+	data, err := json.MarshalIndent(systemStatus, "", "    ")
+	if err != nil {
+		return err
+	}
+	fmt.Println(string(data))
+	return nil
+}
+
 // statusAction tries to print status of system. It means that it gives
 // answer on following questions:
 // 1. Is system registered to Red Hat Subscription Management?
-// 2. Is system connected to red Hat Insights?
+// 2. Is system connected to Red Hat Insights?
 // 3. Is rhcd.service running?
+// Status can be printed as human-readable text or machine-readable JSON document.
+// Format is influenced by --json CLI option stored in CLI context
 func statusAction(ctx *cli.Context) error {
-	hostname, err := os.Hostname()
-	if err != nil {
-		return cli.Exit(err, 1)
-	}
-
-	fmt.Printf("Connection status for %v:\n\n", hostname)
+	var systemStatus SystemStatus
+	jsonOutput := ctx.Bool("json")
 
 	connectedPrefix, disconnectedPrefix, errorPrefix, isColorful := getColorPreferences(ctx)
+
+	// When printing of status is requested, then print JSON at the end of this function
+	if jsonOutput {
+		defer func(systemStatus *SystemStatus) {
+			err := printJSONStatus(systemStatus)
+			// When it was not possible to print status to JSON
+			if err != nil {
+				_, _ = fmt.Fprintf(
+					os.Stderr,
+					"Unable to print status as JSON document: %s\n",
+					err.Error(),
+				)
+			}
+		}(&systemStatus)
+		// Disable all colors and animations
+		isColorful = false
+	}
+
+	hostname, err := os.Hostname()
+	if err != nil {
+		if jsonOutput {
+			systemStatus.HostnameError = err
+		} else {
+			return cli.Exit(err, 1)
+		}
+	}
+
+	if jsonOutput {
+		systemStatus.SystemHostname = hostname
+	} else {
+		fmt.Printf("Connection status for %v:\n\n", hostname)
+	}
 
 	/* 1. Get Status of RHSM */
 	uuid, err := getConsumerUUID()
@@ -331,9 +384,17 @@ func statusAction(ctx *cli.Context) error {
 		return cli.Exit(err, 1)
 	}
 	if uuid == "" {
-		fmt.Printf(disconnectedPrefix + " Not connected to Red Hat Subscription Management\n")
+		if jsonOutput {
+			systemStatus.RHSMConnected = false
+		} else {
+			fmt.Printf(disconnectedPrefix + " Not connected to Red Hat Subscription Management\n")
+		}
 	} else {
-		fmt.Printf(connectedPrefix + " Connected to Red Hat Subscription Management\n")
+		if jsonOutput {
+			systemStatus.RHSMConnected = true
+		} else {
+			fmt.Printf(connectedPrefix + " Connected to Red Hat Subscription Management\n")
+		}
 	}
 
 	/* 2. Get status of insights-client */
@@ -348,34 +409,61 @@ func statusAction(ctx *cli.Context) error {
 		s.Stop()
 	}
 	if isRegistered {
-		fmt.Print(connectedPrefix + " Connected to Red Hat Insights\n")
+		if jsonOutput {
+			systemStatus.InsightsConnected = true
+		} else {
+			fmt.Print(connectedPrefix + " Connected to Red Hat Insights\n")
+		}
 	} else {
 		if err == nil {
-			fmt.Print(disconnectedPrefix + " Not connected to Red Hat Insights\n")
+			if jsonOutput {
+				systemStatus.InsightsConnected = true
+			} else {
+				fmt.Print(disconnectedPrefix + " Not connected to Red Hat Insights\n")
+			}
 		} else {
-			fmt.Printf(errorPrefix+" Cannot execute insights-client: %v\n", err)
+			if jsonOutput {
+				systemStatus.InsightsConnected = false
+				systemStatus.InsightsError = err
+			} else {
+				fmt.Printf(errorPrefix+" Cannot execute insights-client: %v\n", err)
+			}
 		}
 	}
 
 	/* 3. Get status of rhcd */
 	conn, err := systemd.NewSystemConnection()
 	if err != nil {
+		systemStatus.RHCDRunning = false
+		systemStatus.RHCDError = err
 		return cli.Exit(err, 1)
 	}
 	defer conn.Close()
 	unitName := ShortName + "d.service"
 	properties, err := conn.GetUnitProperties(unitName)
 	if err != nil {
+		systemStatus.RHCDRunning = false
+		systemStatus.RHCDError = err
 		return cli.Exit(err, 1)
 	}
 	activeState := properties["ActiveState"]
 	if activeState.(string) == "active" {
-		fmt.Printf(connectedPrefix+" The %v daemon is active\n", BrandName)
+		if jsonOutput {
+			systemStatus.RHCDRunning = true
+		} else {
+			fmt.Printf(connectedPrefix+" The %v daemon is active\n", BrandName)
+		}
 	} else {
-		fmt.Printf(disconnectedPrefix+" The %v daemon is inactive\n", BrandName)
+		if jsonOutput {
+			systemStatus.RHCDRunning = false
+		} else {
+			fmt.Printf(disconnectedPrefix+" The %v daemon is inactive\n", BrandName)
+		}
 	}
 
-	fmt.Printf("\nManage your Red Hat connector systems: https://red.ht/connector\n")
+	if !jsonOutput {
+		fmt.Printf("\nManage your Red Hat connector systems: https://red.ht/connector\n")
+	}
 
 	return nil
 }
@@ -511,6 +599,13 @@ func main() {
 		},
 		{
 			Name:        "status",
+			Flags: []cli.Flag{
+				&cli.BoolFlag{
+					Name:    "json",
+					Usage:   "prints status as JSON document",
+					Aliases: []string{"j"},
+				},
+			},
 			Usage:       "Prints status of the system's connection to " + Provider,
 			UsageText:   fmt.Sprintf("%v status", app.Name),
 			Description: fmt.Sprintf("The status command prints the state of the connection to Red Hat Subscription Management, Red Hat Insights and %v.", Provider),
