@@ -4,11 +4,12 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	"golang.org/x/term"
 	"os"
 	"strings"
 	"text/tabwriter"
 	"time"
+
+	"golang.org/x/term"
 
 	"git.sr.ht/~spc/go-log"
 
@@ -311,15 +312,17 @@ func canonicalFactAction(_ *cli.Context) error {
 }
 
 // SystemStatus is structure holding information about system status
+// When more file format is supported, then add more tags for fields
+// like xml:"hostname"
 type SystemStatus struct {
-	SystemHostname      string `json:"hostname"`
-	HostnameError       error  `json:"hostname_error,omitempty"`
-	RHSMConnected       bool   `json:"rhsm_connected"`
-	RHSMError           error  `json:"rhsm_error,omitempty"`
-	InsightsConnected   bool   `json:"insights_connected"`
-	InsightsError       error  `json:"insights_error,omitempty"`
-	RHCDRunning         bool   `json:"rhcd_running"`
-	RHCDError           error  `json:"rhcd_error,omitempty"`
+	SystemHostname    string `json:"hostname"`
+	HostnameError     error  `json:"hostname_error,omitempty"`
+	RHSMConnected     bool   `json:"rhsm_connected"`
+	RHSMError         error  `json:"rhsm_error,omitempty"`
+	InsightsConnected bool   `json:"insights_connected"`
+	InsightsError     error  `json:"insights_error,omitempty"`
+	RHCDRunning       bool   `json:"rhcd_running"`
+	RHCDError         error  `json:"rhcd_error,omitempty"`
 }
 
 // printJSONStatus tries to print the system status as JSON to stdout.
@@ -339,24 +342,42 @@ func printJSONStatus(systemStatus *SystemStatus) error {
 // 2. Is system connected to Red Hat Insights?
 // 3. Is rhcd.service running?
 // Status can be printed as human-readable text or machine-readable JSON document.
-// Format is influenced by --json CLI option stored in CLI context
-func statusAction(ctx *cli.Context) error {
+// Format is influenced by --format json CLI option stored in CLI context
+func statusAction(ctx *cli.Context) (err error) {
 	var systemStatus SystemStatus
-	jsonOutput := ctx.Bool("json")
+	machineReadable := false
+	var machineReadablePrintFunc func(systemStatus *SystemStatus) error
+
+	// Only JSON file format is supported ATM
+	format := ctx.String("format")
+	if format != "" {
+		switch format {
+		case "json":
+			machineReadable = true
+			machineReadablePrintFunc = printJSONStatus
+		default:
+			err := fmt.Errorf(
+				"unsuported machine-readable format: %s (supported formats: %s)",
+				format, "\"json\"",
+			)
+			return cli.Exit(err, 1)
+		}
+	}
 
 	connectedPrefix, disconnectedPrefix, errorPrefix, isColorful := getColorPreferences(ctx)
 
-	// When printing of status is requested, then print JSON at the end of this function
-	if jsonOutput {
+	// When printing of status is requested, then print machine-readable file format
+	// at the end of this function
+	if machineReadable {
 		defer func(systemStatus *SystemStatus) {
-			err := printJSONStatus(systemStatus)
-			// When it was not possible to print status to JSON
+			err = machineReadablePrintFunc(systemStatus)
+			// When it was not possible to print status to machine-readable format, then
+			// change returned error to CLI exit error to be able to set exit code to
+			// a non-zero value
 			if err != nil {
-				_, _ = fmt.Fprintf(
-					os.Stderr,
-					"Unable to print status as JSON document: %s\n",
-					err.Error(),
-				)
+				err = cli.Exit(
+					fmt.Errorf("unable to print status as %s document: %s", format, err.Error()),
+					1)
 			}
 		}(&systemStatus)
 		// Disable all colors and animations
@@ -365,14 +386,14 @@ func statusAction(ctx *cli.Context) error {
 
 	hostname, err := os.Hostname()
 	if err != nil {
-		if jsonOutput {
+		if machineReadable {
 			systemStatus.HostnameError = err
 		} else {
 			return cli.Exit(err, 1)
 		}
 	}
 
-	if jsonOutput {
+	if machineReadable {
 		systemStatus.SystemHostname = hostname
 	} else {
 		fmt.Printf("Connection status for %v:\n\n", hostname)
@@ -384,13 +405,13 @@ func statusAction(ctx *cli.Context) error {
 		return cli.Exit(err, 1)
 	}
 	if uuid == "" {
-		if jsonOutput {
+		if machineReadable {
 			systemStatus.RHSMConnected = false
 		} else {
 			fmt.Printf(disconnectedPrefix + " Not connected to Red Hat Subscription Management\n")
 		}
 	} else {
-		if jsonOutput {
+		if machineReadable {
 			systemStatus.RHSMConnected = true
 		} else {
 			fmt.Printf(connectedPrefix + " Connected to Red Hat Subscription Management\n")
@@ -409,20 +430,20 @@ func statusAction(ctx *cli.Context) error {
 		s.Stop()
 	}
 	if isRegistered {
-		if jsonOutput {
+		if machineReadable {
 			systemStatus.InsightsConnected = true
 		} else {
 			fmt.Print(connectedPrefix + " Connected to Red Hat Insights\n")
 		}
 	} else {
 		if err == nil {
-			if jsonOutput {
+			if machineReadable {
 				systemStatus.InsightsConnected = true
 			} else {
 				fmt.Print(disconnectedPrefix + " Not connected to Red Hat Insights\n")
 			}
 		} else {
-			if jsonOutput {
+			if machineReadable {
 				systemStatus.InsightsConnected = false
 				systemStatus.InsightsError = err
 			} else {
@@ -448,20 +469,20 @@ func statusAction(ctx *cli.Context) error {
 	}
 	activeState := properties["ActiveState"]
 	if activeState.(string) == "active" {
-		if jsonOutput {
+		if machineReadable {
 			systemStatus.RHCDRunning = true
 		} else {
 			fmt.Printf(connectedPrefix+" The %v daemon is active\n", BrandName)
 		}
 	} else {
-		if jsonOutput {
+		if machineReadable {
 			systemStatus.RHCDRunning = false
 		} else {
 			fmt.Printf(disconnectedPrefix+" The %v daemon is inactive\n", BrandName)
 		}
 	}
 
-	if !jsonOutput {
+	if !machineReadable {
 		fmt.Printf("\nManage your Red Hat connector systems: https://red.ht/connector\n")
 	}
 
@@ -598,12 +619,12 @@ func main() {
 			Action:      canonicalFactAction,
 		},
 		{
-			Name:        "status",
+			Name: "status",
 			Flags: []cli.Flag{
-				&cli.BoolFlag{
-					Name:    "json",
-					Usage:   "prints status as JSON document",
-					Aliases: []string{"j"},
+				&cli.StringFlag{
+					Name:    "format",
+					Usage:   "prints status in machine-readable format (supported formats: \"json\")",
+					Aliases: []string{"f"},
 				},
 			},
 			Usage:       "Prints status of the system's connection to " + Provider,
