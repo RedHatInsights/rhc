@@ -167,6 +167,11 @@ func registerRHSM(ctx *cli.Context) (error, string) {
 // connectAction tries to register system against Red Hat Subscription Management,
 // connect system to Red Hat Insights and it also tries to start rhcd service
 func connectAction(ctx *cli.Context) error {
+	uid := os.Getuid()
+	if uid != 0 {
+		return cli.Exit(fmt.Errorf("error: non-root user cannot connect system"), 1)
+	}
+
 	var start time.Time
 	durations := make(map[string]time.Duration)
 	errorMessages := make(map[string]error)
@@ -239,6 +244,11 @@ func connectAction(ctx *cli.Context) error {
 // disconnectAction tries to stop rhscd service, disconnect from Red Hat Insights and finally
 // it unregister system from Red Hat Subscription Management
 func disconnectAction(ctx *cli.Context) error {
+	uid := os.Getuid()
+	if uid != 0 {
+		return cli.Exit(fmt.Errorf("error: non-root user cannot disconnect system"), 1)
+	}
+
 	var start time.Time
 	durations := make(map[string]time.Duration)
 	errorMessages := make(map[string]error)
