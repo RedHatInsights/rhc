@@ -373,3 +373,18 @@ func configureRHSM(serverURL string) error {
 
 	return nil
 }
+
+func getRHSMConfigOption(name string, val interface{}) error {
+	conn, err := dbus.SystemBus()
+	if err != nil {
+		return fmt.Errorf("cannot connect to system D-Bus: %w", err)
+	}
+	obj := conn.Object("com.redhat.RHSM1", "/com/redhat/RHSM1/Config")
+	if err := obj.Call(
+		"com.redhat.RHSM1.Config.Get",
+		dbus.Flags(0), name, "").Store(val); err != nil {
+		return unpackRHSMError(err)
+	}
+
+	return nil
+}

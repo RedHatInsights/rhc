@@ -3,6 +3,12 @@ package main
 import (
 	"fmt"
 	"io"
+	"net/url"
+	"os"
+	"path/filepath"
+	"strings"
+
+	ini "git.sr.ht/~spc/go-ini"
 
 	"github.com/urfave/cli/v2"
 	"golang.org/x/sys/unix"
@@ -50,4 +56,79 @@ func BashComplete(c *cli.Context) {
 		// global flags
 		PrintFlagNames(c.App.VisibleFlags(), c.App.Writer)
 	}
+}
+
+func ConfigPath() (string, error) {
+	// default config file path in `/etc/rhc/config.toml`
+	filePath := filepath.Join("/etc", LongName, "config.toml")
+
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		return "", nil
+	}
+
+	return filePath, nil
+}
+
+// Get the API server URL based on, insights-client.conf and rhsm.conf
+// This URL may differ from prod, stage and Satellite
+func GuessAPIURL() (string, error) {
+	var uString string
+	var baseURL *url.URL
+
+	// Check if the server api is set in insights conf
+	// Create the structs needed to read the config file
+	opts := ini.Options{
+		AllowNumberSignComments: true,
+	}
+	type InsightsClientConf struct {
+		BaseUrl string `ini:"base_url"`
+	}
+	type InsightsConf struct {
+		InsightsClient InsightsClientConf `ini:"insights-client"`
+	}
+	var cfg InsightsConf
+	// Read the config file
+	data, err := os.ReadFile("/etc/insights-client/insights-client.conf")
+	if err != nil {
+		return "", fmt.Errorf("fail to read file: %v", err)
+	}
+	// Get the config into the struct
+	if err := ini.UnmarshalWithOptions(data, &cfg, opts); err != nil {
+		return "", fmt.Errorf("fail to read configuration: %v", err)
+	}
+	APIServer := cfg.InsightsClient.BaseUrl
+
+	if APIServer != "" {
+		base, err := url.Parse("https://" + APIServer)
+		if err != nil {
+			return "", fmt.Errorf("cannot get base URL: %w", err)
+		}
+		p, _ := url.Parse("api/config-manager/v2/profiles/current")
+		uString = base.ResolveReference(p).String()
+	} else {
+		// Get the server hostname where this host is connected
+		var serverHost string
+		err = getRHSMConfigOption("server.hostname", &serverHost)
+		if err != nil {
+			return "", fmt.Errorf("cannot get server hostname: %w", err)
+		}
+		// Get the final api server url to make the call
+		// Check if it is the default api server
+		if strings.Contains(serverHost, "subscription.rhsm.redhat.com") {
+			baseURL, _ = url.Parse("https://cert.console.redhat.com")
+			p, _ := url.Parse("api/config-manager/v2/profiles/current")
+			uString = baseURL.ResolveReference(p).String()
+		} else {
+			// Otherwise it is connected to Satellite
+			// Generate the base URL
+			base, err := url.Parse("https://" + serverHost)
+			if err != nil {
+				return "", fmt.Errorf("cannot get base URL: %w", err)
+			}
+			p, _ := url.Parse("redhat_access/r/insights/platform/config-manager/v2/profiles/current")
+			uString = base.ResolveReference(p).String()
+		}
+	}
+
+	return uString, nil
 }
