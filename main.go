@@ -4,33 +4,38 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"text/tabwriter"
 	"time"
 
-	"golang.org/x/term"
-
 	"git.sr.ht/~spc/go-log"
+	"golang.org/x/term"
 
 	"github.com/briandowns/spinner"
 	systemd "github.com/coreos/go-systemd/v22/dbus"
+	"github.com/redhatinsights/rhc/internal/http"
 	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v2/altsrc"
 )
 
 const redColor = "\u001B[31m"
 const greenColor = "\u001B[32m"
+const blueColor = "\u001B[36m"
 const endColor = "\u001B[0m"
 
 // Colorful prefixes
 const ttyConnectedPrefix = greenColor + "●" + endColor
 const ttyDisconnectedPrefix = redColor + "●" + endColor
+const ttyInfoPrefix = blueColor + "●" + endColor
 const ttyErrorPrefix = redColor + "!" + endColor
 
 // Black & white prefixes. Unicode characters
 const bwConnectedPrefix = "✓"
 const bwDisconnectedPrefix = "𐄂"
 const bwErrorPrefix = "!"
+const bwInfoPrefix = "·"
 
 // showProgress calls function and, when it is possible display spinner with
 // some progress message.
@@ -48,7 +53,7 @@ func showProgress(progressMessage string, isColorful bool, function func() error
 
 // getColorPreferences tries to get color preferences form context
 func getColorPreferences(ctx *cli.Context) (connectedPrefix string, disconnectedPrefix string,
-	errorPrefix string, isColorful bool) {
+	errorPrefix string, infoPrefix string, isColorful bool) {
 	noColor := ctx.Bool("no-color")
 
 	if noColor {
@@ -56,11 +61,13 @@ func getColorPreferences(ctx *cli.Context) (connectedPrefix string, disconnected
 		connectedPrefix = bwConnectedPrefix
 		disconnectedPrefix = bwDisconnectedPrefix
 		errorPrefix = bwErrorPrefix
+		infoPrefix = bwInfoPrefix
 	} else {
 		isColorful = true
 		connectedPrefix = ttyConnectedPrefix
 		disconnectedPrefix = ttyDisconnectedPrefix
 		errorPrefix = ttyErrorPrefix
+		infoPrefix = ttyInfoPrefix
 	}
 	return
 }
@@ -94,6 +101,55 @@ func showErrorMessages(action string, errorMessages map[string]error) error {
 	return nil
 }
 
+// getConfProfile will retrieve the profile the system is configured
+func getConfProfile(client *http.Client) (map[string]interface{}, error) {
+	var profile map[string]interface{}
+
+	url, err := GuessAPIURL()
+	if err != nil {
+		return nil, err
+	}
+
+	res, err := client.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != 200 {
+		return nil, fmt.Errorf("cannot get system profile: %s", res.Status)
+	}
+	// Read the response body
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	if err = json.Unmarshal(body, &profile); err != nil {
+		return nil, fmt.Errorf("cannot unmarshal profile: %s", res.Status)
+
+	}
+
+	return profile, nil
+}
+
+// showConfProfile shows a list of the system profile enabled features gathered from API
+// https://github.com/RedHatInsights/config-manager/blob/master/internal/http/v2/openapi.json
+func showConfProfile(p *map[string]interface{}) {
+	services := []string{}
+	for service, status := range *p {
+		switch status.(type) {
+		case bool:
+			if service == "active" {
+				service = "remote configuration"
+			}
+			services = append(services, service)
+		}
+	}
+	output := strings.Join(services, `, `)
+	fmt.Printf("%v", output)
+}
+
 // registerRHSM tries to register system against Red Hat Subscription Management server (candlepin server)
 func registerRHSM(ctx *cli.Context) (string, error) {
 	uuid, err := getConsumerUUID()
@@ -102,7 +158,7 @@ func registerRHSM(ctx *cli.Context) (string, error) {
 	}
 	var successMsg string
 
-	_, _, _, isColorful := getColorPreferences(ctx)
+	_, _, _, _, isColorful := getColorPreferences(ctx)
 
 	if uuid == "" {
 		username := ctx.String("username")
@@ -195,7 +251,8 @@ func registerRHSM(ctx *cli.Context) (string, error) {
 }
 
 // connectAction tries to register system against Red Hat Subscription Management,
-// connect system to Red Hat Insights, and it also tries to start rhcd service
+// gather the profile information that the system will configure
+// connect system to Red Hat Insights and it also tries to start rhcd service
 func connectAction(ctx *cli.Context) error {
 	uid := os.Getuid()
 	if uid != 0 {
@@ -212,7 +269,7 @@ func connectAction(ctx *cli.Context) error {
 
 	fmt.Printf("Connecting %v to %v.\nThis might take a few seconds.\n\n", hostname, Provider)
 
-	connectedPrefix, disconnectedPrefix, errorPrefix, isColorful := getColorPreferences(ctx)
+	connectedPrefix, disconnectedPrefix, errorPrefix, infoPrefix, isColorful := getColorPreferences(ctx)
 
 	/* 1. Register to RHSM, because we need to get consumer certificate. This blocks following action */
 	start = time.Now()
@@ -257,10 +314,39 @@ func connectAction(ctx *cli.Context) error {
 		durations[BrandName] = time.Since(start)
 	}
 
-	/* 4. Show footer message */
+	/* 4. Show Configuration Profile */
+	if len(errorMessages) == 0 {
+		// Update the configuration file
+		// Call D-bus to get the CA directory from rhsm
+		if err = getRHSMConfigOption("rhsm.ca_cert_dir", &config.CADir); err != nil {
+			errorMessages[BrandName] = fmt.Errorf("cannot get rhsm configuration: %w", err)
+		}
+		// Generate a new http client configured with mutual TLS certificate
+		tlsConfig, err := config.CreateTLSClientConfig()
+		if err != nil {
+			errorMessages[BrandName] = fmt.Errorf("cannot configure TLS: %w", err)
+		}
+		client, err := http.NewHTTPClient(tlsConfig)
+		if err != nil {
+			errorMessages[BrandName] = fmt.Errorf("cannot configure HTTP client: %w", err)
+		}
+		// Get the user profile
+		profile, err := getConfProfile(client)
+		if err != nil {
+			errorMessages[BrandName] = fmt.Errorf("Cannot get the user profile: %w", err)
+		} else {
+			fmt.Printf(infoPrefix + " Enabled console.redhat.com services: ")
+			showConfProfile(&profile)
+			fmt.Printf("\n")
+		}
+		fmt.Printf("\nSuccessfully connected to Red Hat!\n")
+
+	}
+
+	/* 5. Show footer message */
 	fmt.Printf("\nManage your connected systems: https://red.ht/connector\n")
 
-	/* 5. Optionally display duration time of each sub-action */
+	/* 6. Optionally display duration time of each sub-action */
 	showTimeDuration(durations)
 
 	err = showErrorMessages("connect", errorMessages)
@@ -288,7 +374,7 @@ func disconnectAction(ctx *cli.Context) error {
 	}
 	fmt.Printf("Disconnecting %v from %v.\nThis might take a few seconds.\n\n", hostname, Provider)
 
-	_, disconnectedPrefix, errorPrefix, isColorful := getColorPreferences(ctx)
+	_, disconnectedPrefix, errorPrefix, _, isColorful := getColorPreferences(ctx)
 
 	/* 1. Deactivate rhcd daemon */
 	start = time.Now()
@@ -404,7 +490,7 @@ func statusAction(ctx *cli.Context) (err error) {
 		}
 	}
 
-	connectedPrefix, disconnectedPrefix, errorPrefix, isColorful := getColorPreferences(ctx)
+	connectedPrefix, disconnectedPrefix, errorPrefix, _, isColorful := getColorPreferences(ctx)
 
 	// When printing of status is requested, then print machine-readable file format
 	// at the end of this function
@@ -550,7 +636,25 @@ func mainAction(c *cli.Context) error {
 
 // beforeAction is triggered before other actions are triggered
 func beforeAction(c *cli.Context) error {
-	level, err := log.ParseLevel(c.String("log-level"))
+	/* Load the configuration values from the config file specified*/
+	filePath := c.String("config")
+	if filePath != "" {
+		inputSource, err := altsrc.NewTomlSourceFromFile(filePath)
+		if err != nil {
+			return err
+		}
+		if err := altsrc.ApplyInputSourceValues(c, inputSource, c.App.Flags); err != nil {
+			return err
+		}
+	}
+
+	config = Conf{
+		LogLevel: c.String(cliLogLevel),
+		CertFile: c.String(cliCertFile),
+		KeyFile:  c.String(cliKeyFile),
+	}
+
+	level, err := log.ParseLevel(config.LogLevel)
 	if err != nil {
 		return cli.Exit(err, 1)
 	}
@@ -571,6 +675,8 @@ func beforeAction(c *cli.Context) error {
 	return nil
 }
 
+var config = Conf{}
+
 func main() {
 	app := cli.NewApp()
 	app.Name = ShortName
@@ -588,6 +694,11 @@ func main() {
 	log.SetFlags(0)
 	log.SetPrefix("")
 
+	defaultConfigFilePath, err := ConfigPath()
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	app.Flags = []cli.Flag{
 		&cli.BoolFlag{
 			Name:   "generate-man-page",
@@ -597,18 +708,37 @@ func main() {
 			Name:   "generate-markdown",
 			Hidden: true,
 		},
-		&cli.StringFlag{
-			Name:   "log-level",
-			Hidden: true,
-			Value:  "error",
-		},
 		&cli.BoolFlag{
 			Name:    "no-color",
 			Hidden:  false,
 			Value:   false,
 			EnvVars: []string{"NO_COLOR"},
 		},
+		&cli.StringFlag{
+			Name:      "config",
+			Hidden:    true,
+			Value:     defaultConfigFilePath,
+			TakesFile: true,
+			Usage:     "Read config values from `FILE`",
+		},
+		altsrc.NewStringFlag(&cli.StringFlag{
+			Name:   cliCertFile,
+			Hidden: true,
+			Usage:  "Use `FILE` as the client certificate",
+		}),
+		altsrc.NewStringFlag(&cli.StringFlag{
+			Name:   cliKeyFile,
+			Hidden: true,
+			Usage:  "Use `FILE` as the client's private key",
+		}),
+		altsrc.NewStringFlag(&cli.StringFlag{
+			Name:   cliLogLevel,
+			Value:  "info",
+			Hidden: true,
+			Usage:  "Set the logging output level to `LEVEL`",
+		}),
 	}
+
 	app.Commands = []*cli.Command{
 		{
 			Name: "connect",
