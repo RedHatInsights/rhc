@@ -159,14 +159,17 @@ func registerRHSM(ctx *cli.Context) (string, error) {
 					}
 
 					// Ask for organization and display hint with list of organizations
-					fmt.Printf("Available Organizations:\n")
-					for _, org := range orgs {
-						fmt.Printf(" - %v\n", org)
-					}
-					fmt.Printf("\n")
-
 					scanner := bufio.NewScanner(os.Stdin)
-					fmt.Print("Organization: ")
+					fmt.Println("Available Organizations:")
+					writer := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
+					for i, org := range orgs {
+						_, _ = fmt.Fprintf(writer, "%v\t", org)
+						if (i+1)%4 == 0 {
+							_, _ = fmt.Fprint(writer, "\n")
+						}
+					}
+					_ = writer.Flush()
+					fmt.Print("\nOrganization: ")
 					_ = scanner.Scan()
 					organization = strings.TrimSpace(scanner.Text())
 					fmt.Printf("\n")
