@@ -61,7 +61,7 @@ func registerPassword(username, password, organization, serverURL string) error 
 		return err
 	}
 
-	if err := privConn.Object("com.redhat.RHSM1", "/com/redhat/RHSM1/Register").Call("com.redhat.RHSM1.Register.Register", dbus.Flags(0), organization, username, password, map[string]string{}, map[string]string{}, "").Err; err != nil {
+	if err := privConn.Object("com.redhat.RHSM1", "/com/redhat/RHSM1/Register").Call("com.redhat.RHSM1.Register.Register", dbus.Flags(0), organization, username, password, map[string]string{"enable_content": "true"}, map[string]string{}, "").Err; err != nil {
 		return unpackError(err)
 	}
 
