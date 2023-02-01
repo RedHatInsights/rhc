@@ -228,7 +228,7 @@ func connectAction(ctx *cli.Context) error {
 	}
 
 	/* 4. Show footer message */
-	fmt.Printf("\nManage your Red Hat connector systems: https://red.ht/connector\n")
+	fmt.Printf("\nManage your connected systems: https://red.ht/connector\n")
 
 	/* 5. Optionally display duration time of each sub-action */
 	showTimeDuration(durations)
@@ -293,7 +293,7 @@ func disconnectAction(ctx *cli.Context) error {
 	}
 	durations["rhsm"] = time.Since(start)
 
-	fmt.Printf("\nManage your Red Hat connector systems: https://red.ht/connector\n")
+	fmt.Printf("\nManage your connected systems: https://red.ht/connector\n")
 
 	showTimeDuration(durations)
 
@@ -493,7 +493,7 @@ func statusAction(ctx *cli.Context) (err error) {
 	}
 
 	if !machineReadable {
-		fmt.Printf("\nManage your Red Hat connector systems: https://red.ht/connector\n")
+		fmt.Printf("\nManage your connected systems: https://red.ht/connector\n")
 	}
 
 	return nil
