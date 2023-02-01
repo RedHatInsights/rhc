@@ -1,4 +1,4 @@
-`rhc` is a simple, one-step front-end client for Red Hat connected services. It
+`rhc` is a simple, one-step front-end client for remote host configured services. It
 is built to be an alternative client to `subscription-manager`,
 `insights-client`, and any other client utility that enables connecting a system
 to Red Hat services.
@@ -11,7 +11,7 @@ It currently performs 3 steps when it connects a system:
    registered, this step is a noop and it moves to the next step.
 3. Activate the `rhcd` daemon.
 
-Likewise, when rhc is disconnecting a system, it performs the steps in
+Likewise, when `rhc` is disconnecting a system, it performs the steps in
 descending order.
 
 1. Deactivates the `rhcd` daemon.
