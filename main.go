@@ -1,15 +1,12 @@
 package main
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
 	"text/tabwriter"
 	"time"
-
-	"golang.org/x/term"
 
 	"git.sr.ht/~spc/go-log"
 
@@ -113,18 +110,17 @@ func registerRHSM(ctx *cli.Context) (string, error) {
 		if len(activationKeys) == 0 {
 			if username == "" {
 				password = ""
-				scanner := bufio.NewScanner(os.Stdin)
-				fmt.Print("Username: ")
-				_ = scanner.Scan()
-				username = strings.TrimSpace(scanner.Text())
+				username, err = readInput("Username: ", false)
+				if err != nil {
+					return "Unable to read username", cli.Exit(err, 1)
+				}
+				username = strings.TrimSpace(username)
 			}
 			if password == "" {
-				fmt.Print("Password: ")
-				data, err := term.ReadPassword(int(os.Stdin.Fd()))
+				password, err = readInput("Password: ", true)
 				if err != nil {
 					return "Unable to read password", cli.Exit(err, 1)
 				}
-				password = string(data)
 				fmt.Printf("\n\n")
 			}
 		}
@@ -159,7 +155,6 @@ func registerRHSM(ctx *cli.Context) (string, error) {
 					}
 
 					// Ask for organization and display hint with list of organizations
-					scanner := bufio.NewScanner(os.Stdin)
 					fmt.Println("Available Organizations:")
 					writer := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
 					for i, org := range orgs {
@@ -169,9 +164,11 @@ func registerRHSM(ctx *cli.Context) (string, error) {
 						}
 					}
 					_ = writer.Flush()
-					fmt.Print("\nOrganization: ")
-					_ = scanner.Scan()
-					organization = strings.TrimSpace(scanner.Text())
+					organization, err = readInput("\nOrganization: ", false)
+					if err != nil {
+						return "Unable to read organization", cli.Exit(err, 1)
+					}
+					organization = strings.TrimSpace(organization)
 					fmt.Printf("\n")
 
 					// Start spinner again
