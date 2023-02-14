@@ -764,8 +764,9 @@ func main() {
 					Aliases: []string{"a"},
 				},
 				&cli.StringFlag{
-					Name:  "server",
-					Usage: "register against `URL`",
+					Name:   "server",
+					Hidden: true,
+					Usage:  "register against `URL`",
 				},
 			},
 			Usage:       "Connects the system to " + Provider,
