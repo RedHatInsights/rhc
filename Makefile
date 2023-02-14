@@ -17,7 +17,7 @@ LONGNAME  := rhc
 BRANDNAME   := rhc
 # Used as the tarball file name. Cannot contain spaces.
 PKGNAME   := rhc
-VERSION   := 0.2.1
+VERSION   := 0.2.2
 # Used as the prefix for MQTT topic names
 TOPICPREFIX := redhat/insights
 # Used to force sending all HTTP traffic to a specific host.
