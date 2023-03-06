@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	ini "git.sr.ht/~spc/go-ini"
+	"git.sr.ht/~spc/go-log"
 
 	"github.com/urfave/cli/v2"
 	"golang.org/x/sys/unix"
@@ -131,4 +132,15 @@ func GuessAPIURL() (string, error) {
 	}
 
 	return uString, nil
+}
+
+// hasPriorityErrors checks if the errorMessage map has any error
+// with a higher priority than the logLevel configure.
+func hasPriorityErrors(errorMessages map[string]LogMessage, level log.Level) bool {
+	for _, logMsg := range errorMessages {
+		if logMsg.level <= level {
+			return true
+		}
+	}
+	return false
 }
