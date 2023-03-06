@@ -37,6 +37,11 @@ const bwDisconnectedPrefix = "𐄂"
 const bwErrorPrefix = "!"
 const bwInfoPrefix = "·"
 
+type LogMessage struct {
+	level   log.Level
+	message error
+}
+
 // showProgress calls function and, when it is possible display spinner with
 // some progress message.
 func showProgress(progressMessage string, isColorful bool, function func() error) error {
@@ -86,17 +91,21 @@ func showTimeDuration(durations map[string]time.Duration) {
 }
 
 // showErrorMessages shows table with all error messages gathered during action
-func showErrorMessages(action string, errorMessages map[string]error) error {
-	if len(errorMessages) > 0 {
+func showErrorMessages(action string, errorMessages map[string]LogMessage) error {
+	if hasPriorityErrors(errorMessages, log.CurrentLevel()) {
 		fmt.Println()
 		fmt.Printf("The following errors were encountered during %s:\n\n", action)
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-		_, _ = fmt.Fprintln(w, "STEP\tERROR\t")
-		for svc, err := range errorMessages {
-			_, _ = fmt.Fprintf(w, "%v\t%v\n", svc, err)
+		_, _ = fmt.Fprintln(w, "TYPE\tSTEP\tERROR\t")
+		for step, logMsg := range errorMessages {
+			if logMsg.level <= log.CurrentLevel() {
+				_, _ = fmt.Fprintf(w, "%v\t%v\t%v\n", logMsg.level, step, logMsg.message)
+			}
 		}
 		_ = w.Flush()
-		return cli.Exit("", 1)
+		if hasPriorityErrors(errorMessages, log.LevelError) {
+			return cli.Exit("", 1)
+		}
 	}
 	return nil
 }
@@ -261,7 +270,7 @@ func connectAction(ctx *cli.Context) error {
 
 	var start time.Time
 	durations := make(map[string]time.Duration)
-	errorMessages := make(map[string]error)
+	errorMessages := make(map[string]LogMessage)
 	hostname, err := os.Hostname()
 	if err != nil {
 		return cli.Exit(err, 1)
@@ -276,7 +285,10 @@ func connectAction(ctx *cli.Context) error {
 	var returnedMsg string
 	returnedMsg, err = registerRHSM(ctx)
 	if err != nil {
-		errorMessages["rhsm"] = fmt.Errorf("cannot connect to Red Hat Subscription Management: %w", err)
+		errorMessages["rhsm"] = LogMessage{
+			level: log.LevelError,
+			message: fmt.Errorf("cannot connect to Red Hat Subscription Management: %w",
+				err)}
 		fmt.Printf(errorPrefix + " Cannot connect to Red Hat Subscription Management\n")
 	} else {
 		fmt.Printf(connectedPrefix + " " + returnedMsg + "\n")
@@ -284,13 +296,18 @@ func connectAction(ctx *cli.Context) error {
 	durations["rhsm"] = time.Since(start)
 
 	/* 2. Register insights-client */
-	if _, exist := errorMessages["rhsm"]; exist {
-		fmt.Printf(disconnectedPrefix + " Skipping connection to Red Hat Insights\n")
+	if errors, exist := errorMessages["rhsm"]; exist {
+		if errors.level == log.LevelError {
+			fmt.Printf(disconnectedPrefix + " Skipping connection to Red Hat Insights\n")
+		}
 	} else {
 		start = time.Now()
 		err = showProgress(" Connecting to Red Hat Insights...", isColorful, registerInsights)
 		if err != nil {
-			errorMessages["insights"] = fmt.Errorf("cannot connect to Red Hat Insights: %w", err)
+			errorMessages["insights"] = LogMessage{
+				level: log.LevelError,
+				message: fmt.Errorf("cannot connect to Red Hat Insights: %w",
+					err)}
 			fmt.Printf(errorPrefix + " Cannot connect to Red Hat Insights\n")
 		} else {
 			fmt.Printf(connectedPrefix + " Connected to Red Hat Insights\n")
@@ -299,14 +316,19 @@ func connectAction(ctx *cli.Context) error {
 	}
 
 	/* 3. Start rhcd daemon */
-	if _, exist := errorMessages["rhsm"]; exist {
-		fmt.Printf(disconnectedPrefix+" Skipping activation of %v daemon\n", BrandName)
+	if errors, exist := errorMessages["rhsm"]; exist {
+		if errors.level == log.LevelError {
+			fmt.Printf(disconnectedPrefix+" Skipping activation of %v daemon\n", BrandName)
+		}
 	} else {
 		start = time.Now()
 		progressMessage := fmt.Sprintf(" Activating the %v daemon", BrandName)
 		err = showProgress(progressMessage, isColorful, activate)
 		if err != nil {
-			errorMessages[BrandName] = fmt.Errorf("cannot activate daemon: %w", err)
+			errorMessages[BrandName] = LogMessage{
+				level: log.LevelError,
+				message: fmt.Errorf("cannot activate daemon: %w",
+					err)}
 			fmt.Printf(errorPrefix+" Cannot activate the %v daemon\n", BrandName)
 		} else {
 			fmt.Printf(connectedPrefix+" Activated the %v daemon\n", BrandName)
@@ -319,19 +341,28 @@ func connectAction(ctx *cli.Context) error {
 		// Update the configuration file
 		// Call D-bus to get the CA directory from rhsm
 		if err = getRHSMConfigOption("rhsm.ca_cert_dir", &config.CADir); err != nil {
-			errorMessages[BrandName] = fmt.Errorf("cannot get rhsm configuration: %w", err)
+			errorMessages[BrandName] = LogMessage{
+				level: log.LevelWarn,
+				message: fmt.Errorf("cannot get rhsm configuration: %w",
+					err)}
 		}
 		// Generate a new http client configured with mutual TLS certificate
 		tlsConfig, err := config.CreateTLSClientConfig()
 		if err != nil {
-			errorMessages[BrandName] = fmt.Errorf("cannot configure TLS: %w", err)
+			errorMessages[BrandName] = LogMessage{
+				level: log.LevelWarn,
+				message: fmt.Errorf("cannot configure TLS: %w",
+					err)}
 		}
 		client := http.NewHTTPClient(tlsConfig)
 
 		// Get the user profile
 		profile, err := getConfProfile(client)
 		if err != nil {
-			errorMessages[BrandName] = fmt.Errorf("Cannot get the user profile: %w", err)
+			errorMessages[BrandName] = LogMessage{
+				level: log.LevelWarn,
+				message: fmt.Errorf("cannot get the user profile: %w",
+					err)}
 		} else {
 			fmt.Printf(infoPrefix + " Enabled console.redhat.com services: ")
 			showConfProfile(&profile)
@@ -365,7 +396,7 @@ func disconnectAction(ctx *cli.Context) error {
 
 	var start time.Time
 	durations := make(map[string]time.Duration)
-	errorMessages := make(map[string]error)
+	errorMessages := make(map[string]LogMessage)
 	hostname, err := os.Hostname()
 	if err != nil {
 		return cli.Exit(err, 1)
@@ -379,7 +410,10 @@ func disconnectAction(ctx *cli.Context) error {
 	progressMessage := fmt.Sprintf(" Deactivating the %v daemon", BrandName)
 	err = showProgress(progressMessage, isColorful, deactivate)
 	if err != nil {
-		errorMessages[BrandName] = fmt.Errorf("cannot deactivate daemon: %w", err)
+		errorMessages[BrandName] = LogMessage{
+			level: log.LevelError,
+			message: fmt.Errorf("cannot deactivate daemon: %w",
+				err)}
 		fmt.Printf(errorPrefix+" Cannot deactivate the %v daemon\n", BrandName)
 	} else {
 		fmt.Printf(disconnectedPrefix+" Deactivated the %v daemon\n", BrandName)
@@ -390,7 +424,10 @@ func disconnectAction(ctx *cli.Context) error {
 	start = time.Now()
 	err = showProgress(" Disconnecting from Red Hat Insights...", isColorful, unregisterInsights)
 	if err != nil {
-		errorMessages["insights"] = fmt.Errorf("cannot disconnect from Red Hat Insights: %w", err)
+		errorMessages["insights"] = LogMessage{
+			level: log.LevelError,
+			message: fmt.Errorf("cannot disconnect from Red Hat Insights: %w",
+				err)}
 		fmt.Printf(errorPrefix + " Cannot disconnect from Red Hat Insights\n")
 	} else {
 		fmt.Print(disconnectedPrefix + " Disconnected from Red Hat Insights\n")
@@ -400,7 +437,10 @@ func disconnectAction(ctx *cli.Context) error {
 	/* 3. Unregister system from Red Hat Subscription Management */
 	err = showProgress(" Disconnecting from Red Hat Subscription Management...", isColorful, unregister)
 	if err != nil {
-		errorMessages["rhsm"] = fmt.Errorf("cannot disconnect from Red Hat Subscription Management: %w", err)
+		errorMessages["rhsm"] = LogMessage{
+			level: log.LevelError,
+			message: fmt.Errorf("cannot disconnect from Red Hat Subscription Management: %w",
+				err)}
 		fmt.Printf(errorPrefix + " Cannot disconnect from Red Hat Subscription Management\n")
 	} else {
 		fmt.Printf(disconnectedPrefix + " Disconnected from Red Hat Subscription Management\n")
