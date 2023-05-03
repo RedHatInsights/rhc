@@ -7,13 +7,13 @@ import (
 func registerInsights() error {
 	cmd := exec.Command("/usr/bin/insights-client", "--register")
 
-	return cmd.Run()
+	return cmd.Start()
 }
 
 func unregisterInsights() error {
 	cmd := exec.Command("/usr/bin/insights-client", "--unregister")
 
-	return cmd.Run()
+	return cmd.Start()
 }
 
 func insightsIsRegistered() (bool, error) {
