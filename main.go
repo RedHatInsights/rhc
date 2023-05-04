@@ -288,7 +288,7 @@ func connectAction(ctx *cli.Context) error {
 		fmt.Printf(disconnectedPrefix + " Skipping connection to Red Hat Insights\n")
 	} else {
 		start = time.Now()
-		err = showProgress(" Connecting to Red Hat Insights...", isColorful, registerInsights)
+		err = showProgress(" Starting Red Hat Insights...", isColorful, registerInsights)
 		if err != nil {
 			errorMessages["insights"] = fmt.Errorf("cannot connect to Red Hat Insights: %w", err)
 			fmt.Printf(errorPrefix + " Cannot connect to Red Hat Insights\n")
@@ -315,7 +315,9 @@ func connectAction(ctx *cli.Context) error {
 	}
 
 	/* 4. Show Configuration Profile */
-	if len(errorMessages) == 0 {
+	if _, exist := errorMessages["rhsm"]; exist {
+		fmt.Printf(disconnectedPrefix + " Skipping getting user profile\n")
+	} else {
 		// Update the configuration file
 		// Call D-bus to get the CA directory from rhsm
 		if err = getRHSMConfigOption("rhsm.ca_cert_dir", &config.CADir); err != nil {
@@ -333,14 +335,16 @@ func connectAction(ctx *cli.Context) error {
 		// Get the user profile
 		profile, err := getConfProfile(client)
 		if err != nil {
-			errorMessages[BrandName] = fmt.Errorf("Cannot get the user profile: %w", err)
+			errorMessages[BrandName] = fmt.Errorf("cannot get the user profile: %w", err)
 		} else {
 			fmt.Printf(infoPrefix + " Enabled console.redhat.com services: ")
 			showConfProfile(&profile)
 			fmt.Printf("\n")
 		}
-		fmt.Printf("\nSuccessfully connected to Red Hat!\n")
+	}
 
+	if _, exist := errorMessages["rhsm"]; !exist {
+		fmt.Printf("\nSuccessfully connected to Red Hat!\n")
 	}
 
 	/* 5. Show footer message */
