@@ -86,9 +86,6 @@ $(BIN): $(GOSRC)
 .PHONY: data
 data: $(DATA)
 
-%.bash: $(GOSRC)
-	go run $(BUILDFLAGS) -ldflags "$(LDFLAGS)" . --generate-bash-completion > $@
-
 %.1: $(GOSRC)
 	go run $(BUILDFLAGS) -ldflags "$(LDFLAGS)" . --generate-man-page > $@
 
