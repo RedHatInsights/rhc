@@ -326,10 +326,8 @@ func connectAction(ctx *cli.Context) error {
 		if err != nil {
 			errorMessages[BrandName] = fmt.Errorf("cannot configure TLS: %w", err)
 		}
-		client, err := http.NewHTTPClient(tlsConfig)
-		if err != nil {
-			errorMessages[BrandName] = fmt.Errorf("cannot configure HTTP client: %w", err)
-		}
+		client := http.NewHTTPClient(tlsConfig)
+
 		// Get the user profile
 		profile, err := getConfProfile(client)
 		if err != nil {
