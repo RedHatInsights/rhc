@@ -7,20 +7,21 @@ import (
 )
 
 type Client struct {
-	client *http.Client
+	client http.Client
 }
 
-func NewHTTPClient(tlsConfig *tls.Config) (*Client, error) {
+func NewHTTPClient(tlsConfig *tls.Config) *Client {
 
-	client := &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: tlsConfig,
-		},
+	// Create a httpClient with the configured tlsConfig.
+	// Use the DefaultTransport, as it has some configuration by default.
+	client := http.Client{
+		Transport: http.DefaultTransport.(*http.Transport).Clone(),
 	}
+	client.Transport.(*http.Transport).TLSClientConfig = tlsConfig.Clone()
 
 	return &Client{
 		client: client,
-	}, nil
+	}
 }
 
 func (c *Client) Get(url string) (*http.Response, error) {
