@@ -67,8 +67,7 @@ BUILDFLAGS += -mod=vendor
 endif
 
 BIN  = rhc
-DATA = rhc.bash \
-	   rhc.1.gz \
+DATA = rhc.1.gz \
 	   USAGE.md
 
 GOSRC := $(shell find . -name '*.go')
