@@ -148,8 +148,8 @@ dist:
 .PHONY: clean
 clean:
 	go mod tidy
-	rm $(BIN)
-	rm $(DATA)
+	rm -f $(BIN)
+	rm -f $(DATA)
 
 .PHONY: tests
 tests:
