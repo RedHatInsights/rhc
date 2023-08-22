@@ -11,6 +11,6 @@ require (
 	github.com/google/go-cmp v0.5.6
 	github.com/google/uuid v1.1.2
 	github.com/urfave/cli/v2 v2.3.0
-	golang.org/x/sys v0.0.0-20210615035016-665e8c7367d1
+	golang.org/x/sys v0.1.0
 	golang.org/x/term v0.0.0-20201126162022-7de9c90e9dd1
 )
