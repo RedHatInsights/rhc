@@ -1,0 +1,13 @@
+summary: rhc test suite
+discover:
+    how: fmf
+
+prepare:
+    - name: Install packages
+      how: install
+      package:
+        - golang
+        - make
+
+execute:
+    how: tmt

@@ -1,0 +1,33 @@
+# Default packit instance is a prod and only this is used
+# stg instance is present for testing new packit features in forked repositories where stg is installed.
+packit_instances: ["prod"]
+upstream_project_url: https://github.com/RedHatInsights/rhc
+# issue_repository: 
+jobs:
+  - job: tests
+    trigger: pull_request
+    # Suffix for job name
+    identifier: "unit"
+    targets:
+      # https://packit.dev/docs/configuration/#aliases
+      - centos-stream-9-x86_64
+      - fedora-latest-stable
+    skip_build: true
+    # manual_trigger: true
+    labels:
+      - unit
+
+  - job: tests
+    trigger: pull_request
+    # Suffix for job name
+    identifier: "unit"
+    use_internal_tf: True
+    # http://storage.tft.osci.redhat.com/composes-production.html
+    targets:
+      centos-stream-9-x86_64:
+        distros: [RHEL-9.3.0-Nightly]
+      centos-stream-8-x86_64:
+        distros: [RHEL-8-Updated]
+    skip_build: true
+    labels:
+      - unit
