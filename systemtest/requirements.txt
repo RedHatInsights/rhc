@@ -1,0 +1,6 @@
+ipython
+funcy
+requests
+dynaconf
+dynaconf[vault]
+git+https://github.com/ptoscano/pytest-client-tools.git@main
