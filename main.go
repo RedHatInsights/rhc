@@ -602,7 +602,7 @@ func statusAction(ctx *cli.Context) (err error) {
 	} else {
 		if err == nil {
 			if machineReadable {
-				systemStatus.InsightsConnected = true
+				systemStatus.InsightsConnected = false
 			} else {
 				fmt.Print(disconnectedPrefix + " Not connected to Red Hat Insights\n")
 			}
