@@ -13,11 +13,11 @@ MAKEFLAGS += --no-builtin-rules
 SHORTNAME := rhc
 # Used as file and directory names. Cannot contain spaces.
 LONGNAME  := rhc
-# Used as a long-form description. Can contain spaces and punctuation.
-BRANDNAME   := rhc
 # Used as the tarball file name. Cannot contain spaces.
 PKGNAME   := rhc
 VERSION   := 0.2.4
+# Used for service name of yggdrasil service (rhcd service). Cannot contain spaces
+SERVICENAME := yggdrasil
 # Used as the prefix for MQTT topic names
 TOPICPREFIX := redhat/insights
 # Used to force sending all HTTP traffic to a specific host.
@@ -46,7 +46,6 @@ LDFLAGS :=
 LDFLAGS += -X 'main.Version=$(VERSION)'
 LDFLAGS += -X 'main.ShortName=$(SHORTNAME)'
 LDFLAGS += -X 'main.LongName=$(LONGNAME)'
-LDFLAGS += -X 'main.BrandName=$(BRANDNAME)'
 LDFLAGS += -X 'main.PrefixDir=$(PREFIX)'
 LDFLAGS += -X 'main.BinDir=$(BINDIR)'
 LDFLAGS += -X 'main.SbinDir=$(SBINDIR)'
@@ -59,6 +58,7 @@ LDFLAGS += -X 'main.DocDir=$(DOCDIR)'
 LDFLAGS += -X 'main.LocalstateDir=$(LOCALSTATEDIR)'
 LDFLAGS += -X 'main.TopicPrefix=$(TOPICPREFIX)'
 LDFLAGS += -X 'main.Provider=$(PROVIDER)'
+LDFLAGS += -X 'main.ServiceName=$(SERVICENAME)'
 
 BUILDFLAGS ?=
 BUILDFLAGS += -buildmode=pie
@@ -98,7 +98,6 @@ USAGE.md: $(GOSRC)
 	sed \
 	    -e 's,[@]SHORTNAME[@],$(SHORTNAME),g' \
 		-e 's,[@]LONGNAME[@],$(LONGNAME),g' \
-		-e 's,[@]BRANDNAME[@],$(BRANDNAME),g' \
 		-e 's,[@]VERSION[@],$(VERSION),g' \
 		-e 's,[@]PACKAGE[@],$(PACKAGE),g' \
 		-e 's,[@]TOPICPREFIX[@],$(TOPICPREFIX),g' \
@@ -113,6 +112,7 @@ USAGE.md: $(GOSRC)
 		-e 's,[@]SYSCONFDIR[@],$(SYSCONFDIR),g' \
 		-e 's,[@]LOCALSTATEDIR[@],$(LOCALSTATEDIR),g' \
 		-e 's,[@]DOCDIR[@],$(DOCDIR),g' \
+		-e 's,[@]SERVICENAME[@],$(SERVICENAME),g' \
 		$< > $@.tmp && mv $@.tmp $@
 
 .PHONY: install

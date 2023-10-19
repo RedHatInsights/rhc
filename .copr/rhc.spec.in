@@ -48,10 +48,10 @@ make PREFIX=%{_prefix} \
      SHORTNAME=@SHORTNAME@ \
      LONGNAME=@LONGNAME@ \
      PKGNAME=@PKGNAME@ \
-     BRANDNAME=@BRANDNAME@ \
      TOPICPREFIX=@TOPICPREFIX@ \
      VERSION=%{version} \
      DATAHOST=@DATAHOST@ \
+     SERVICENAME=@SERVICENAME@ \
      'PROVIDER=@PROVIDER@'
 
 cd %{_builddir}/%{name}/yggdrasil-worker-package-manager
@@ -64,10 +64,10 @@ make PREFIX=%{_prefix} \
      SHORTNAME=@SHORTNAME@ \
      LONGNAME=@LONGNAME@ \
      PKGNAME=@PKGNAME@ \
-     BRANDNAME=@BRANDNAME@ \
      TOPICPREFIX=@TOPICPREFIX@ \
      VERSION=%{version} \
      DATAHOST=@DATAHOST@ \
+     SERVICENAME=@SERVICENAME@ \
      'PROVIDER=@PROVIDER@'
 
 
@@ -80,10 +80,10 @@ make PREFIX=%{_prefix} \
      SHORTNAME=@SHORTNAME@ \
      LONGNAME=@LONGNAME@ \
      PKGNAME=@PKGNAME@ \
-     BRANDNAME=@BRANDNAME@ \
      TOPICPREFIX=@TOPICPREFIX@ \
      VERSION=%{version} \
      DATAHOST=@DATAHOST@ \
+     SERVICENAME=@SERVICENAME@ \
      'PROVIDER=@PROVIDER@' \
      install
 
@@ -99,10 +99,10 @@ make PREFIX=%{_prefix} \
      SHORTNAME=@SHORTNAME@ \
      LONGNAME=@LONGNAME@ \
      PKGNAME=@PKGNAME@ \
-     BRANDNAME=@BRANDNAME@ \
      TOPICPREFIX=@TOPICPREFIX@ \
      VERSION=%{version} \
      DATAHOST=@DATAHOST@ \
+     SERVICENAME=@SERVICENAME@ \
      'PROVIDER=@PROVIDER@' \
      install
 

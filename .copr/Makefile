@@ -8,7 +8,7 @@ SRCRPMDIR := $(shell rpmbuild -E %_srcrpmdir)
 
 srpm: SHORTNAME = $(shell basename $(PWD))
 srpm: LONGNAME = $(SHORTNAME)
-srpm: BRANDNAME = $(SHORTNAME)
+srpm: SERVICENAME = "yggdrasil"
 srpm: VERSION := $(shell echo $(VERSION) | awk -F. '{printf("%d.%d.%d", $$1, $$2, $$3+1)}')
 srpm: RELEASE = $(shell printf "0.%s.git.%s" $(shell git rev-list $(shell git describe --tags --abbrev=0 --always | tr -d '\n')..HEAD --count | tr -d '\n') $(shell git rev-parse --short HEAD | tr -d '\n'))
 srpm: PKGNAME = $(SHORTNAME)
@@ -21,7 +21,6 @@ srpm: deps
 	sed \
 	    -e 's,[@]SHORTNAME[@],$(SHORTNAME),g' \
 		-e 's,[@]LONGNAME[@],$(LONGNAME),g' \
-		-e 's,[@]BRANDNAME[@],$(BRANDNAME),g' \
 		-e 's,[@]VERSION[@],$(VERSION),g' \
 		-e 's,[@]RELEASE[@],$(RELEASE),g' \
 		-e 's,[@]PKGNAME[@],$(PKGNAME),g' \
@@ -37,6 +36,7 @@ srpm: deps
 		-e 's,[@]SYSCONFDIR[@],$(SYSCONFDIR),g' \
 		-e 's,[@]LOCALSTATEDIR[@],$(LOCALSTATEDIR),g' \
 		-e 's,[@]DOCDIR[@],$(DOCDIR),g' \
+		-e 's,[@]SERVICENAME[@],$(SERVICENAME),g' \
 		$(spec)/.copr/rhc.spec.in > $(spec)/rhc.spec
 	make PKGNAME=$(PKGNAME) VERSION=$(VERSION)-$(RELEASE) dist
 	install -D -m644 $(PKGNAME)-$(VERSION)-$(RELEASE).tar.gz $(SOURCEDIR)

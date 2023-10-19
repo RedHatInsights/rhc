@@ -7,16 +7,17 @@ import (
 	systemd "github.com/coreos/go-systemd/v22/dbus"
 )
 
-func activate() error {
-	// Use simple background context without anything extra
-	ctx := context.Background()
+// activateService tries to enable and start yggdrasil service.
+// The service can be branded to rhcd on RHEL
+func activateService() error {
+    ctx := context.Background()
 	conn, err := systemd.NewSystemConnectionContext(ctx)
 	if err != nil {
 		return err
 	}
 	defer conn.Close()
 
-	unitName := ShortName + "d.service"
+	unitName := ServiceName + ".service"
 
 	if _, _, err := conn.EnableUnitFilesContext(ctx, []string{unitName}, false, true); err != nil {
 		return err
@@ -39,8 +40,10 @@ func activate() error {
 	return nil
 }
 
-func deactivate() error {
-	// Use simple background context without anything extra
+// deactivateService tries to stop and disable yggdrasil service.
+// The service can be branded to rhcd on RHEL
+func deactivateService() error {
+		// Use simple background context without anything extra
 	ctx := context.Background()
 	conn, err := systemd.NewSystemConnectionContext(ctx)
 	if err != nil {
@@ -48,7 +51,7 @@ func deactivate() error {
 	}
 	defer conn.Close()
 
-	unitName := ShortName + "d.service"
+	unitName := ServiceName + ".service"
 
 	done := make(chan string)
 	if _, err := conn.StopUnitContext(ctx, unitName, "replace", done); err != nil {
