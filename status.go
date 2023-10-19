@@ -75,30 +75,30 @@ func serviceStatus(systemStatus *SystemStatus, uiPreferences *UserInterfacePrefe
 	ctx := context.Background()
 	conn, err := systemd.NewSystemConnectionContext(ctx)
 	if err != nil {
-		systemStatus.RHCDRunning = false
-		systemStatus.RHCDError = err
+		systemStatus.YggdrasilRunning = false
+		systemStatus.YggdrasilError = err
 		return fmt.Errorf("unable to connect to systemd: %s", err)
 	}
 	defer conn.Close()
-	unitName := ShortName + "d.service"
+	unitName := ServiceName + ".service"
 	properties, err := conn.GetUnitPropertiesContext(ctx, unitName)
 	if err != nil {
-		systemStatus.RHCDRunning = false
-		systemStatus.RHCDError = err
+		systemStatus.YggdrasilRunning = false
+		systemStatus.YggdrasilError = err
 		return fmt.Errorf("unable to get properties of %s: %s", unitName, err)
 	}
 	activeState := properties["ActiveState"]
 	if activeState.(string) == "active" {
 		if uiPreferences.MachineReadable {
-			systemStatus.RHCDRunning = true
+			systemStatus.YggdrasilRunning = true
 		} else {
-			fmt.Printf(uiPreferences.ConnectedPrefix+" The %v daemon is active\n", BrandName)
+			fmt.Printf(uiPreferences.ConnectedPrefix+" The %v service is active\n", ServiceName)
 		}
 	} else {
 		if uiPreferences.MachineReadable {
-			systemStatus.RHCDRunning = false
+			systemStatus.YggdrasilRunning = false
 		} else {
-			fmt.Printf(uiPreferences.DisconnectedPrefix+" The %v daemon is inactive\n", BrandName)
+			fmt.Printf(uiPreferences.DisconnectedPrefix+" The %v service is inactive\n", ServiceName)
 		}
 	}
 	return nil

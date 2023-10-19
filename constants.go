@@ -12,15 +12,16 @@ var (
 	// LongName is used in file and directory names.
 	LongName string
 
-	// BrandName is a long-form description.
-	BrandName string
-
 	// TopicPrefix is used as a prefix to all MQTT topics in the client.
 	TopicPrefix string
 
 	// Provider is used when constructing user-facing string output to identify
 	// the agency providing the connection broker.
 	Provider string
+
+	// ServiceName us used for manipulating of yggdrasil service
+	// It can be branded to rhcd on RHEL
+	ServiceName string
 )
 
 // Installation directory prefix and paths. Values are specified by compile-time
@@ -81,13 +82,13 @@ func init() {
 	if LongName == "" {
 		LongName = "rhc"
 	}
-	if BrandName == "" {
-		BrandName = "rhc"
-	}
 	if TopicPrefix == "" {
 		TopicPrefix = "rhc"
 	}
 	if Provider == "" {
 		Provider = "Red Hat"
+	}
+	if ServiceName == "" {
+		ServiceName = "yggdrasil"
 	}
 }

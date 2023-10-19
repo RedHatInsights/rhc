@@ -337,28 +337,28 @@ func connectAction(ctx *cli.Context) error {
 		durations["insights"] = time.Since(start)
 	}
 
-	/* 3. Start rhcd daemon */
+	/* 3. Start yggdrasil (rhcd) service */
 	if errors, exist := errorMessages["rhsm"]; exist {
 		if errors.level == log.LevelError {
 			fmt.Printf(
-				uiPreferences.DisconnectedPrefix+" Skipping activation of %v daemon\n",
-				BrandName,
+				uiPreferences.DisconnectedPrefix+" Skipping activation of %v service\n",
+				ServiceName,
 			)
 		}
 	} else {
 		start = time.Now()
-		progressMessage := fmt.Sprintf(" Activating the %v daemon", BrandName)
-		err = showProgress(progressMessage, uiPreferences, activate)
+		progressMessage := fmt.Sprintf(" Activating the %v service", ServiceName)
+		err = showProgress(progressMessage, uiPreferences, activateService)
 		if err != nil {
-			errorMessages[BrandName] = LogMessage{
+			errorMessages[ServiceName] = LogMessage{
 				level: log.LevelError,
-				message: fmt.Errorf("cannot activate daemon: %w",
-					err)}
-			fmt.Printf(uiPreferences.ErrorPrefix+" Cannot activate the %v daemon\n", BrandName)
+				message: fmt.Errorf("cannot activate %s service: %w",
+					ServiceName, err)}
+			fmt.Printf(uiPreferences.ErrorPrefix+" Cannot activate the %v service\n", ServiceName)
 		} else {
-			fmt.Printf(uiPreferences.ConnectedPrefix+" Activated the %v daemon\n", BrandName)
+			fmt.Printf(uiPreferences.ConnectedPrefix+" Activated the %v service\n", ServiceName)
 		}
-		durations[BrandName] = time.Since(start)
+		durations[ServiceName] = time.Since(start)
 	}
 
 	/* 4. Show Configuration Profile */
@@ -366,7 +366,7 @@ func connectAction(ctx *cli.Context) error {
 		// Update the configuration file
 		// Call D-bus to get the CA directory from rhsm
 		if err = getRHSMConfigOption("rhsm.ca_cert_dir", &config.CADir); err != nil {
-			errorMessages[BrandName] = LogMessage{
+			errorMessages[ServiceName] = LogMessage{
 				level: log.LevelWarn,
 				message: fmt.Errorf("cannot get rhsm configuration: %w",
 					err)}
@@ -374,7 +374,7 @@ func connectAction(ctx *cli.Context) error {
 		// Generate a new http client configured with mutual TLS certificate
 		tlsConfig, err := config.CreateTLSClientConfig()
 		if err != nil {
-			errorMessages[BrandName] = LogMessage{
+			errorMessages[ServiceName] = LogMessage{
 				level: log.LevelWarn,
 				message: fmt.Errorf("cannot configure TLS: %w",
 					err)}
@@ -384,7 +384,7 @@ func connectAction(ctx *cli.Context) error {
 		// Get the user profile
 		profile, err := getConfProfile(client)
 		if err != nil {
-			errorMessages[BrandName] = LogMessage{
+			errorMessages[ServiceName] = LogMessage{
 				level: log.LevelWarn,
 				message: fmt.Errorf("cannot get the user profile: %w",
 					err)}
@@ -430,20 +430,20 @@ func disconnectAction(ctx *cli.Context) error {
 
 	uiPreferences := getUserInterfacePreferences(ctx)
 
-	/* 1. Deactivate rhcd daemon */
+	/* 1. Deactivate yggdrasil (rhcd) service */
 	start = time.Now()
-	progressMessage := fmt.Sprintf(" Deactivating the %v daemon", BrandName)
-	err = showProgress(progressMessage, uiPreferences, deactivate)
+	progressMessage := fmt.Sprintf(" Deactivating the %v service", ServiceName)
+	err = showProgress(progressMessage, uiPreferences, deactivateService)
 	if err != nil {
-		errorMessages[BrandName] = LogMessage{
+		errorMessages[ServiceName] = LogMessage{
 			level: log.LevelError,
-			message: fmt.Errorf("cannot deactivate daemon: %w",
-				err)}
-		fmt.Printf(uiPreferences.ErrorPrefix+" Cannot deactivate the %v daemon\n", BrandName)
+			message: fmt.Errorf("cannot deactivate %s service: %w",
+				ServiceName, err)}
+		fmt.Printf(uiPreferences.ErrorPrefix+" Cannot deactivate the %v service\n", ServiceName)
 	} else {
-		fmt.Printf(uiPreferences.DisconnectedPrefix+" Deactivated the %v daemon\n", BrandName)
+		fmt.Printf(uiPreferences.DisconnectedPrefix+" Deactivated the %v service\n", ServiceName)
 	}
-	durations[BrandName] = time.Since(start)
+	durations[ServiceName] = time.Since(start)
 
 	/* 2. Disconnect from Red Hat Insights */
 	start = time.Now()
@@ -516,8 +516,8 @@ type SystemStatus struct {
 	RHSMError         error  `json:"rhsm_error,omitempty"`
 	InsightsConnected bool   `json:"insights_connected"`
 	InsightsError     error  `json:"insights_error,omitempty"`
-	RHCDRunning       bool   `json:"rhcd_running"`
-	RHCDError         error  `json:"rhcd_error,omitempty"`
+	YggdrasilRunning  bool   `json:"yggdrasil_running"`
+	YggdrasilError    error  `json:"yggdrasil_error,omitempty"`
 }
 
 // printJSONStatus tries to print the system status as JSON to stdout.
@@ -535,7 +535,7 @@ func printJSONStatus(systemStatus *SystemStatus) error {
 // answer on following questions:
 // 1. Is system registered to Red Hat Subscription Management?
 // 2. Is system connected to Red Hat Insights?
-// 3. Is rhcd.service running?
+// 3. Is yggdrasil.service (rhcd.service) running?
 // Status can be printed as human-readable text or machine-readable JSON document.
 // Format is influenced by --format json CLI option stored in CLI context
 func statusAction(ctx *cli.Context) (err error) {
@@ -602,7 +602,7 @@ func statusAction(ctx *cli.Context) (err error) {
 	/* 2. Get status of insights-client */
 	insightStatus(&systemStatus, uiPreferences)
 
-	/* 3. Get status of rhcd service */
+	/* 3. Get status of yggdrasil (rhcd) service */
 	err = serviceStatus(&systemStatus, uiPreferences)
 	if err != nil {
 		return cli.Exit(err, 1)
@@ -771,14 +771,14 @@ func main() {
 			},
 			Usage:       "Connects the system to " + Provider,
 			UsageText:   fmt.Sprintf("%v connect [command options]", app.Name),
-			Description: fmt.Sprintf("The connect command connects the system to Red Hat Subscription Management, Red Hat Insights and %v and activates the %v daemon that enables %v to interact with the system. For details visit: https://red.ht/connector", Provider, BrandName, Provider),
+			Description: fmt.Sprintf("The connect command connects the system to Red Hat Subscription Management, Red Hat Insights and %v and activates the %v service that enables %v to interact with the system. For details visit: https://red.ht/connector", Provider, ServiceName, Provider),
 			Action:      connectAction,
 		},
 		{
 			Name:        "disconnect",
 			Usage:       "Disconnects the system from " + Provider,
 			UsageText:   fmt.Sprintf("%v disconnect", app.Name),
-			Description: fmt.Sprintf("The disconnect command disconnects the system from Red Hat Subscription Management, Red Hat Insights and %v and deactivates the %v daemon. %v will no longer be able to interact with the system.", Provider, BrandName, Provider),
+			Description: fmt.Sprintf("The disconnect command disconnects the system from Red Hat Subscription Management, Red Hat Insights and %v and deactivates the %v service. %v will no longer be able to interact with the system.", Provider, ServiceName, Provider),
 			Action:      disconnectAction,
 		},
 		{

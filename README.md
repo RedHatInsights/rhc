@@ -9,12 +9,12 @@ It currently performs 3 steps when it connects a system:
    already registered, this step is a noop and it moves to the next step.
 2. Registers the system with Red Hat Insights. If the system is already
    registered, this step is a noop and it moves to the next step.
-3. Activate the `rhcd` daemon.
+3. Activate the `yggdrasil` (or branded `rhcd`) service.
 
 Likewise, when `rhc` is disconnecting a system, it performs the steps in
 descending order.
 
-1. Deactivates the `rhcd` daemon.
+1. Deactivates the `yggdrasil` (or branded `rhcd`) service.
 2. Unregisters the system from Red Hat Insights.
 3. Unregisters the system from Red Hat Subscription Management.
 
@@ -22,7 +22,7 @@ descending order.
 [`yggdrasil`](https://github.com/RedHatInsights/yggdrasil). `rhc` began
 as a program within the `yggdrasil` project, but has since been forked out.
 `rhc` still has a soft dependency on `yggdrasil`; `yggdrasil` provides `rhcd`
-(or `yggd`), the daemon that `rhc` activates as the last step in its connection
+(or `yggd`), the service that `rhc` activates as the last step in its connection
 process.
 
 ## Non-goals
