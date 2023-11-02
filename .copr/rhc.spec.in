@@ -26,6 +26,7 @@ BuildRequires: git
 BuildRequires: golang
 BuildRequires: dbus-devel
 BuildRequires: systemd-devel
+BuildRequires: systemd
 
 
 %description
