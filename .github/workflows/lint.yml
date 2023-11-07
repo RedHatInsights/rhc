@@ -36,6 +36,10 @@ jobs:
         with:
           version: "latest"
           args: "--verbose"
+      - name: Install shellcheck
+        run: sudo apt install shellcheck
+      - name: Check shell bash scripts
+        run: shellcheck ./rhc.bash
   lint-language:
     name: Lint language
     runs-on: ubuntu-latest
