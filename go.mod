@@ -8,7 +8,7 @@ require (
 	github.com/briandowns/spinner v1.17.0
 	github.com/coreos/go-systemd/v22 v22.1.0
 	github.com/godbus/dbus/v5 v5.1.0
-	github.com/google/go-cmp v0.5.6
+	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.1.2
 	github.com/urfave/cli/v2 v2.3.0
 	golang.org/x/sys v0.1.0
