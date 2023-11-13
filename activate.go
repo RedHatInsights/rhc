@@ -1,13 +1,16 @@
 package main
 
 import (
+	"context"
 	"fmt"
 
 	systemd "github.com/coreos/go-systemd/v22/dbus"
 )
 
 func activate() error {
-	conn, err := systemd.NewSystemConnection()
+	// Use simple background context without anything extra
+	ctx := context.Background()
+	conn, err := systemd.NewSystemConnectionContext(ctx)
 	if err != nil {
 		return err
 	}
@@ -15,16 +18,16 @@ func activate() error {
 
 	unitName := ShortName + "d.service"
 
-	if _, _, err := conn.EnableUnitFiles([]string{unitName}, false, true); err != nil {
+	if _, _, err := conn.EnableUnitFilesContext(ctx, []string{unitName}, false, true); err != nil {
 		return err
 	}
 
 	done := make(chan string)
-	if _, err := conn.StartUnit(unitName, "replace", done); err != nil {
+	if _, err := conn.StartUnitContext(ctx, unitName, "replace", done); err != nil {
 		return err
 	}
 	<-done
-	properties, err := conn.GetUnitProperties(unitName)
+	properties, err := conn.GetUnitPropertiesContext(ctx, unitName)
 	if err != nil {
 		return err
 	}
@@ -37,7 +40,9 @@ func activate() error {
 }
 
 func deactivate() error {
-	conn, err := systemd.NewSystemConnection()
+	// Use simple background context without anything extra
+	ctx := context.Background()
+	conn, err := systemd.NewSystemConnectionContext(ctx)
 	if err != nil {
 		return err
 	}
@@ -46,12 +51,12 @@ func deactivate() error {
 	unitName := ShortName + "d.service"
 
 	done := make(chan string)
-	if _, err := conn.StopUnit(unitName, "replace", done); err != nil {
+	if _, err := conn.StopUnitContext(ctx, unitName, "replace", done); err != nil {
 		return err
 	}
 	<-done
 
-	if _, err := conn.DisableUnitFiles([]string{unitName}, false); err != nil {
+	if _, err := conn.DisableUnitFilesContext(ctx, []string{unitName}, false); err != nil {
 		return err
 	}
 

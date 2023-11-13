@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -617,7 +618,8 @@ func statusAction(ctx *cli.Context) (err error) {
 	}
 
 	/* 3. Get status of rhcd */
-	conn, err := systemd.NewSystemConnection()
+	systemdCtx := context.Background()
+	conn, err := systemd.NewSystemConnectionContext(systemdCtx)
 	if err != nil {
 		systemStatus.RHCDRunning = false
 		systemStatus.RHCDError = err
@@ -625,7 +627,7 @@ func statusAction(ctx *cli.Context) (err error) {
 	}
 	defer conn.Close()
 	unitName := ShortName + "d.service"
-	properties, err := conn.GetUnitProperties(unitName)
+	properties, err := conn.GetUnitPropertiesContext(systemdCtx, unitName)
 	if err != nil {
 		systemStatus.RHCDRunning = false
 		systemStatus.RHCDError = err
