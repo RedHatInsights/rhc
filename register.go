@@ -16,13 +16,15 @@ func getConsumerUUID() (string, error) {
 		return "", err
 	}
 
+	locale := getLocale()
+
 	var uuid string
 	if err := conn.Object(
 		"com.redhat.RHSM1",
 		"/com/redhat/RHSM1/Consumer").Call(
 		"com.redhat.RHSM1.Consumer.GetUuid",
 		dbus.Flags(0),
-		"").Store(&uuid); err != nil {
+		locale).Store(&uuid); err != nil {
 		return "", unpackRHSMError(err)
 	}
 	return uuid, nil
@@ -99,14 +101,19 @@ func registerUsernamePassword(username, password, organization, serverURL string
 
 	registerServer := conn.Object("com.redhat.RHSM1", "/com/redhat/RHSM1/RegisterServer")
 
+	locale := getLocale()
+
 	var privateDbusSocketURI string
 	if err := registerServer.Call(
 		"com.redhat.RHSM1.RegisterServer.Start",
 		dbus.Flags(0),
-		"").Store(&privateDbusSocketURI); err != nil {
+		locale).Store(&privateDbusSocketURI); err != nil {
 		return orgs, err
 	}
-	defer registerServer.Call("com.redhat.RHSM1.RegisterServer.Stop", dbus.FlagNoReplyExpected, "")
+	defer registerServer.Call(
+		"com.redhat.RHSM1.RegisterServer.Stop",
+		dbus.FlagNoReplyExpected,
+		locale)
 
 	privConn, err := dbus.Dial(privateDbusSocketURI)
 	if err != nil {
@@ -128,7 +135,7 @@ func registerUsernamePassword(username, password, organization, serverURL string
 		password,
 		map[string]string{"enable_content": "true"},
 		map[string]string{},
-		"").Err; err != nil {
+		locale).Err; err != nil {
 
 		// Try to unpack D-Bus method
 		err := unpackRHSMError(err)
@@ -152,7 +159,7 @@ func registerUsernamePassword(username, password, organization, serverURL string
 				username,
 				password,
 				map[string]string{},
-				"",
+				locale,
 			)
 
 			err = orgsCall.Store(&s)
@@ -191,17 +198,19 @@ func registerActivationKey(orgID string, activationKeys []string, serverURL stri
 
 	registerServer := conn.Object("com.redhat.RHSM1", "/com/redhat/RHSM1/RegisterServer")
 
+	locale := getLocale()
+
 	var privateDbusSocketURI string
 	if err := registerServer.Call(
 		"com.redhat.RHSM1.RegisterServer.Start",
 		dbus.Flags(0),
-		"").Store(&privateDbusSocketURI); err != nil {
+		locale).Store(&privateDbusSocketURI); err != nil {
 		return err
 	}
 	defer registerServer.Call(
 		"com.redhat.RHSM1.RegisterServer.Stop",
 		dbus.FlagNoReplyExpected,
-		"")
+		locale)
 
 	privConn, err := dbus.Dial(privateDbusSocketURI)
 	if err != nil {
@@ -222,7 +231,7 @@ func registerActivationKey(orgID string, activationKeys []string, serverURL stri
 		activationKeys,
 		map[string]string{},
 		map[string]string{},
-		"").Err; err != nil {
+		locale).Err; err != nil {
 		return unpackRHSMError(err)
 	}
 
@@ -243,13 +252,15 @@ func unregister() error {
 		return fmt.Errorf("warning: the system is already unregistered")
 	}
 
+	locale := getLocale()
+
 	err = conn.Object(
 		"com.redhat.RHSM1",
 		"/com/redhat/RHSM1/Unregister").Call(
 		"com.redhat.RHSM1.Unregister.Unregister",
 		dbus.Flags(0),
 		map[string]string{},
-		"").Err
+		locale).Err
 
 	if err != nil {
 		return unpackRHSMError(err)
@@ -320,6 +331,8 @@ func configureRHSM(serverURL string) error {
 		return fmt.Errorf("cannot connect to system D-Bus: %w", err)
 	}
 
+	locale := getLocale()
+
 	config := conn.Object("com.redhat.RHSM1", "/com/redhat/RHSM1/Config")
 
 	// If the scheme is empty, attempt to set the server.hostname based on the
@@ -332,7 +345,7 @@ func configureRHSM(serverURL string) error {
 				0,
 				"server.hostname",
 				URL.Path,
-				"").Err; err != nil {
+				locale).Err; err != nil {
 				return unpackRHSMError(err)
 			}
 		}
@@ -343,7 +356,7 @@ func configureRHSM(serverURL string) error {
 				0,
 				"server.hostname",
 				URL.Hostname(),
-				"").Err; err != nil {
+				locale).Err; err != nil {
 				return unpackRHSMError(err)
 			}
 		}
@@ -354,7 +367,7 @@ func configureRHSM(serverURL string) error {
 				0,
 				"server.port",
 				URL.Port(),
-				"").Err; err != nil {
+				locale).Err; err != nil {
 				return unpackRHSMError(err)
 			}
 		}
@@ -365,7 +378,7 @@ func configureRHSM(serverURL string) error {
 				0,
 				"server.prefix",
 				URL.Path,
-				"").Err; err != nil {
+				locale).Err; err != nil {
 				return unpackRHSMError(err)
 			}
 		}
@@ -379,10 +392,13 @@ func getRHSMConfigOption(name string, val interface{}) error {
 	if err != nil {
 		return fmt.Errorf("cannot connect to system D-Bus: %w", err)
 	}
+	locale := getLocale()
 	obj := conn.Object("com.redhat.RHSM1", "/com/redhat/RHSM1/Config")
 	if err := obj.Call(
 		"com.redhat.RHSM1.Config.Get",
-		dbus.Flags(0), name, "").Store(val); err != nil {
+		dbus.Flags(0),
+		name,
+		locale).Store(val); err != nil {
 		return unpackRHSMError(err)
 	}
 
