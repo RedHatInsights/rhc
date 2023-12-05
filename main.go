@@ -19,47 +19,67 @@ import (
 	"github.com/urfave/cli/v2/altsrc"
 )
 
-const redColor = "\u001B[31m"
-const greenColor = "\u001B[32m"
-const blueColor = "\u001B[36m"
-const endColor = "\u001B[0m"
-
-// Colorful prefixes
-const ttyConnectedPrefix = greenColor + "●" + endColor
-const ttyDisconnectedPrefix = redColor + "●" + endColor
-const ttyInfoPrefix = blueColor + "●" + endColor
-const ttyErrorPrefix = redColor + "!" + endColor
-
-// Black & white prefixes. Unicode characters
-const bwConnectedPrefix = "✓"
-const bwDisconnectedPrefix = "𐄂"
-const bwErrorPrefix = "!"
-const bwInfoPrefix = "·"
-
 type LogMessage struct {
 	level   log.Level
 	message error
 }
 
-// UserInterfacePreferences helps to hold UI preferences
-type UserInterfacePreferences struct {
-	IsColorful         bool
-	MachineReadable    bool
-	ConnectedPrefix    string
-	DisconnectedPrefix string
-	ErrorPrefix        string
-	InfoPrefix         string
+const (
+	colorGreen  = "\u001B[32m"
+	colorYellow = "\u001B[33m"
+	colorRed    = "\u001B[31m"
+	colorReset  = "\u001B[0m"
+)
+
+// userInterfaceSettings manages standard output preference.
+// It tracks colors, icons and machine-readable output (e.g. json).
+//
+// It is instantiated via uiSettings by calling configureUISettings.
+type userInterfaceSettings struct {
+	// isMachineReadable describes the machine-readable mode (e.g., `--format json`)
+	isMachineReadable bool
+	// isRich describes the ability to display colors and animations
+	isRich    bool
+	iconOK    string
+	iconInfo  string
+	iconError string
+}
+
+// uiSettings is an instance that keeps actual data of output preference.
+//
+// It is managed by calling the configureUISettings method.
+var uiSettings = userInterfaceSettings{}
+
+// configureUISettings is called by the CLI library when it loads up.
+// It sets up the uiSettings object.
+func configureUISettings(ctx *cli.Context) {
+	if ctx.Bool("no-color") {
+		uiSettings = userInterfaceSettings{
+			isRich:            false,
+			isMachineReadable: false,
+			iconOK:            "✓",
+			iconInfo:          "·",
+			iconError:         "𐄂",
+		}
+	} else {
+		uiSettings = userInterfaceSettings{
+			isRich:            true,
+			isMachineReadable: false,
+			iconOK:            colorGreen + "●" + colorReset,
+			iconInfo:          colorYellow + "●" + colorReset,
+			iconError:         colorRed + "●" + colorReset,
+		}
+	}
 }
 
 // showProgress calls function and, when it is possible display spinner with
 // some progress message.
 func showProgress(
 	progressMessage string,
-	uiPreferences *UserInterfacePreferences,
 	function func() error,
 ) error {
 	var s *spinner.Spinner
-	if uiPreferences.IsColorful {
+	if uiSettings.isRich {
 		s = spinner.New(spinner.CharSets[9], 100*time.Millisecond)
 		s.Suffix = progressMessage
 		s.Start()
@@ -67,32 +87,6 @@ func showProgress(
 		defer func() { s.Stop() }()
 	}
 	return function()
-}
-
-// getUserInterfacePreferences tries to get color preferences form context
-func getUserInterfacePreferences(ctx *cli.Context) *UserInterfacePreferences {
-	var uiPreference UserInterfacePreferences
-	noColor := ctx.Bool("no-color")
-
-	if noColor {
-		uiPreference.IsColorful = false
-		uiPreference.ConnectedPrefix = bwConnectedPrefix
-		uiPreference.DisconnectedPrefix = bwDisconnectedPrefix
-		uiPreference.ErrorPrefix = bwErrorPrefix
-		uiPreference.InfoPrefix = bwInfoPrefix
-	} else {
-		uiPreference.IsColorful = true
-		uiPreference.ConnectedPrefix = ttyConnectedPrefix
-		uiPreference.DisconnectedPrefix = ttyDisconnectedPrefix
-		uiPreference.ErrorPrefix = ttyErrorPrefix
-		uiPreference.InfoPrefix = ttyInfoPrefix
-	}
-
-	// machine-readable output is supported only by status sub-command ATM
-	// It has to be set explicitly in status sub-command
-	uiPreference.MachineReadable = false
-
-	return &uiPreference
 }
 
 // showTimeDuration shows table with duration of each sub-action
@@ -185,8 +179,6 @@ func registerRHSM(ctx *cli.Context) (string, error) {
 	}
 	var successMsg string
 
-	uiPreferences := getUserInterfacePreferences(ctx)
-
 	if uuid == "" {
 		username := ctx.String("username")
 		password := ctx.String("password")
@@ -213,7 +205,7 @@ func registerRHSM(ctx *cli.Context) (string, error) {
 		}
 
 		var s *spinner.Spinner
-		if uiPreferences.IsColorful {
+		if uiSettings.isRich {
 			s = spinner.New(spinner.CharSets[9], 100*time.Millisecond)
 			s.Suffix = " Connecting to Red Hat Subscription Management..."
 			s.Start()
@@ -237,7 +229,7 @@ func registerRHSM(ctx *cli.Context) (string, error) {
 				   the organization. */
 				if len(orgs) > 0 {
 					// Stop spinner to be able to display message and ask for organization
-					if uiPreferences.IsColorful {
+					if uiSettings.isRich {
 						s.Stop()
 					}
 
@@ -258,7 +250,7 @@ func registerRHSM(ctx *cli.Context) (string, error) {
 					fmt.Printf("\n")
 
 					// Start spinner again
-					if uiPreferences.IsColorful {
+					if uiSettings.isRich {
 						s.Start()
 					}
 
@@ -296,8 +288,6 @@ func connectAction(ctx *cli.Context) error {
 
 	fmt.Printf("Connecting %v to %v.\nThis might take a few seconds.\n\n", hostname, Provider)
 
-	uiPreferences := getUserInterfacePreferences(ctx)
-
 	/* 1. Register to RHSM, because we need to get consumer certificate. This blocks following action */
 	start = time.Now()
 	var returnedMsg string
@@ -308,10 +298,10 @@ func connectAction(ctx *cli.Context) error {
 			message: fmt.Errorf("cannot connect to Red Hat Subscription Management: %w",
 				err)}
 		fmt.Printf(
-			uiPreferences.ErrorPrefix + " Cannot connect to Red Hat Subscription Management\n",
+			uiSettings.iconError + " Cannot connect to Red Hat Subscription Management\n",
 		)
 	} else {
-		fmt.Printf(uiPreferences.ConnectedPrefix + " " + returnedMsg + "\n")
+		fmt.Printf(uiSettings.iconOK + " " + returnedMsg + "\n")
 	}
 	durations["rhsm"] = time.Since(start)
 
@@ -319,20 +309,20 @@ func connectAction(ctx *cli.Context) error {
 	if errors, exist := errorMessages["rhsm"]; exist {
 		if errors.level == log.LevelError {
 			fmt.Printf(
-				uiPreferences.DisconnectedPrefix + " Skipping connection to Red Hat Insights\n",
+				uiSettings.iconError + " Skipping connection to Red Hat Insights\n",
 			)
 		}
 	} else {
 		start = time.Now()
-		err = showProgress(" Connecting to Red Hat Insights...", uiPreferences, registerInsights)
+		err = showProgress(" Connecting to Red Hat Insights...", registerInsights)
 		if err != nil {
 			errorMessages["insights"] = LogMessage{
 				level: log.LevelError,
 				message: fmt.Errorf("cannot connect to Red Hat Insights: %w",
 					err)}
-			fmt.Printf(uiPreferences.ErrorPrefix + " Cannot connect to Red Hat Insights\n")
+			fmt.Printf(uiSettings.iconError + " Cannot connect to Red Hat Insights\n")
 		} else {
-			fmt.Printf(uiPreferences.ConnectedPrefix + " Connected to Red Hat Insights\n")
+			fmt.Printf(uiSettings.iconOK + " Connected to Red Hat Insights\n")
 		}
 		durations["insights"] = time.Since(start)
 	}
@@ -341,22 +331,22 @@ func connectAction(ctx *cli.Context) error {
 	if errors, exist := errorMessages["rhsm"]; exist {
 		if errors.level == log.LevelError {
 			fmt.Printf(
-				uiPreferences.DisconnectedPrefix+" Skipping activation of %v service\n",
+				uiSettings.iconError+" Skipping activation of %v service\n",
 				ServiceName,
 			)
 		}
 	} else {
 		start = time.Now()
 		progressMessage := fmt.Sprintf(" Activating the %v service", ServiceName)
-		err = showProgress(progressMessage, uiPreferences, activateService)
+		err = showProgress(progressMessage, activateService)
 		if err != nil {
 			errorMessages[ServiceName] = LogMessage{
 				level: log.LevelError,
 				message: fmt.Errorf("cannot activate %s service: %w",
 					ServiceName, err)}
-			fmt.Printf(uiPreferences.ErrorPrefix+" Cannot activate the %v service\n", ServiceName)
+			fmt.Printf(uiSettings.iconError+" Cannot activate the %v service\n", ServiceName)
 		} else {
-			fmt.Printf(uiPreferences.ConnectedPrefix+" Activated the %v service\n", ServiceName)
+			fmt.Printf(uiSettings.iconOK+" Activated the %v service\n", ServiceName)
 		}
 		durations[ServiceName] = time.Since(start)
 	}
@@ -389,7 +379,7 @@ func connectAction(ctx *cli.Context) error {
 				message: fmt.Errorf("cannot get the user profile: %w",
 					err)}
 		} else {
-			fmt.Printf(uiPreferences.InfoPrefix + " Enabled console.redhat.com services: ")
+			fmt.Printf(uiSettings.iconInfo + " Enabled console.redhat.com services: ")
 			showConfProfile(&profile)
 			fmt.Printf("\n")
 		}
@@ -428,42 +418,38 @@ func disconnectAction(ctx *cli.Context) error {
 	}
 	fmt.Printf("Disconnecting %v from %v.\nThis might take a few seconds.\n\n", hostname, Provider)
 
-	uiPreferences := getUserInterfacePreferences(ctx)
-
 	/* 1. Deactivate yggdrasil (rhcd) service */
 	start = time.Now()
 	progressMessage := fmt.Sprintf(" Deactivating the %v service", ServiceName)
-	err = showProgress(progressMessage, uiPreferences, deactivateService)
+	err = showProgress(progressMessage, deactivateService)
 	if err != nil {
 		errorMessages[ServiceName] = LogMessage{
 			level: log.LevelError,
 			message: fmt.Errorf("cannot deactivate %s service: %w",
 				ServiceName, err)}
-		fmt.Printf(uiPreferences.ErrorPrefix+" Cannot deactivate the %v service\n", ServiceName)
+		fmt.Printf(uiSettings.iconError+" Cannot deactivate the %v service\n", ServiceName)
 	} else {
-		fmt.Printf(uiPreferences.DisconnectedPrefix+" Deactivated the %v service\n", ServiceName)
+		fmt.Printf(uiSettings.iconOK+" Deactivated the %v service\n", ServiceName)
 	}
 	durations[ServiceName] = time.Since(start)
 
 	/* 2. Disconnect from Red Hat Insights */
 	start = time.Now()
-	err = showProgress(" Disconnecting from Red Hat Insights...", uiPreferences, unregisterInsights)
+	err = showProgress(" Disconnecting from Red Hat Insights...", unregisterInsights)
 	if err != nil {
 		errorMessages["insights"] = LogMessage{
 			level: log.LevelError,
 			message: fmt.Errorf("cannot disconnect from Red Hat Insights: %w",
 				err)}
-		fmt.Printf(uiPreferences.ErrorPrefix + " Cannot disconnect from Red Hat Insights\n")
+		fmt.Printf(uiSettings.iconError + " Cannot disconnect from Red Hat Insights\n")
 	} else {
-		fmt.Print(uiPreferences.DisconnectedPrefix + " Disconnected from Red Hat Insights\n")
+		fmt.Print(uiSettings.iconOK + " Disconnected from Red Hat Insights\n")
 	}
 	durations["insights"] = time.Since(start)
 
 	/* 3. Unregister system from Red Hat Subscription Management */
 	err = showProgress(
-		" Disconnecting from Red Hat Subscription Management...",
-		uiPreferences,
-		unregister,
+		" Disconnecting from Red Hat Subscription Management...", unregister,
 	)
 	if err != nil {
 		errorMessages["rhsm"] = LogMessage{
@@ -471,10 +457,10 @@ func disconnectAction(ctx *cli.Context) error {
 			message: fmt.Errorf("cannot disconnect from Red Hat Subscription Management: %w",
 				err)}
 		fmt.Printf(
-			uiPreferences.ErrorPrefix + " Cannot disconnect from Red Hat Subscription Management\n",
+			uiSettings.iconError + " Cannot disconnect from Red Hat Subscription Management\n",
 		)
 	} else {
-		fmt.Printf(uiPreferences.DisconnectedPrefix + " Disconnected from Red Hat Subscription Management\n")
+		fmt.Printf(uiSettings.iconOK + " Disconnected from Red Hat Subscription Management\n")
 	}
 	durations["rhsm"] = time.Since(start)
 
@@ -531,6 +517,28 @@ func printJSONStatus(systemStatus *SystemStatus) error {
 	return nil
 }
 
+// beforeStatusAction ensures the user has supplied a correct `--format` flag.
+func beforeStatusAction(ctx *cli.Context) error {
+	// This is run after the `app.Before()` has been run,
+	// the uiSettings is already set up for us to modify.
+	format := ctx.String("format")
+	switch format {
+	case "":
+		return nil
+	case "json":
+		uiSettings.isMachineReadable = true
+		uiSettings.isRich = false
+		return nil
+	default:
+		err := fmt.Errorf(
+			"unsupported format: %s (supported formats: %s)",
+			format,
+			`"json"`,
+		)
+		return cli.Exit(err, 1)
+	}
+}
+
 // statusAction tries to print status of system. It means that it gives
 // answer on following questions:
 // 1. Is system registered to Red Hat Subscription Management?
@@ -542,29 +550,17 @@ func statusAction(ctx *cli.Context) (err error) {
 	var systemStatus SystemStatus
 	var machineReadablePrintFunc func(systemStatus *SystemStatus) error
 
-	uiPreferences := getUserInterfacePreferences(ctx)
-
-	// Only JSON file format is supported ATM
 	format := ctx.String("format")
-	if format != "" {
-		switch format {
-		case "json":
-			uiPreferences.MachineReadable = true
-			machineReadablePrintFunc = printJSONStatus
-			// Disable all colors and animations
-			uiPreferences.IsColorful = false
-		default:
-			err := fmt.Errorf(
-				"unsuported machine-readable format: %s (supported formats: %s)",
-				format, "\"json\"",
-			)
-			return cli.Exit(err, 1)
-		}
+	switch format {
+	case "json":
+		machineReadablePrintFunc = printJSONStatus
+	default:
+		break
 	}
 
 	// When printing of status is requested, then print machine-readable file format
 	// at the end of this function
-	if uiPreferences.MachineReadable {
+	if uiSettings.isMachineReadable {
 		defer func(systemStatus *SystemStatus) {
 			err = machineReadablePrintFunc(systemStatus)
 			// When it was not possible to print status to machine-readable format, then
@@ -580,35 +576,35 @@ func statusAction(ctx *cli.Context) (err error) {
 
 	hostname, err := os.Hostname()
 	if err != nil {
-		if uiPreferences.MachineReadable {
+		if uiSettings.isMachineReadable {
 			systemStatus.HostnameError = err
 		} else {
 			return cli.Exit(err, 1)
 		}
 	}
 
-	if uiPreferences.MachineReadable {
+	if uiSettings.isMachineReadable {
 		systemStatus.SystemHostname = hostname
 	} else {
 		fmt.Printf("Connection status for %v:\n\n", hostname)
 	}
 
 	/* 1. Get Status of RHSM */
-	err = rhsmStatus(&systemStatus, uiPreferences)
+	err = rhsmStatus(&systemStatus)
 	if err != nil {
 		return cli.Exit(err, 1)
 	}
 
 	/* 2. Get status of insights-client */
-	insightStatus(&systemStatus, uiPreferences)
+	insightStatus(&systemStatus)
 
 	/* 3. Get status of yggdrasil (rhcd) service */
-	err = serviceStatus(&systemStatus, uiPreferences)
+	err = serviceStatus(&systemStatus)
 	if err != nil {
 		return cli.Exit(err, 1)
 	}
 
-	if !uiPreferences.MachineReadable {
+	if !uiSettings.isMachineReadable {
 		fmt.Printf("\nManage your connected systems: https://red.ht/connector\n")
 	}
 
@@ -671,6 +667,9 @@ func beforeAction(c *cli.Context) error {
 			log.Debug("Unable to set no-color flag to \"true\"")
 		}
 	}
+
+	// Set up standard output preference: colors, icons, etc.
+	configureUISettings(c)
 
 	return nil
 }
@@ -801,6 +800,7 @@ func main() {
 			Usage:       "Prints status of the system's connection to " + Provider,
 			UsageText:   fmt.Sprintf("%v status", app.Name),
 			Description: fmt.Sprintf("The status command prints the state of the connection to Red Hat Subscription Management, Red Hat Insights and %v.", Provider),
+			Before:      beforeStatusAction,
 			Action:      statusAction,
 		},
 	}

@@ -12,66 +12,66 @@ import (
 // rhsmStatus tries to print status provided by RHSM D-Bus API. If we provide
 // output in machine-readable format, then we only set files in SystemStatus
 // structure and content of this structure will be printed later
-func rhsmStatus(systemStatus *SystemStatus, uiPreferences *UserInterfacePreferences) error {
+func rhsmStatus(systemStatus *SystemStatus) error {
 
 	uuid, err := getConsumerUUID()
 	if err != nil {
 		return fmt.Errorf("unable to get consumer UUID: %s", err)
 	}
 	if uuid == "" {
-		if uiPreferences.MachineReadable {
+		if uiSettings.isMachineReadable {
 			systemStatus.RHSMConnected = false
 		} else {
-			fmt.Printf(uiPreferences.DisconnectedPrefix + " Not connected to Red Hat Subscription Management\n")
+			fmt.Printf(uiSettings.iconInfo + " Not connected to Red Hat Subscription Management\n")
 		}
 	} else {
-		if uiPreferences.MachineReadable {
+		if uiSettings.isMachineReadable {
 			systemStatus.RHSMConnected = true
 		} else {
-			fmt.Printf(uiPreferences.ConnectedPrefix + " Connected to Red Hat Subscription Management\n")
+			fmt.Printf(uiSettings.iconOK + " Connected to Red Hat Subscription Management\n")
 		}
 	}
 	return nil
 }
 
 // insightStatus tries to print status of insights client
-func insightStatus(systemStatus *SystemStatus, uiPreferences *UserInterfacePreferences) {
+func insightStatus(systemStatus *SystemStatus) {
 	var s *spinner.Spinner
-	if uiPreferences.IsColorful {
+	if uiSettings.isRich {
 		s = spinner.New(spinner.CharSets[9], 100*time.Millisecond)
 		s.Suffix = " Checking Red Hat Insights..."
 		s.Start()
 	}
 	isRegistered, err := insightsIsRegistered()
-	if uiPreferences.IsColorful {
+	if uiSettings.isRich {
 		s.Stop()
 	}
 	if isRegistered {
-		if uiPreferences.MachineReadable {
+		if uiSettings.isMachineReadable {
 			systemStatus.InsightsConnected = true
 		} else {
-			fmt.Print(uiPreferences.ConnectedPrefix + " Connected to Red Hat Insights\n")
+			fmt.Print(uiSettings.iconOK + " Connected to Red Hat Insights\n")
 		}
 	} else {
 		if err == nil {
-			if uiPreferences.MachineReadable {
+			if uiSettings.isMachineReadable {
 				systemStatus.InsightsConnected = false
 			} else {
-				fmt.Print(uiPreferences.DisconnectedPrefix + " Not connected to Red Hat Insights\n")
+				fmt.Print(uiSettings.iconInfo + " Not connected to Red Hat Insights\n")
 			}
 		} else {
-			if uiPreferences.MachineReadable {
+			if uiSettings.isMachineReadable {
 				systemStatus.InsightsConnected = false
 				systemStatus.InsightsError = err
 			} else {
-				fmt.Printf(uiPreferences.ErrorPrefix+" Cannot execute insights-client: %v\n", err)
+				fmt.Printf(uiSettings.iconError+" Cannot execute insights-client: %v\n", err)
 			}
 		}
 	}
 }
 
 // serviceStatus tries to print status of yggdrasil.service or rhcd.service
-func serviceStatus(systemStatus *SystemStatus, uiPreferences *UserInterfacePreferences) error {
+func serviceStatus(systemStatus *SystemStatus) error {
 	ctx := context.Background()
 	conn, err := systemd.NewSystemConnectionContext(ctx)
 	if err != nil {
@@ -89,16 +89,16 @@ func serviceStatus(systemStatus *SystemStatus, uiPreferences *UserInterfacePrefe
 	}
 	activeState := properties["ActiveState"]
 	if activeState.(string) == "active" {
-		if uiPreferences.MachineReadable {
+		if uiSettings.isMachineReadable {
 			systemStatus.YggdrasilRunning = true
 		} else {
-			fmt.Printf(uiPreferences.ConnectedPrefix+" The %v service is active\n", ServiceName)
+			fmt.Printf(uiSettings.iconOK+" The %v service is active\n", ServiceName)
 		}
 	} else {
-		if uiPreferences.MachineReadable {
+		if uiSettings.isMachineReadable {
 			systemStatus.YggdrasilRunning = false
 		} else {
-			fmt.Printf(uiPreferences.DisconnectedPrefix+" The %v service is inactive\n", ServiceName)
+			fmt.Printf(uiSettings.iconInfo+" The %v service is inactive\n", ServiceName)
 		}
 	}
 	return nil
