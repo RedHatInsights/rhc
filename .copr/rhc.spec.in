@@ -15,18 +15,17 @@ License: GPLv3
 URL:     https://github.com/redhatinsights/rhc
 
 Source0: %{name}-%{version}-@RELEASE@.tar.gz
-Source1: https://github.com/RedHatInsights/yggdrasil/releases/download/0.2.4/yggdrasil-0.2.4.tar.gz
-Source2: https://github.com/RedHatInsights/yggdrasil-worker-package-manager/releases/download/0.1.0/yggdrasil-worker-package-manager-0.1.0.tar.gz
 
 ExclusiveArch: %{go_arches}
 
 Requires:      insights-client
+Requires:      yggdrasil-worker-package-manager
 
-BuildRequires: git
 BuildRequires: golang
 BuildRequires: dbus-devel
 BuildRequires: systemd-devel
 BuildRequires: systemd
+BuildRequires: yggdrasil >= 0.4
 
 
 %description
@@ -35,29 +34,11 @@ MQTT client.
 
 
 %prep
-%setup -T -D -c -n %{name} -a 0
-%setup -T -D -c -n %{name} -a 1
-%setup -T -D -c -n %{name} -a 2
+%setup -c
 
 
 %build
-cd %{_builddir}/%{name}/yggdrasil-0.2.4
-make PREFIX=%{_prefix} \
-     SYSCONFDIR=%{_sysconfdir} \
-     LOCALSTATEDIR=%{_localstatedir} \
-     SHORTNAME=@SHORTNAME@ \
-     LONGNAME=@LONGNAME@ \
-     PKGNAME=@PKGNAME@ \
-     TOPICPREFIX=@TOPICPREFIX@ \
-     VERSION=%{version} \
-     DATAHOST=@DATAHOST@ \
-     SERVICENAME=@SERVICENAME@ \
-     'PROVIDER=@PROVIDER@'
-
-cd %{_builddir}/%{name}/yggdrasil-worker-package-manager
-go build -o rhc-package-manager-worker -mod=vendor .
-
-cd %{_builddir}/%{name}/%{name}-%{version}-@RELEASE@
+cd %{name}-%{version}-@RELEASE@
 make PREFIX=%{_prefix} \
      SYSCONFDIR=%{_sysconfdir} \
      LOCALSTATEDIR=%{_localstatedir} \
@@ -72,26 +53,7 @@ make PREFIX=%{_prefix} \
 
 
 %install
-cd %{_builddir}/%{name}/yggdrasil-0.2.4
-make PREFIX=%{_prefix} \
-     SYSCONFDIR=%{_sysconfdir} \
-     LOCALSTATEDIR=%{_localstatedir} \
-     DESTDIR=%{buildroot} \
-     SHORTNAME=@SHORTNAME@ \
-     LONGNAME=@LONGNAME@ \
-     PKGNAME=@PKGNAME@ \
-     TOPICPREFIX=@TOPICPREFIX@ \
-     VERSION=%{version} \
-     DATAHOST=@DATAHOST@ \
-     SERVICENAME=@SERVICENAME@ \
-     'PROVIDER=@PROVIDER@' \
-     install
-
-cd %{_builddir}/%{name}/yggdrasil-worker-package-manager
-install -D -m 755 rhc-package-manager-worker %{buildroot}%{_libexecdir}/@LONGNAME@/
-install -D -m 644 config.toml %{buildroot}%{_sysconfdir}/@LONGNAME@/workers/rhc-package-manager.toml
-
-cd %{_builddir}/%{name}/%{name}-%{version}-@RELEASE@
+cd %{name}-%{version}-@RELEASE@
 make PREFIX=%{_prefix} \
      SYSCONFDIR=%{_sysconfdir} \
      LOCALSTATEDIR=%{_localstatedir} \
@@ -109,14 +71,8 @@ make PREFIX=%{_prefix} \
 %files
 %doc %{name}-%{version}-@RELEASE@/README.md
 %{_bindir}/@SHORTNAME@
-%{_sbindir}/@SHORTNAME@d
-%{_sysconfdir}/@LONGNAME@/
-%config(noreplace) %{_sysconfdir}/@LONGNAME@/config.toml
-%{_unitdir}/@SHORTNAME@d.service
 %{_datadir}/bash-completion/completions/*
 %{_mandir}/man1/*
-%{_prefix}/share/pkgconfig/@LONGNAME@.pc
-%{_libexecdir}/@LONGNAME@
 
 
 %changelog

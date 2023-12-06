@@ -40,10 +40,8 @@ srpm: deps
 		$(spec)/.copr/rhc.spec.in > $(spec)/rhc.spec
 	make PKGNAME=$(PKGNAME) VERSION=$(VERSION)-$(RELEASE) dist
 	install -D -m644 $(PKGNAME)-$(VERSION)-$(RELEASE).tar.gz $(SOURCEDIR)
-	spectool --get-files --source 1 --sourcedir $(spec)/rhc.spec
-	spectool --get-files --source 2 --sourcedir $(spec)/rhc.spec
 	rpmbuild -bs $(spec)/rhc.spec
 	install -D -m644 $(SRCRPMDIR)/*.rpm $(outdir)/
 
 deps:
-	dnf install -y golang git rpmdevtools
+	dnf install -y golang git rpm-build
