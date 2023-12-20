@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	ini "git.sr.ht/~spc/go-ini"
 	"git.sr.ht/~spc/go-log"
+	"github.com/subpop/go-ini"
 
 	"github.com/urfave/cli/v2"
 	"golang.org/x/sys/unix"
