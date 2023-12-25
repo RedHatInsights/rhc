@@ -3,7 +3,7 @@ module github.com/redhatinsights/rhc
 go 1.18
 
 require (
-	git.sr.ht/~spc/go-log v0.0.0-20210611184941-ce2f05edb627
+	git.sr.ht/~spc/go-log v0.1.1
 	github.com/briandowns/spinner v1.23.0
 	github.com/coreos/go-systemd/v22 v22.5.0
 	github.com/godbus/dbus/v5 v5.1.0
