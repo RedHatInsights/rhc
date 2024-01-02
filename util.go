@@ -70,8 +70,8 @@ func ConfigPath() (string, error) {
 	return filePath, nil
 }
 
-// Get the API server URL based on, insights-client.conf and rhsm.conf
-// This URL may differ from prod, stage and Satellite
+// GuessAPIURL gets the API server URL based on, insights-client.conf
+// and rhsm.conf. This URL may differ from prod, stage and Satellite
 func GuessAPIURL() (string, error) {
 	var uString string
 	var baseURL *url.URL
@@ -89,13 +89,14 @@ func GuessAPIURL() (string, error) {
 	}
 	var cfg InsightsConf
 	// Read the config file
-	data, err := os.ReadFile("/etc/insights-client/insights-client.conf")
+	confFilePath := "/etc/insights-client/insights-client.conf"
+	data, err := os.ReadFile(confFilePath)
 	if err != nil {
-		return "", fmt.Errorf("fail to read file: %v", err)
+		return "", fmt.Errorf("failed to read file '%v': %v", confFilePath, err)
 	}
 	// Get the config into the struct
 	if err := ini.UnmarshalWithOptions(data, &cfg, opts); err != nil {
-		return "", fmt.Errorf("fail to read configuration: %v", err)
+		return "", fmt.Errorf("failed to parse file '%v': %v", confFilePath, err)
 	}
 	APIServer := cfg.InsightsClient.BaseUrl
 
