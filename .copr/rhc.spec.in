@@ -20,6 +20,7 @@ ExclusiveArch: %{go_arches}
 
 Requires:      insights-client
 Requires:      yggdrasil-worker-package-manager
+Requires:      subscription-manager
 
 BuildRequires: golang
 BuildRequires: dbus-devel
