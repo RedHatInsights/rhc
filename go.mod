@@ -3,13 +3,13 @@ module github.com/redhatinsights/rhc
 go 1.18
 
 require (
-	git.sr.ht/~spc/go-log v0.1.1
 	github.com/briandowns/spinner v1.23.0
 	github.com/coreos/go-systemd/v22 v22.5.0
 	github.com/godbus/dbus/v5 v5.1.0
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.5.0
 	github.com/subpop/go-ini v0.1.5
+	github.com/subpop/go-log v0.1.2
 	github.com/urfave/cli/v2 v2.27.1
 	golang.org/x/sys v0.16.0
 	golang.org/x/term v0.16.0

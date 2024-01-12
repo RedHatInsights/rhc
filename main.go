@@ -10,7 +10,7 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"git.sr.ht/~spc/go-log"
+	"github.com/subpop/go-log"
 	"golang.org/x/term"
 
 	"github.com/briandowns/spinner"
