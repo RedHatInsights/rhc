@@ -19,14 +19,20 @@ Source0: %{name}-%{version}-@RELEASE@.tar.gz
 ExclusiveArch: %{go_arches}
 
 Requires:      insights-client
+%if (0%{?fedora} && 0%{?fedora} > 37) || (0%{?rhel} && 0%{?rhel} > 9)
 Requires:      yggdrasil-worker-package-manager
+%endif
 Requires:      subscription-manager
 
 BuildRequires: golang
 BuildRequires: dbus-devel
 BuildRequires: systemd-devel
 BuildRequires: systemd
+# Situation is little bit confusing, because EPEL provides yggdrasil for RHEL8
+# and RHEL9, but official Red Hat repositories does not provide yggdrasil.
+%if (0%{?fedora} && 0%{?fedora} > 37) || (0%{?rhel} && 0%{?rhel} > 9)
 BuildRequires: yggdrasil >= 0.4
+%endif
 
 
 %description
