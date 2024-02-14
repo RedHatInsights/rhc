@@ -12,7 +12,7 @@ require (
 	github.com/subpop/go-log v0.1.2
 	github.com/urfave/cli/v2 v2.27.1
 	golang.org/x/sys v0.17.0
-	golang.org/x/term v0.16.0
+	golang.org/x/term v0.17.0
 )
 
 require (
