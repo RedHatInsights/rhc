@@ -497,13 +497,13 @@ func canonicalFactAction(_ *cli.Context) error {
 // like xml:"hostname"
 type SystemStatus struct {
 	SystemHostname    string `json:"hostname"`
-	HostnameError     error  `json:"hostname_error,omitempty"`
+	HostnameError     string `json:"hostname_error,omitempty"`
 	RHSMConnected     bool   `json:"rhsm_connected"`
-	RHSMError         error  `json:"rhsm_error,omitempty"`
+	RHSMError         string `json:"rhsm_error,omitempty"`
 	InsightsConnected bool   `json:"insights_connected"`
-	InsightsError     error  `json:"insights_error,omitempty"`
+	InsightsError     string `json:"insights_error,omitempty"`
 	YggdrasilRunning  bool   `json:"yggdrasil_running"`
-	YggdrasilError    error  `json:"yggdrasil_error,omitempty"`
+	YggdrasilError    string `json:"yggdrasil_error,omitempty"`
 }
 
 // printJSONStatus tries to print the system status as JSON to stdout.
@@ -577,7 +577,7 @@ func statusAction(ctx *cli.Context) (err error) {
 	hostname, err := os.Hostname()
 	if err != nil {
 		if uiSettings.isMachineReadable {
-			systemStatus.HostnameError = err
+			systemStatus.HostnameError = err.Error()
 		} else {
 			return cli.Exit(err, 1)
 		}
