@@ -62,7 +62,7 @@ func insightStatus(systemStatus *SystemStatus) {
 		} else {
 			if uiSettings.isMachineReadable {
 				systemStatus.InsightsConnected = false
-				systemStatus.InsightsError = err
+				systemStatus.InsightsError = err.Error()
 			} else {
 				fmt.Printf(uiSettings.iconError+" Cannot execute insights-client: %v\n", err)
 			}
@@ -76,7 +76,7 @@ func serviceStatus(systemStatus *SystemStatus) error {
 	conn, err := systemd.NewSystemConnectionContext(ctx)
 	if err != nil {
 		systemStatus.YggdrasilRunning = false
-		systemStatus.YggdrasilError = err
+		systemStatus.YggdrasilError = err.Error()
 		return fmt.Errorf("unable to connect to systemd: %s", err)
 	}
 	defer conn.Close()
@@ -84,7 +84,7 @@ func serviceStatus(systemStatus *SystemStatus) error {
 	properties, err := conn.GetUnitPropertiesContext(ctx, unitName)
 	if err != nil {
 		systemStatus.YggdrasilRunning = false
-		systemStatus.YggdrasilError = err
+		systemStatus.YggdrasilError = err.Error()
 		return fmt.Errorf("unable to get properties of %s: %s", unitName, err)
 	}
 	activeState := properties["ActiveState"]
