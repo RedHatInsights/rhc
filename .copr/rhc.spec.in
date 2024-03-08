@@ -11,7 +11,7 @@ Version: @VERSION@
 Release: @RELEASE@%{?dist}
 Epoch:   1
 Summary: Client for registering Red Hat Enterprise Linux systems
-License: GPLv3
+License: GPL-3.0-only
 URL:     https://github.com/redhatinsights/rhc
 
 Source0: %{name}-%{version}-@RELEASE@.tar.gz
