@@ -4,17 +4,17 @@
 # the package.
 
 %define debug_package %{nil}
-
+%define source_date_epoch_from_changelog 0
 
 Name:    @LONGNAME@
 Version: @VERSION@
-Release: @RELEASE@%{?dist}
+Release: 0%{?dist}
 Epoch:   1
 Summary: Client for registering Red Hat Enterprise Linux systems
 License: GPL-3.0-only
 URL:     https://github.com/redhatinsights/rhc
 
-Source0: %{name}-%{version}-@RELEASE@.tar.gz
+Source0: %{name}-%{version}.tar.gz
 
 ExclusiveArch: %{go_arches}
 
@@ -39,7 +39,7 @@ MQTT client.
 
 
 %build
-cd %{name}-%{version}-@RELEASE@
+cd %{name}-%{version}
 make PREFIX=%{_prefix} \
      SYSCONFDIR=%{_sysconfdir} \
      LOCALSTATEDIR=%{_localstatedir} \
@@ -54,7 +54,7 @@ make PREFIX=%{_prefix} \
 
 
 %install
-cd %{name}-%{version}-@RELEASE@
+cd %{name}-%{version}
 make PREFIX=%{_prefix} \
      SYSCONFDIR=%{_sysconfdir} \
      LOCALSTATEDIR=%{_localstatedir} \
@@ -70,10 +70,13 @@ make PREFIX=%{_prefix} \
      install
 
 %files
-%doc %{name}-%{version}-@RELEASE@/README.md
+%doc %{name}-%{version}/README.md
 %{_bindir}/@SHORTNAME@
 %{_datadir}/bash-completion/completions/*
 %{_mandir}/man1/*
 
 
 %changelog
+%if (0%{?fedora} || 0%{?rhel} >= 9)
+%autochangelog
+%endif

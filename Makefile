@@ -139,10 +139,32 @@ dist:
 		--exclude=.vscode \
 		--exclude=.github \
 		--exclude=.gitignore \
-		--exclude=.copr \
+		--exclude=rhc-*.tar.gz \
+		--exclude=rhc \
 		--transform s/^\./$(PKGNAME)-$(VERSION)/ \
 		. && mv /tmp/$(PKGNAME)-$(VERSION).tar.gz .
 	rm -rf ./vendor
+
+rhc.spec: rhc.spec.in
+	sed \
+	    -e 's,[@]SHORTNAME[@],$(SHORTNAME),g' \
+		-e 's,[@]LONGNAME[@],$(LONGNAME),g' \
+		-e 's,[@]VERSION[@],$(VERSION),g' \
+		-e 's,[@]PKGNAME[@],$(PKGNAME),g' \
+		-e 's,[@]TOPICPREFIX[@],$(TOPICPREFIX),g' \
+		-e 's,[@]DATAHOST[@],$(DATAHOST),g' \
+		-e 's,[@]PROVIDER[@],$(PROVIDER),g' \
+		-e 's,[@]PREFIX[@],$(PREFIX),g' \
+		-e 's,[@]BINDIR[@],$(BINDIR),g' \
+		-e 's,[@]SBINDIR[@],$(SBINDIR),g' \
+		-e 's,[@]LIBEXECDIR[@],$(LIBEXECDIR),g' \
+		-e 's,[@]DATAROOTDIR[@],$(DATAROOTDIR),g' \
+		-e 's,[@]DATADIR[@],$(DATADIR),g' \
+		-e 's,[@]SYSCONFDIR[@],$(SYSCONFDIR),g' \
+		-e 's,[@]LOCALSTATEDIR[@],$(LOCALSTATEDIR),g' \
+		-e 's,[@]DOCDIR[@],$(DOCDIR),g' \
+		-e 's,[@]SERVICENAME[@],$(SERVICENAME),g' \
+		$^ > $@
 
 .PHONY: clean
 clean:
