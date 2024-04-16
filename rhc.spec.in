@@ -19,6 +19,7 @@ Source0: %{name}-%{version}.tar.gz
 ExclusiveArch: %{go_arches}
 
 Requires:      insights-client
+Requires:      yggdrasil >= 0.4
 Requires:      yggdrasil-worker-package-manager
 Requires:      subscription-manager
 
@@ -26,7 +27,6 @@ BuildRequires: golang
 BuildRequires: dbus-devel
 BuildRequires: systemd-devel
 BuildRequires: systemd
-BuildRequires: yggdrasil >= 0.4
 
 
 %description
