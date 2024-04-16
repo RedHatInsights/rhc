@@ -5,6 +5,22 @@ Enterprise Linux distribution. It will likely work on other RHEL-compatible
 distributions, but may require additional packages or adjustments in order to
 fully function.
 
+# Building
+
+It is possible to build `rhc` binary simply by running:
+
+```
+make
+```
+
+If you want to install `rhc` into system, then it is recommended to create
+RPM package and install rhc using package manager like dnf. You can
+create RPM package using [packit](https://packit.dev/docs/cli) CLI too:
+
+```
+packit build locally
+```
+
 # Remote Debugging
 
 If you run `rhc` in a virtual machine, it is still possible to run `rhc` in a
