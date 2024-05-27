@@ -12,6 +12,14 @@ def yggdrasil_service_is_active():
         return False
 
 
+def show_yggdrasil_service_status():
+    """This method return status of yggdrasil service.
+    :return: status
+    """
+    status = sh.systemctl("status yggdrasil".split()).strip()
+    return status
+
+
 def check_yggdrasil_journalctl(
     str_to_check, since_datetime=None, must_exist_in_log=True
 ):
