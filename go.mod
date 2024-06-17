@@ -3,7 +3,7 @@ module github.com/redhatinsights/rhc
 go 1.18
 
 require (
-	github.com/briandowns/spinner v1.23.0
+	github.com/briandowns/spinner v1.23.1
 	github.com/coreos/go-systemd/v22 v22.5.0
 	github.com/godbus/dbus/v5 v5.1.0
 	github.com/google/go-cmp v0.6.0
