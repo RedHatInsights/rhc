@@ -5,6 +5,10 @@ set -x
 # get to project root
 cd ../../../
 
+# Check for GitHub pull request ID and install build if needed.
+# This is for the downstream PR jobs.
+[ -z "${ghprbPullId+x}" ] || ./systemtest/copr-setup.sh
+
 dnf --setopt install_weak_deps=False install -y \
   podman git-core python3-pip python3-pytest logrotate
 
