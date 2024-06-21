@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/url"
 	"os"
+	"strings"
 
 	"github.com/godbus/dbus/v5"
 )
@@ -78,7 +79,7 @@ func unpackOrgs(s string) ([]string, error) {
 // registerUsernamePassword tries to register system against candlepin server (Red Hat Management Service)
 // username and password are mandatory. When organization is not obtained, then this method
 // returns list of available organization and user can select one organization from the list.
-func registerUsernamePassword(username, password, organization, serverURL string) ([]string, error) {
+func registerUsernamePassword(username, password, organization string, environments []string, serverURL string) ([]string, error) {
 	var orgs []string
 	if serverURL != "" {
 		if err := configureRHSM(serverURL); err != nil {
@@ -125,6 +126,12 @@ func registerUsernamePassword(username, password, organization, serverURL string
 		return orgs, err
 	}
 
+	var options = make(map[string]string)
+	options["enable_content"] = "true"
+	if len(environments) > 0 {
+		options["environments"] = strings.Join(environments, ",")
+	}
+
 	if err := privConn.Object(
 		"com.redhat.RHSM1",
 		"/com/redhat/RHSM1/Register").Call(
@@ -133,7 +140,7 @@ func registerUsernamePassword(username, password, organization, serverURL string
 		organization,
 		username,
 		password,
-		map[string]string{"enable_content": "true"},
+		options,
 		map[string]string{},
 		locale).Err; err != nil {
 
