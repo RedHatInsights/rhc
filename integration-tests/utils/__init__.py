@@ -1,33 +1,35 @@
 import sh
 
 
-def rhcd_service_is_active():
-    """Method to verify if rhcd is in active/inactive state
-    :return: True if rhcd in active state else False
+def yggdrasil_service_is_active():
+    """Method to verify if yggdrasil is in active/inactive state
+    :return: True if yggdrasil in active state else False
     """
     try:
-        stdout = sh.systemctl("is-active rhcd".split()).strip()
+        stdout = sh.systemctl("is-active yggdrasil".split()).strip()
         return stdout == "active"
     except sh.ErrorReturnCode_3:
         return False
 
 
-def check_rhcd_journalctl(str_to_check, since_datetime=None, must_exist_in_log=True):
-    """This method helps in verifying strings in rhcd logs
+def check_yggdrasil_journalctl(
+    str_to_check, since_datetime=None, must_exist_in_log=True
+):
+    """This method helps in verifying strings in yggdrasil logs
     :param str_to_check: string to be searched in logs
     :param since_datetime: start time for logs
     :param must_exist_in_log: True if str_to_check should exist in log else false
     :return: True/False
     """
     if since_datetime:
-        rhcd_logs = sh.journalctl("-u", "rhcd", "--since", since_datetime)
+        yggdrasil_logs = sh.journalctl("-u", "yggdrasil", "--since", since_datetime)
     else:
-        rhcd_logs = sh.journalctl("-u", "rhcd")
+        yggdrasil_logs = sh.journalctl("-u", "yggdrasil")
 
     if must_exist_in_log:
-        return str_to_check in rhcd_logs
+        return str_to_check in yggdrasil_logs
     else:
-        return str_to_check not in rhcd_logs
+        return str_to_check not in yggdrasil_logs
 
 
 def prepare_args_for_connect(
