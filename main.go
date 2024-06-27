@@ -184,6 +184,7 @@ func registerRHSM(ctx *cli.Context) (string, error) {
 		password := ctx.String("password")
 		organization := ctx.String("organization")
 		activationKeys := ctx.StringSlice("activation-key")
+		environments := ctx.StringSlice("environment")
 
 		if len(activationKeys) == 0 {
 			if username == "" {
@@ -221,9 +222,9 @@ func registerRHSM(ctx *cli.Context) (string, error) {
 		} else {
 			var orgs []string
 			if organization != "" {
-				_, err = registerUsernamePassword(username, password, organization, ctx.String("server"))
+				_, err = registerUsernamePassword(username, password, organization, environments, ctx.String("server"))
 			} else {
-				orgs, err = registerUsernamePassword(username, password, "", ctx.String("server"))
+				orgs, err = registerUsernamePassword(username, password, "", environments, ctx.String("server"))
 				/* When organization was not specified using CLI option --organization, and it is
 				   required, because user is member of more than one organization, then ask for
 				   the organization. */
@@ -255,7 +256,7 @@ func registerRHSM(ctx *cli.Context) (string, error) {
 					}
 
 					// Try to register once again with given organization
-					_, err = registerUsernamePassword(username, password, organization, ctx.String("server"))
+					_, err = registerUsernamePassword(username, password, organization, environments, ctx.String("server"))
 				}
 			}
 		}
@@ -269,9 +270,35 @@ func registerRHSM(ctx *cli.Context) (string, error) {
 	return successMsg, nil
 }
 
+// beforeConnectAction tries to check valid combination CLI options, when
+// connect command is used
+func beforeConnectAction(ctx *cli.Context) error {
+	username := ctx.String("username")
+	organization := ctx.String("organization")
+	activationKeys := ctx.StringSlice("activation-key")
+	environments := ctx.StringSlice("environment")
+
+	if username != "" && len(activationKeys) > 0 {
+		err := fmt.Errorf("error: activation keys do not require user credentials")
+		return cli.Exit(err, 1)
+	}
+
+	if len(activationKeys) > 0 && organization == "" {
+		err := fmt.Errorf("error: activation keys require organization")
+		return cli.Exit(err, 1)
+	}
+
+	if len(activationKeys) > 0 && len(environments) > 0 {
+		err := fmt.Errorf("error: activation keys do not allow environments to be specified")
+		return cli.Exit(err, 1)
+	}
+
+	return nil
+}
+
 // connectAction tries to register system against Red Hat Subscription Management,
 // gather the profile information that the system will configure
-// connect system to Red Hat Insights and it also tries to start rhcd service
+// connect system to Red Hat Insights, and it also tries to start yggdrasil service
 func connectAction(ctx *cli.Context) error {
 	uid := os.Getuid()
 	if uid != 0 {
@@ -759,8 +786,13 @@ func main() {
 				},
 				&cli.StringSliceFlag{
 					Name:    "activation-key",
-					Usage:   "register with `KEY`",
+					Usage:   "register with `KEY`(s)",
 					Aliases: []string{"a"},
+				},
+				&cli.StringSliceFlag{
+					Name:    "environment",
+					Usage:   "register with `ENVIRONMENT`(s)",
+					Aliases: []string{"e"},
 				},
 				&cli.StringFlag{
 					Name:   "server",
@@ -771,6 +803,7 @@ func main() {
 			Usage:       "Connects the system to " + Provider,
 			UsageText:   fmt.Sprintf("%v connect [command options]", app.Name),
 			Description: fmt.Sprintf("The connect command connects the system to Red Hat Subscription Management, Red Hat Insights and %v and activates the %v service that enables %v to interact with the system. For details visit: https://red.ht/connector", Provider, ServiceName, Provider),
+			Before:      beforeConnectAction,
 			Action:      connectAction,
 		},
 		{
