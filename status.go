@@ -66,7 +66,7 @@ func insightStatus(systemStatus *SystemStatus) {
 				systemStatus.InsightsConnected = false
 				systemStatus.InsightsError = err.Error()
 			} else {
-				fmt.Printf(uiSettings.iconError+" Cannot execute insights-client: %v\n", err)
+				fmt.Printf(uiSettings.iconError+" Cannot detect Red Hat Insights status: %v\n", err)
 			}
 		}
 	}
