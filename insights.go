@@ -21,8 +21,10 @@ func unregisterInsights() error {
 }
 
 func insightsIsRegistered() (bool, error) {
+	var outBuffer bytes.Buffer
 	var errBuffer bytes.Buffer
 	cmd := exec.Command("/usr/bin/insights-client", "--status")
+	cmd.Stdout = &outBuffer
 	cmd.Stderr = &errBuffer
 
 	err := cmd.Run()
@@ -45,5 +47,20 @@ func insightsIsRegistered() (bool, error) {
 		}
 	}
 
-	return cmd.ProcessState.Success(), err
+	if !cmd.ProcessState.Success() {
+		return false, nil
+	}
+
+	// We can't rely only on return codes; non-legacy mode always returns 0,
+	// no matter the status.
+	for _, line := range []string{
+		"This host is registered.",
+		"System is registered locally via .registered file.", // legacy upload mode
+	} {
+		if strings.Contains(outBuffer.String(), line) {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
