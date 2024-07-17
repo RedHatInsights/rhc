@@ -713,6 +713,7 @@ type SystemStatus struct {
 	InsightsError     string `json:"insights_error,omitempty"`
 	YggdrasilRunning  bool   `json:"yggdrasil_running"`
 	YggdrasilError    string `json:"yggdrasil_error,omitempty"`
+	returnCode        int
 }
 
 // printJSONStatus tries to print the system status as JSON to stdout.
@@ -763,6 +764,10 @@ func statusAction(ctx *cli.Context) (err error) {
 					fmt.Errorf("unable to print status as %s document: %s", format, err.Error()),
 					1)
 			}
+			// When any of status is not correct, then return 1 exit code
+			if systemStatus.returnCode != 0 {
+				err = cli.Exit("", 1)
+			}
 		}(&systemStatus)
 	}
 
@@ -798,6 +803,12 @@ func statusAction(ctx *cli.Context) (err error) {
 
 	if !uiSettings.isMachineReadable {
 		fmt.Printf("\nManage your connected systems: https://red.ht/connector\n")
+	}
+
+	// At the end check if all statuses are correct.
+	// If not, return 1 exit code without any message.
+	if systemStatus.returnCode != 0 {
+		return cli.Exit("", 1)
 	}
 
 	return nil
