@@ -105,16 +105,18 @@ func showTimeDuration(durations map[string]time.Duration) {
 // showErrorMessages shows table with all error messages gathered during action
 func showErrorMessages(action string, errorMessages map[string]LogMessage) error {
 	if hasPriorityErrors(errorMessages, log.CurrentLevel()) {
-		fmt.Println()
-		fmt.Printf("The following errors were encountered during %s:\n\n", action)
-		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-		_, _ = fmt.Fprintln(w, "TYPE\tSTEP\tERROR\t")
-		for step, logMsg := range errorMessages {
-			if logMsg.level <= log.CurrentLevel() {
-				_, _ = fmt.Fprintf(w, "%v\t%v\t%v\n", logMsg.level, step, logMsg.message)
+		if !uiSettings.isMachineReadable {
+			fmt.Println()
+			fmt.Printf("The following errors were encountered during %s:\n\n", action)
+			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+			_, _ = fmt.Fprintln(w, "TYPE\tSTEP\tERROR\t")
+			for step, logMsg := range errorMessages {
+				if logMsg.level <= log.CurrentLevel() {
+					_, _ = fmt.Fprintf(w, "%v\t%v\t%v\n", logMsg.level, step, logMsg.message)
+				}
 			}
+			_ = w.Flush()
 		}
-		_ = w.Flush()
 		if hasPriorityErrors(errorMessages, log.LevelError) {
 			return cli.Exit("", 1)
 		}
@@ -269,84 +271,181 @@ func registerRHSM(ctx *cli.Context) (string, error) {
 	return successMsg, nil
 }
 
+// beforeConnectAction ensures that user has supplied a correct CLI options
+// and there is no conflict between provided options
+func beforeConnectAction(ctx *cli.Context) error {
+	// First check if machine-readable format is used
+	err := setupFormatOption(ctx)
+	if err != nil {
+		return err
+	}
+
+	username := ctx.String("username")
+	password := ctx.String("password")
+	organization := ctx.String("organization")
+	activationKeys := ctx.StringSlice("activation-key")
+
+	if len(activationKeys) > 0 {
+		if username != "" {
+			return fmt.Errorf("--username and --activation-key can not be used together")
+		}
+		if organization == "" {
+			return fmt.Errorf("--organization is required, when --activation-key is used")
+		}
+	}
+
+	// When machine-readable format is used, then additional requirements have to be met
+	if uiSettings.isMachineReadable {
+		if username != "" {
+			if password == "" {
+				return fmt.Errorf("--password is required, when --username and machine-readable format are used")
+			}
+		}
+	}
+	return nil
+}
+
 // connectAction tries to register system against Red Hat Subscription Management,
 // gather the profile information that the system will configure
-// connect system to Red Hat Insights and it also tries to start rhcd service
+// connect system to Red Hat Insights, and it also tries to start rhcd service
 func connectAction(ctx *cli.Context) error {
+	var connectResult ConnectResult
+	var machineReadablePrintFunc func(connectResult *ConnectResult) error
+
+	connectResult.format = ctx.String("format")
+	format := ctx.String("format")
+	switch format {
+	case "json":
+		machineReadablePrintFunc = printJSONConnectResult
+	default:
+		break
+	}
+
+	// When printing of status is requested, then print machine-readable file format
+	// at the end of this function
+	if uiSettings.isMachineReadable {
+		defer func(connectResult *ConnectResult) {
+			// When exit code is zero, then print machine-readable output
+			// When exit code has non-zero value, then disconnectResult is returned as a error
+			if connectResult.exitCode == 0 && machineReadablePrintFunc != nil {
+				err := machineReadablePrintFunc(connectResult)
+				// When it was not possible to print result of disconnect to machine-readable format, then
+				// change returned error to CLI exit error to be able to set exit code to
+				// a non-zero value
+				if err != nil {
+					panic(fmt.Errorf("unable to print status as %s document: %s", format, err.Error()))
+				}
+			}
+		}(&connectResult)
+	}
+
+	connectResult.exitCode = 0
+
 	uid := os.Getuid()
 	if uid != 0 {
-		return cli.Exit(fmt.Errorf("error: non-root user cannot connect system"), 1)
+		errMsg := "non-root user cannot disconnect system"
+		exitCode := 1
+		if uiSettings.isMachineReadable {
+			connectResult.UID = uid
+			connectResult.UIDError = errMsg
+			connectResult.exitCode = exitCode
+			return cli.Exit(connectResult, exitCode)
+		} else {
+			return cli.Exit(fmt.Errorf("error: %s", errMsg), exitCode)
+		}
 	}
+
+	hostname, err := os.Hostname()
+	if uiSettings.isMachineReadable {
+		connectResult.Hostname = hostname
+	}
+	if err != nil {
+		exitCode := 1
+		if uiSettings.isMachineReadable {
+			connectResult.HostnameError = err.Error()
+			connectResult.exitCode = exitCode
+			return cli.Exit(connectResult, exitCode)
+		} else {
+			return cli.Exit(err, exitCode)
+		}
+	}
+
+	rhcPrintf("Connecting %v to %v.\nThis might take a few seconds.\n\n", hostname, Provider)
 
 	var start time.Time
 	durations := make(map[string]time.Duration)
 	errorMessages := make(map[string]LogMessage)
-	hostname, err := os.Hostname()
-	if err != nil {
-		return cli.Exit(err, 1)
-	}
-
-	fmt.Printf("Connecting %v to %v.\nThis might take a few seconds.\n\n", hostname, Provider)
-
 	/* 1. Register to RHSM, because we need to get consumer certificate. This blocks following action */
 	start = time.Now()
 	var returnedMsg string
 	returnedMsg, err = registerRHSM(ctx)
 	if err != nil {
+		connectResult.RHSMConnected = false
 		errorMessages["rhsm"] = LogMessage{
 			level: log.LevelError,
 			message: fmt.Errorf("cannot connect to Red Hat Subscription Management: %w",
 				err)}
-		fmt.Printf(
-			uiSettings.iconError + " Cannot connect to Red Hat Subscription Management\n",
-		)
+		if uiSettings.isMachineReadable {
+			connectResult.RHSMConnectError = errorMessages["rhsm"].message.Error()
+		} else {
+			fmt.Printf(
+				uiSettings.iconError + " Cannot connect to Red Hat Subscription Management\n",
+			)
+		}
 	} else {
-		fmt.Printf(uiSettings.iconOK + " " + returnedMsg + "\n")
+		connectResult.RHSMConnected = true
+		rhcPrintf(uiSettings.iconOK + " " + returnedMsg + "\n")
 	}
 	durations["rhsm"] = time.Since(start)
 
 	/* 2. Register insights-client */
-	if errors, exist := errorMessages["rhsm"]; exist {
-		if errors.level == log.LevelError {
-			fmt.Printf(
-				uiSettings.iconError + " Skipping connection to Red Hat Insights\n",
-			)
-		}
+	if rhsmErrMsg, exist := errorMessages["rhsm"]; exist && rhsmErrMsg.level == log.LevelError {
+		connectResult.InsightsConnected = false
+		rhcPrintf(
+			uiSettings.iconError + " Skipping connection to Red Hat Insights\n",
+		)
 	} else {
 		start = time.Now()
 		err = showProgress(" Connecting to Red Hat Insights...", registerInsights)
 		if err != nil {
+			connectResult.InsightsConnected = false
 			errorMessages["insights"] = LogMessage{
 				level: log.LevelError,
 				message: fmt.Errorf("cannot connect to Red Hat Insights: %w",
 					err)}
-			fmt.Printf(uiSettings.iconError + " Cannot connect to Red Hat Insights\n")
+			rhcPrintf(uiSettings.iconError + " Cannot connect to Red Hat Insights\n")
 		} else {
-			fmt.Printf(uiSettings.iconOK + " Connected to Red Hat Insights\n")
+			connectResult.InsightsConnected = true
+			rhcPrintf(uiSettings.iconOK + " Connected to Red Hat Insights\n")
 		}
 		durations["insights"] = time.Since(start)
 	}
 
 	/* 3. Start yggdrasil (rhcd) service */
-	if errors, exist := errorMessages["rhsm"]; exist {
-		if errors.level == log.LevelError {
-			fmt.Printf(
-				uiSettings.iconError+" Skipping activation of %v service\n",
-				ServiceName,
-			)
-		}
+	if rhsmErrMsg, exist := errorMessages["rhsm"]; exist && rhsmErrMsg.level == log.LevelError {
+		connectResult.YggdrasilStarted = false
+		rhcPrintf(
+			uiSettings.iconError+" Skipping activation of %v service\n",
+			ServiceName,
+		)
 	} else {
 		start = time.Now()
 		progressMessage := fmt.Sprintf(" Activating the %v service", ServiceName)
 		err = showProgress(progressMessage, activateService)
 		if err != nil {
+			connectResult.YggdrasilStarted = false
 			errorMessages[ServiceName] = LogMessage{
 				level: log.LevelError,
 				message: fmt.Errorf("cannot activate %s service: %w",
 					ServiceName, err)}
-			fmt.Printf(uiSettings.iconError+" Cannot activate the %v service\n", ServiceName)
+			if uiSettings.isMachineReadable {
+				connectResult.YggdrasilStartedError = errorMessages[ServiceName].message.Error()
+			} else {
+				rhcPrintf(uiSettings.iconError+" Cannot activate the %v service\n", ServiceName)
+			}
 		} else {
-			fmt.Printf(uiSettings.iconOK+" Activated the %v service\n", ServiceName)
+			connectResult.YggdrasilStarted = true
+			rhcPrintf(uiSettings.iconOK+" Activated the %v service\n", ServiceName)
 		}
 		durations[ServiceName] = time.Since(start)
 	}
@@ -379,19 +478,22 @@ func connectAction(ctx *cli.Context) error {
 				message: fmt.Errorf("cannot get the user profile: %w",
 					err)}
 		} else {
-			fmt.Printf(uiSettings.iconInfo + " Enabled console.redhat.com services: ")
-			showConfProfile(&profile)
-			fmt.Printf("\n")
+			if !uiSettings.isMachineReadable {
+				fmt.Printf(uiSettings.iconInfo + " Enabled console.redhat.com services: ")
+				showConfProfile(&profile)
+				fmt.Printf("\n")
+			}
 		}
-		fmt.Printf("\nSuccessfully connected to Red Hat!\n")
-
+		rhcPrintf("\nSuccessfully connected to Red Hat!\n")
 	}
 
-	/* 5. Show footer message */
-	fmt.Printf("\nManage your connected systems: https://red.ht/connector\n")
+	if !uiSettings.isMachineReadable {
+		/* 5. Show footer message */
+		fmt.Printf("\nManage your connected systems: https://red.ht/connector\n")
 
-	/* 6. Optionally display duration time of each sub-action */
-	showTimeDuration(durations)
+		/* 6. Optionally display duration time of each sub-action */
+		showTimeDuration(durations)
+	}
 
 	err = showErrorMessages("connect", errorMessages)
 	if err != nil {
@@ -401,35 +503,199 @@ func connectAction(ctx *cli.Context) error {
 	return nil
 }
 
-// disconnectAction tries to stop rhscd service, disconnect from Red Hat Insights and finally
-// it unregister system from Red Hat Subscription Management
+// setupFormatOption ensures the user has supplied a correct `--format` flag
+// and set values in uiSettings, when JSON format is used.
+func setupFormatOption(ctx *cli.Context) error {
+	// This is run after the `app.Before()` has been run,
+	// the uiSettings is already set up for us to modify.
+	format := ctx.String("format")
+	switch format {
+	case "":
+		return nil
+	case "json":
+		uiSettings.isMachineReadable = true
+		uiSettings.isRich = false
+		return nil
+	default:
+		err := fmt.Errorf(
+			"unsupported format: %s (supported formats: %s)",
+			format,
+			`"json"`,
+		)
+		return cli.Exit(err, 1)
+	}
+}
+
+// DisconnectResult is structure holding information about result of
+// disconnect command. The result could be printed in machine-readable format.
+type DisconnectResult struct {
+	Hostname                  string `json:"hostname"`
+	HostnameError             string `json:"hostname_error,omitempty"`
+	UID                       int    `json:"uid"`
+	UIDError                  string `json:"uid_error,omitempty"`
+	RHSMDisconnected          bool   `json:"rhsm_disconnected"`
+	RHSMDisconnectedError     string `json:"rhsm_disconnect_error,omitempty"`
+	InsightsDisconnected      bool   `json:"insights_disconnected"`
+	InsightsDisconnectedError string `json:"insights_disconnected_error,omitempty"`
+	YggdrasilStopped          bool   `json:"yggdrasil_stopped"`
+	YggdrasilStoppedError     string `json:"yggdrasil_stopped_error,omitempty"`
+	exitCode                  int
+	format                    string
+}
+
+// ConnectResult is structure holding information about results
+// of connect command. The result could be printed in machine-readable format.
+type ConnectResult struct {
+	Hostname              string `json:"hostname"`
+	HostnameError         string `json:"hostname_error,omitempty"`
+	UID                   int    `json:"uid"`
+	UIDError              string `json:"uid_error,omitempty"`
+	RHSMConnected         bool   `json:"rhsm_connected"`
+	RHSMConnectError      string `json:"rhsm_connect_error,omitempty"`
+	InsightsConnected     bool   `json:"insights_connected"`
+	InsightsError         string `json:"insights_connect_error,omitempty"`
+	YggdrasilStarted      bool   `json:"yggdrasil_started"`
+	YggdrasilStartedError string `json:"yggdrasil_started_error,omitempty"`
+	exitCode              int
+	format                string
+}
+
+// Error implement error interface for structure DisconnectResult
+func (disconnectResult DisconnectResult) Error() string {
+	var result string
+	switch disconnectResult.format {
+	case "json":
+		data, err := json.MarshalIndent(disconnectResult, "", "    ")
+		if err != nil {
+			return err.Error()
+		}
+		result = string(data)
+	default:
+		result = "error: unsupported document format: " + disconnectResult.format
+	}
+	return result
+}
+
+// printJSONConnectResult tries to print the result of connect as JSON to stdout.
+// When marshaling of systemStatus fails, then error is returned
+func printJSONConnectResult(connectResult *ConnectResult) error {
+	data, err := json.MarshalIndent(connectResult, "", "    ")
+	if err != nil {
+		return err
+	}
+	fmt.Println(string(data))
+	return nil
+}
+
+// printJSONDisconnectResult tries to print the result of disconnect as JSON to stdout.
+// When marshaling of systemStatus fails, then error is returned
+func printJSONDisconnectResult(disconnectResult *DisconnectResult) error {
+	data, err := json.MarshalIndent(disconnectResult, "", "    ")
+	if err != nil {
+		return err
+	}
+	fmt.Println(string(data))
+	return nil
+}
+
+// beforeDisconnectAction ensures the used has supplied a correct `--format` flag
+func beforeDisconnectAction(ctx *cli.Context) error {
+	return setupFormatOption(ctx)
+}
+
+// rhcPrintf is method for printing human-readable output. It suppresses output, when
+// machine-readable format is used.
+func rhcPrintf(format string, a ...interface{}) {
+	if !uiSettings.isMachineReadable {
+		fmt.Printf(format, a...)
+	}
+}
+
+// disconnectAction tries to stop (yggdrasil) rhcd service, disconnect from Red Hat Insights,
+// and finally it unregisters system from Red Hat Subscription Management
 func disconnectAction(ctx *cli.Context) error {
+	var disconnectResult DisconnectResult
+	var machineReadablePrintFunc func(disconnectResult *DisconnectResult) error
+
+	disconnectResult.format = ctx.String("format")
+	format := ctx.String("format")
+	switch format {
+	case "json":
+		machineReadablePrintFunc = printJSONDisconnectResult
+	default:
+		break
+	}
+
+	// When printing of status is requested, then print machine-readable file format
+	// at the end of this function
+	if uiSettings.isMachineReadable {
+		defer func(disconnectResult *DisconnectResult) {
+			// When exit code is zero, then print machine-readable output
+			// When exit code has non-zero value, then disconnectResult is returned as a error
+			if disconnectResult.exitCode == 0 && machineReadablePrintFunc != nil {
+				err := machineReadablePrintFunc(disconnectResult)
+				// When it was not possible to print result of disconnect to machine-readable format, then
+				// change returned error to CLI exit error to be able to set exit code to
+				// a non-zero value
+				if err != nil {
+					panic(fmt.Errorf("unable to print status as %s document: %s", format, err.Error()))
+				}
+			}
+		}(&disconnectResult)
+	}
+
+	disconnectResult.exitCode = 0
+
 	uid := os.Getuid()
 	if uid != 0 {
-		return cli.Exit(fmt.Errorf("error: non-root user cannot disconnect system"), 1)
+		errMsg := "non-root user cannot disconnect system"
+		exitCode := 1
+		if uiSettings.isMachineReadable {
+			disconnectResult.UID = uid
+			disconnectResult.UIDError = errMsg
+			disconnectResult.exitCode = exitCode
+			return cli.Exit(disconnectResult, exitCode)
+		} else {
+			return cli.Exit(fmt.Errorf("error: %s", errMsg), exitCode)
+		}
 	}
+
+	hostname, err := os.Hostname()
+	if uiSettings.isMachineReadable {
+		disconnectResult.Hostname = hostname
+	}
+	if err != nil {
+		exitCode := 1
+		if uiSettings.isMachineReadable {
+			disconnectResult.HostnameError = err.Error()
+			disconnectResult.exitCode = exitCode
+			return cli.Exit(disconnectResult, exitCode)
+		} else {
+			return cli.Exit(err, exitCode)
+		}
+	}
+
+	rhcPrintf("Disconnecting %v from %v.\nThis might take a few seconds.\n\n", hostname, Provider)
 
 	var start time.Time
 	durations := make(map[string]time.Duration)
 	errorMessages := make(map[string]LogMessage)
-	hostname, err := os.Hostname()
-	if err != nil {
-		return cli.Exit(err, 1)
-	}
-	fmt.Printf("Disconnecting %v from %v.\nThis might take a few seconds.\n\n", hostname, Provider)
 
 	/* 1. Deactivate yggdrasil (rhcd) service */
 	start = time.Now()
 	progressMessage := fmt.Sprintf(" Deactivating the %v service", ServiceName)
 	err = showProgress(progressMessage, deactivateService)
 	if err != nil {
+		errMsg := fmt.Sprintf("Cannot deactivate %s service: %v", ServiceName, err)
 		errorMessages[ServiceName] = LogMessage{
-			level: log.LevelError,
-			message: fmt.Errorf("cannot deactivate %s service: %w",
-				ServiceName, err)}
-		fmt.Printf(uiSettings.iconError+" Cannot deactivate the %v service\n", ServiceName)
+			level:   log.LevelError,
+			message: fmt.Errorf(errMsg)}
+		disconnectResult.YggdrasilStopped = false
+		disconnectResult.YggdrasilStoppedError = errMsg
+		rhcPrintf(uiSettings.iconError + " " + errMsg + "\n")
 	} else {
-		fmt.Printf(uiSettings.iconOK+" Deactivated the %v service\n", ServiceName)
+		disconnectResult.YggdrasilStopped = true
+		rhcPrintf(uiSettings.iconOK+" Deactivated the %v service\n", ServiceName)
 	}
 	durations[ServiceName] = time.Since(start)
 
@@ -437,13 +703,16 @@ func disconnectAction(ctx *cli.Context) error {
 	start = time.Now()
 	err = showProgress(" Disconnecting from Red Hat Insights...", unregisterInsights)
 	if err != nil {
+		errMsg := fmt.Sprintf("Cannot disconnect from Red Hat Insights: %v", err)
 		errorMessages["insights"] = LogMessage{
-			level: log.LevelError,
-			message: fmt.Errorf("cannot disconnect from Red Hat Insights: %w",
-				err)}
-		fmt.Printf(uiSettings.iconError + " Cannot disconnect from Red Hat Insights\n")
+			level:   log.LevelError,
+			message: fmt.Errorf(errMsg)}
+		disconnectResult.InsightsDisconnected = false
+		disconnectResult.InsightsDisconnectedError = errMsg
+		rhcPrintf(uiSettings.iconError + " " + errMsg + "\n")
 	} else {
-		fmt.Print(uiSettings.iconOK + " Disconnected from Red Hat Insights\n")
+		disconnectResult.InsightsDisconnected = true
+		rhcPrintf(uiSettings.iconOK + " Disconnected from Red Hat Insights\n")
 	}
 	durations["insights"] = time.Since(start)
 
@@ -452,25 +721,28 @@ func disconnectAction(ctx *cli.Context) error {
 		" Disconnecting from Red Hat Subscription Management...", unregister,
 	)
 	if err != nil {
+		errMsg := fmt.Sprintf("Cannot disconnect from Red Hat Subscription Management: %v", err)
 		errorMessages["rhsm"] = LogMessage{
-			level: log.LevelError,
-			message: fmt.Errorf("cannot disconnect from Red Hat Subscription Management: %w",
-				err)}
-		fmt.Printf(
-			uiSettings.iconError + " Cannot disconnect from Red Hat Subscription Management\n",
-		)
+			level:   log.LevelError,
+			message: fmt.Errorf(errMsg)}
+
+		disconnectResult.RHSMDisconnected = false
+		disconnectResult.RHSMDisconnectedError = errMsg
+		rhcPrintf(uiSettings.iconError + " " + errMsg + "\n")
 	} else {
-		fmt.Printf(uiSettings.iconOK + " Disconnected from Red Hat Subscription Management\n")
+		disconnectResult.RHSMDisconnected = true
+		rhcPrintf(uiSettings.iconOK + " Disconnected from Red Hat Subscription Management\n")
 	}
 	durations["rhsm"] = time.Since(start)
 
-	fmt.Printf("\nManage your connected systems: https://red.ht/connector\n")
+	if !uiSettings.isMachineReadable {
+		fmt.Printf("\nManage your connected systems: https://red.ht/connector\n")
+		showTimeDuration(durations)
 
-	showTimeDuration(durations)
-
-	err = showErrorMessages("disconnect", errorMessages)
-	if err != nil {
-		return err
+		err = showErrorMessages("disconnect", errorMessages)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -519,24 +791,7 @@ func printJSONStatus(systemStatus *SystemStatus) error {
 
 // beforeStatusAction ensures the user has supplied a correct `--format` flag.
 func beforeStatusAction(ctx *cli.Context) error {
-	// This is run after the `app.Before()` has been run,
-	// the uiSettings is already set up for us to modify.
-	format := ctx.String("format")
-	switch format {
-	case "":
-		return nil
-	case "json":
-		uiSettings.isMachineReadable = true
-		uiSettings.isRich = false
-		return nil
-	default:
-		err := fmt.Errorf(
-			"unsupported format: %s (supported formats: %s)",
-			format,
-			`"json"`,
-		)
-		return cli.Exit(err, 1)
-	}
+	return setupFormatOption(ctx)
 }
 
 // statusAction tries to print status of system. It means that it gives
@@ -767,17 +1022,31 @@ func main() {
 					Hidden: true,
 					Usage:  "register against `URL`",
 				},
+				&cli.StringFlag{
+					Name:    "format",
+					Usage:   "prints output of connection in machine-readable format (supported formats: \"json\")",
+					Aliases: []string{"f"},
+				},
 			},
 			Usage:       "Connects the system to " + Provider,
 			UsageText:   fmt.Sprintf("%v connect [command options]", app.Name),
 			Description: fmt.Sprintf("The connect command connects the system to Red Hat Subscription Management, Red Hat Insights and %v and activates the %v service that enables %v to interact with the system. For details visit: https://red.ht/connector", Provider, ServiceName, Provider),
+			Before:      beforeConnectAction,
 			Action:      connectAction,
 		},
 		{
-			Name:        "disconnect",
+			Name: "disconnect",
+			Flags: []cli.Flag{
+				&cli.StringFlag{
+					Name:    "format",
+					Usage:   "prints output of disconnection in machine-readable format (supported formats: \"json\")",
+					Aliases: []string{"f"},
+				},
+			},
 			Usage:       "Disconnects the system from " + Provider,
 			UsageText:   fmt.Sprintf("%v disconnect", app.Name),
 			Description: fmt.Sprintf("The disconnect command disconnects the system from Red Hat Subscription Management, Red Hat Insights and %v and deactivates the %v service. %v will no longer be able to interact with the system.", Provider, ServiceName, Provider),
+			Before:      beforeDisconnectAction,
 			Action:      disconnectAction,
 		},
 		{
