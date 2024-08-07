@@ -48,4 +48,3 @@ def test_man_page_connect_options(option):
         assert option not in command_op
     else:
         assert option in command_op
-

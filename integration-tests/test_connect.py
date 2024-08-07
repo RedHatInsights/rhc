@@ -14,7 +14,7 @@ import sh
 from utils import (
     yggdrasil_service_is_active,
     prepare_args_for_connect,
-    check_yggdrasil_journalctl,
+    check_yggdrasil_journalctl_logs,
 )
 
 logger = logging.getLogger(__name__)
@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 @pytest.mark.parametrize("auth", ["basic", "activation-key"])
 def test_connect(external_candlepin, rhc, test_config, auth):
     """Test if RHC can connect to CRC using basic auth and activation key,
-    Also verify that yggdrasil service is in active state afterward.
+    Also verify that yggdrasil/rhcd service is in active state afterward.
     """
     with contextlib.suppress(Exception):
         rhc.disconnect()
@@ -34,7 +34,10 @@ def test_connect(external_candlepin, rhc, test_config, auth):
     assert yggdrasil_service_is_active()
     assert "Connected to Red Hat Subscription Management" in result.stdout
     assert "Connected to Red Hat Insights" in result.stdout
-    assert "Activated the yggdrasil service" in result.stdout
+    if pytest.service_name == "rhcd":
+        assert "Activated the Remote Host Configuration daemon" in result.stdout
+    else:
+        assert "Activated the yggdrasil service" in result.stdout
     assert "Successfully connected to Red Hat!" in result.stdout
 
 
@@ -113,7 +116,7 @@ def test_rhc_worker_playbook_install_after_rhc_connect(
     Also log the total time taken to install the package
         test_steps:
             1- run 'rhc connect'
-            2- monitor yggdrasil logs to see when package-manager-worker installs 'rhc-worker-playbook'
+            2- monitor yggdrasil/rhcd logs to see when package-manager-worker installs 'rhc-worker-playbook'
             3- validate rhc-worker-playbook is installed
     """
     with contextlib.suppress(Exception):
@@ -125,7 +128,7 @@ def test_rhc_worker_playbook_install_after_rhc_connect(
 
     start_date_time = datetime.now().strftime(
         "%Y-%m-%d %H:%M:%S"
-    )  # current date and time for observing yggdrasil logs
+    )  # current date and time for observing yggdrasil/rhcd logs
     command_args = prepare_args_for_connect(test_config, auth=auth)
     command = ["connect"] + command_args
     rhc.run(*command, check=False)
@@ -134,7 +137,7 @@ def test_rhc_worker_playbook_install_after_rhc_connect(
     # Verifying if rhc-worker-playbook was installed successfully
     t_end = time.time() + 60 * 5  # maximum time to wait for installation
     while time.time() < t_end:
-        installed_status = check_yggdrasil_journalctl(
+        installed_status = check_yggdrasil_journalctl_logs(
             str_to_check=success_message,
             since_datetime=start_date_time,
             must_exist_in_log=True,
@@ -151,6 +154,6 @@ def test_rhc_worker_playbook_install_after_rhc_connect(
     pkg_version = sh.rpm("-qa", "rhc-worker-playbook")
     logger.info(f"successfully installed rhc_worker_playbook package {pkg_version}")
     logger.info(
-        f"time taken to start yggdrasil service and install "
+        f"time taken to start yggdrasil/rhcd service and install "
         f"rhc_worker_playbook : {total_runtime} s"
     )

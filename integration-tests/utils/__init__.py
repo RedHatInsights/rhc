@@ -1,35 +1,38 @@
+import pytest
 import sh
 
 
 def yggdrasil_service_is_active():
-    """Method to verify if yggdrasil is in active/inactive state
-    :return: True if yggdrasil in active state else False
+    """Method to verify if yggdrasil/rhcd is in active/inactive state
+    :return: True if yggdrasil/rhcd in active state else False
+    Note: upstream name of service is yggdrasil and downstream is rhcd
     """
     try:
-        stdout = sh.systemctl("is-active yggdrasil".split()).strip()
+        stdout = sh.systemctl(f"is-active {pytest.service_name}".split()).strip()
         return stdout == "active"
     except sh.ErrorReturnCode_3:
         return False
 
 
-def check_yggdrasil_journalctl(
+def check_yggdrasil_journalctl_logs(
     str_to_check, since_datetime=None, must_exist_in_log=True
 ):
-    """This method helps in verifying strings in yggdrasil logs
+    """This method helps in verifying strings in journalctl logs
     :param str_to_check: string to be searched in logs
     :param since_datetime: start time for logs
     :param must_exist_in_log: True if str_to_check should exist in log else false
     :return: True/False
+    Note: upstream name of service is yggdrasil and downstream is rhcd
     """
     if since_datetime:
-        yggdrasil_logs = sh.journalctl("-u", "yggdrasil", "--since", since_datetime)
+        logs = sh.journalctl("-u", pytest.service_name, "--since", since_datetime)
     else:
-        yggdrasil_logs = sh.journalctl("-u", "yggdrasil")
+        logs = sh.journalctl("-u", pytest.service_name)
 
     if must_exist_in_log:
-        return str_to_check in yggdrasil_logs
+        return str_to_check in logs
     else:
-        return str_to_check not in yggdrasil_logs
+        return str_to_check not in logs
 
 
 def prepare_args_for_connect(
