@@ -13,12 +13,13 @@ VERSION_MAJOR=$(echo ${VERSION_ID} | cut -d '.' -f 1)
 COPR_REPO="${ID}-${VERSION_MAJOR}-$(uname -m)"
 
 #get yggdrasil
-curl https://copr.fedorainfracloud.org/coprs/g/yggdrasil/latest/repo/$ID-$VERSION_MAJOR/group_yggdrasil-latest-$ID-$VERSION_MAJOR.repo \
-  -o /etc/yum.repos.d/yggdrasil.repo
-
+dnf copr -y enable @yggdrasil/latest ${COPR_REPO}
 dnf install -y yggdrasil yggdrasil-worker-package-manager --disablerepo=* --enablerepo=*yggdrasil*
 
+#Install rhc for dependencies
+dnf install -y rhc
+
 # These PR packit builds have an older version number for some reason than the released...
-dnf remove -y rhc
+dnf remove -y --noautoremove rhc
 dnf copr -y enable packit/RedHatInsights-rhc-${ghprbPullId} ${COPR_REPO}
 dnf install -y rhc --disablerepo=* --enablerepo=*rhc*
