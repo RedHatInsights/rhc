@@ -19,6 +19,7 @@ func rhsmStatus(systemStatus *SystemStatus) error {
 		return fmt.Errorf("unable to get consumer UUID: %s", err)
 	}
 	if uuid == "" {
+		systemStatus.returnCode += 1
 		if uiSettings.isMachineReadable {
 			systemStatus.RHSMConnected = false
 		} else {
@@ -53,6 +54,7 @@ func insightStatus(systemStatus *SystemStatus) {
 			fmt.Print(uiSettings.iconOK + " Connected to Red Hat Insights\n")
 		}
 	} else {
+		systemStatus.returnCode += 1
 		if err == nil {
 			if uiSettings.isMachineReadable {
 				systemStatus.InsightsConnected = false
@@ -95,6 +97,7 @@ func serviceStatus(systemStatus *SystemStatus) error {
 			fmt.Printf(uiSettings.iconOK+" The %v service is active\n", ServiceName)
 		}
 	} else {
+		systemStatus.returnCode += 1
 		if uiSettings.isMachineReadable {
 			systemStatus.YggdrasilRunning = false
 		} else {
