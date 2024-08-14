@@ -25,6 +25,10 @@ def test_connect(external_candlepin, rhc, test_config, auth):
     """Test if RHC can connect to CRC using basic auth and activation key,
     Also verify that yggdrasil/rhcd service is in active state afterward.
     """
+    # rhc+satellite does not support basic auth for now
+    # refer: https://issues.redhat.com/browse/RHEL-53436
+    if "satellite" in test_config.environment and auth == "basic":
+        pytest.skip("rhc+satellite only support activation key registration now")
     with contextlib.suppress(Exception):
         rhc.disconnect()
     command_args = prepare_args_for_connect(test_config, auth=auth)
