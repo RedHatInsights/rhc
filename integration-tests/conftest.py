@@ -33,9 +33,9 @@ def install_katello_rpm(test_config):
             "http://%s/pub/katello-ca-consumer-latest.noarch.rpm" % satellite_hostname,
         ]
         subprocess.check_call(cmd)
-        logger.info(f"installing the katello rpm")
+        logger.info("installing the katello rpm")
     yield
     if "satellite" in test_config.environment:
         cmd = "rpm -qa 'katello-ca-consumer*' | xargs rpm -e"
         subprocess.check_call(cmd, shell=True)
-        logger.info(f"removing the katello rpm")
+        logger.info("removing the katello rpm")
