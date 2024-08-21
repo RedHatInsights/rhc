@@ -437,11 +437,11 @@ type DisconnectResult struct {
 	InsightsDisconnectedError string `json:"insights_disconnected_error,omitempty"`
 	YggdrasilStopped          bool   `json:"yggdrasil_stopped"`
 	YggdrasilStoppedError     string `json:"yggdrasil_stopped_error,omitempty"`
-	exitCode                  int
 	format                    string
 }
 
 // Error implement error interface for structure DisconnectResult
+// It is used for printing DisconnectResult by cli.Exit()
 func (disconnectResult DisconnectResult) Error() string {
 	var result string
 	switch disconnectResult.format {
@@ -455,17 +455,6 @@ func (disconnectResult DisconnectResult) Error() string {
 		result = "error: unsupported document format: " + disconnectResult.format
 	}
 	return result
-}
-
-// printJSONDisconnectResult tries to print the result of disconnect as JSON to stdout.
-// When marshaling of systemStatus fails, then error is returned
-func printJSONDisconnectResult(disconnectResult *DisconnectResult) error {
-	data, err := json.MarshalIndent(disconnectResult, "", "    ")
-	if err != nil {
-		return err
-	}
-	fmt.Println(string(data))
-	return nil
 }
 
 // beforeDisconnectAction ensures the used has supplied a correct `--format` flag
@@ -485,36 +474,7 @@ func interactivePrintf(format string, a ...interface{}) {
 // and finally it unregisters system from Red Hat Subscription Management
 func disconnectAction(ctx *cli.Context) error {
 	var disconnectResult DisconnectResult
-	var machineReadablePrintFunc func(disconnectResult *DisconnectResult) error
-
 	disconnectResult.format = ctx.String("format")
-	format := ctx.String("format")
-	switch format {
-	case "json":
-		machineReadablePrintFunc = printJSONDisconnectResult
-	default:
-		break
-	}
-
-	// When printing of status is requested, then print machine-readable file format
-	// at the end of this function
-	if uiSettings.isMachineReadable {
-		defer func(disconnectResult *DisconnectResult) {
-			// When exit code is zero, then print machine-readable output
-			// When exit code has non-zero value, then disconnectResult is returned as a error
-			if disconnectResult.exitCode == 0 && machineReadablePrintFunc != nil {
-				err := machineReadablePrintFunc(disconnectResult)
-				// When it was not possible to print result of disconnect to machine-readable format, then
-				// change returned error to CLI exit error to be able to set exit code to
-				// a non-zero value
-				if err != nil {
-					panic(fmt.Errorf("unable to print status as %s document: %s", format, err.Error()))
-				}
-			}
-		}(&disconnectResult)
-	}
-
-	disconnectResult.exitCode = 0
 
 	uid := os.Getuid()
 	if uid != 0 {
@@ -523,7 +483,6 @@ func disconnectAction(ctx *cli.Context) error {
 		if uiSettings.isMachineReadable {
 			disconnectResult.UID = uid
 			disconnectResult.UIDError = errMsg
-			disconnectResult.exitCode = exitCode
 			return cli.Exit(disconnectResult, exitCode)
 		} else {
 			return cli.Exit(fmt.Errorf("error: %s", errMsg), exitCode)
@@ -538,7 +497,6 @@ func disconnectAction(ctx *cli.Context) error {
 		exitCode := 1
 		if uiSettings.isMachineReadable {
 			disconnectResult.HostnameError = err.Error()
-			disconnectResult.exitCode = exitCode
 			return cli.Exit(disconnectResult, exitCode)
 		} else {
 			return cli.Exit(err, exitCode)
@@ -615,7 +573,7 @@ func disconnectAction(ctx *cli.Context) error {
 		}
 	}
 
-	return nil
+	return cli.Exit(disconnectResult, 0)
 }
 
 // canonicalFactAction tries to gather canonical facts about system,
