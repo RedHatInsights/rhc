@@ -22,13 +22,13 @@ func rhsmStatus(systemStatus *SystemStatus) error {
 		if uiSettings.isMachineReadable {
 			systemStatus.RHSMConnected = false
 		} else {
-			fmt.Printf(uiSettings.iconInfo + " Not connected to Red Hat Subscription Management\n")
+			fmt.Printf("%v Not connected to Red Hat Subscription Management\n", uiSettings.iconInfo)
 		}
 	} else {
 		if uiSettings.isMachineReadable {
 			systemStatus.RHSMConnected = true
 		} else {
-			fmt.Printf(uiSettings.iconOK + " Connected to Red Hat Subscription Management\n")
+			fmt.Printf("%v Connected to Red Hat Subscription Management\n", uiSettings.iconOK)
 		}
 	}
 	return nil

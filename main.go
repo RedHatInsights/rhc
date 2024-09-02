@@ -298,10 +298,11 @@ func connectAction(ctx *cli.Context) error {
 			message: fmt.Errorf("cannot connect to Red Hat Subscription Management: %w",
 				err)}
 		fmt.Printf(
-			uiSettings.iconError + " Cannot connect to Red Hat Subscription Management\n",
+			"%v Cannot connect to Red Hat Subscription Management\n",
+			uiSettings.iconError,
 		)
 	} else {
-		fmt.Printf(uiSettings.iconOK + " " + returnedMsg + "\n")
+		fmt.Printf("%v %v\n", uiSettings.iconOK, returnedMsg)
 	}
 	durations["rhsm"] = time.Since(start)
 
@@ -309,7 +310,8 @@ func connectAction(ctx *cli.Context) error {
 	if errors, exist := errorMessages["rhsm"]; exist {
 		if errors.level == log.LevelError {
 			fmt.Printf(
-				uiSettings.iconError + " Skipping connection to Red Hat Insights\n",
+				"%v Skipping connection to Red Hat Insights\n",
+				uiSettings.iconError,
 			)
 		}
 	} else {
@@ -320,9 +322,9 @@ func connectAction(ctx *cli.Context) error {
 				level: log.LevelError,
 				message: fmt.Errorf("cannot connect to Red Hat Insights: %w",
 					err)}
-			fmt.Printf(uiSettings.iconError + " Cannot connect to Red Hat Insights\n")
+			fmt.Printf("%v Cannot connect to Red Hat Insights\n", uiSettings.iconError)
 		} else {
-			fmt.Printf(uiSettings.iconOK + " Connected to Red Hat Insights\n")
+			fmt.Printf("%v Connected to Red Hat Insights\n", uiSettings.iconOK)
 		}
 		durations["insights"] = time.Since(start)
 	}
@@ -331,7 +333,8 @@ func connectAction(ctx *cli.Context) error {
 	if errors, exist := errorMessages["rhsm"]; exist {
 		if errors.level == log.LevelError {
 			fmt.Printf(
-				uiSettings.iconError+" Skipping activation of %v service\n",
+				"%v Skipping activation of %v service\n",
+				uiSettings.iconError,
 				ServiceName,
 			)
 		}
@@ -344,9 +347,9 @@ func connectAction(ctx *cli.Context) error {
 				level: log.LevelError,
 				message: fmt.Errorf("cannot activate %s service: %w",
 					ServiceName, err)}
-			fmt.Printf(uiSettings.iconError+" Cannot activate the %v service\n", ServiceName)
+			fmt.Printf("%v Cannot activate the %v service\n", uiSettings.iconError, ServiceName)
 		} else {
-			fmt.Printf(uiSettings.iconOK+" Activated the %v service\n", ServiceName)
+			fmt.Printf("%v Activated the %v service\n", uiSettings.iconOK, ServiceName)
 		}
 		durations[ServiceName] = time.Since(start)
 	}
@@ -379,7 +382,7 @@ func connectAction(ctx *cli.Context) error {
 				message: fmt.Errorf("cannot get the user profile: %w",
 					err)}
 		} else {
-			fmt.Printf(uiSettings.iconInfo + " Enabled console.redhat.com services: ")
+			fmt.Printf("%v Enabled console.redhat.com services: ", uiSettings.iconInfo)
 			showConfProfile(&profile)
 			fmt.Printf("\n")
 		}
@@ -517,13 +520,13 @@ func disconnectAction(ctx *cli.Context) error {
 		errMsg := fmt.Sprintf("Cannot deactivate %s service: %v", ServiceName, err)
 		errorMessages[ServiceName] = LogMessage{
 			level:   log.LevelError,
-			message: fmt.Errorf(errMsg)}
+			message: fmt.Errorf("%v", errMsg)}
 		disconnectResult.YggdrasilStopped = false
 		disconnectResult.YggdrasilStoppedError = errMsg
-		interactivePrintf(uiSettings.iconError + " " + errMsg + "\n")
+		interactivePrintf("%v %v\n", uiSettings.iconError, errMsg)
 	} else {
 		disconnectResult.YggdrasilStopped = true
-		interactivePrintf(uiSettings.iconOK+" Deactivated the %v service\n", ServiceName)
+		interactivePrintf("%v Deactivated the %v service\n", uiSettings.iconOK, ServiceName)
 	}
 	durations[ServiceName] = time.Since(start)
 
@@ -534,13 +537,13 @@ func disconnectAction(ctx *cli.Context) error {
 		errMsg := fmt.Sprintf("Cannot disconnect from Red Hat Insights: %v", err)
 		errorMessages["insights"] = LogMessage{
 			level:   log.LevelError,
-			message: fmt.Errorf(errMsg)}
+			message: fmt.Errorf("%v", errMsg)}
 		disconnectResult.InsightsDisconnected = false
 		disconnectResult.InsightsDisconnectedError = errMsg
-		interactivePrintf(uiSettings.iconError + " " + errMsg + "\n")
+		interactivePrintf("%v %v\n", uiSettings.iconError, errMsg)
 	} else {
 		disconnectResult.InsightsDisconnected = true
-		interactivePrintf(uiSettings.iconOK + " Disconnected from Red Hat Insights\n")
+		interactivePrintf("%v Disconnected from Red Hat Insights\n", uiSettings.iconOK)
 	}
 	durations["insights"] = time.Since(start)
 
@@ -552,14 +555,14 @@ func disconnectAction(ctx *cli.Context) error {
 		errMsg := fmt.Sprintf("Cannot disconnect from Red Hat Subscription Management: %v", err)
 		errorMessages["rhsm"] = LogMessage{
 			level:   log.LevelError,
-			message: fmt.Errorf(errMsg)}
+			message: fmt.Errorf("%v", errMsg)}
 
 		disconnectResult.RHSMDisconnected = false
 		disconnectResult.RHSMDisconnectedError = errMsg
-		interactivePrintf(uiSettings.iconError + " " + errMsg + "\n")
+		interactivePrintf("%v %v\n", uiSettings.iconError, errMsg)
 	} else {
 		disconnectResult.RHSMDisconnected = true
-		interactivePrintf(uiSettings.iconOK + " Disconnected from Red Hat Subscription Management\n")
+		interactivePrintf("%v Disconnected from Red Hat Subscription Management\n", uiSettings.iconOK)
 	}
 	durations["rhsm"] = time.Since(start)
 
