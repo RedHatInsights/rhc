@@ -33,6 +33,14 @@ BuildRequires: systemd
 rhc is a client that registers a system with RHSM and activates the Red Hat yggd
 MQTT client.
 
+%package compat
+Summary: Transition package to support migrating from rhcd to yggd
+
+Requires:   yggdrasil >= 0.4.2
+Recommends: rhc
+
+%description compat
+Transition package to support migrating from rhcd to yggd.
 
 %prep
 %setup -c
@@ -68,6 +76,10 @@ make PREFIX=%{_prefix} \
      SERVICENAME=@SERVICENAME@ \
      'PROVIDER=@PROVIDER@' \
      install
+install --directory %{buildroot}%{_unitdir}
+install --directory %{buildroot}%{_sysconfdir}/rhc
+ln -sf yggdrasil.service        %{buildroot}%{_unitdir}/rhcd.service
+ln -sf ../yggdrasil/config.toml %{buildroot}%{_sysconfdir}/rhc/config.toml
 
 %post
 %systemd_post rhc-canonical-facts.timer
@@ -93,6 +105,10 @@ fi
 %{_unitdir}/*
 %{_presetdir}/*
 
+
+%files compat
+%{_unitdir}/rhcd.service
+%{_sysconfdir}/rhc/config.toml
 
 %changelog
 %if (0%{?fedora} || 0%{?rhel} >= 9)
