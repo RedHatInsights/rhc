@@ -1,0 +1,10 @@
+[Unit]
+Description=yggdrasil canonical-facts service timer
+Documentation=https://github.com/RedHatInsights/yggdrasil
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+
+[Install]
+WantedBy=timers.target

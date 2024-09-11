@@ -69,11 +69,29 @@ make PREFIX=%{_prefix} \
      'PROVIDER=@PROVIDER@' \
      install
 
+%post
+%systemd_post rhc-canonical-facts.timer
+if [ $1 -eq 1 ]; then
+     systemctl daemon-reload
+     systemctl start rhc-canonical-facts.timer
+fi
+
+%preun
+%systemd_preun rhc-canonical-facts.timer
+
+%postun
+%systemd_postun_with_restart rhc-canonical-facts.timer
+if [ $1 -eq 0 ]; then
+     systemctl daemon-reload
+fi
+
 %files
 %doc %{name}-%{version}/README.md
 %{_bindir}/@SHORTNAME@
 %{_datadir}/bash-completion/completions/*
 %{_mandir}/man1/*
+%{_unitdir}/*
+%{_presetdir}/*
 
 
 %changelog

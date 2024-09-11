@@ -40,6 +40,7 @@ DESTDIR       ?=
 
 # Dependent package directories
 SYSTEMD_SYSTEM_UNIT_DIR  := $(shell pkg-config --variable systemdsystemunitdir systemd)
+SYSTEMD_SYSTEM_PRESET_DIR := $(shell pkg-config --variable systemdsystempresetdir systemd)
 
 # Build flags
 LDFLAGS := 
@@ -122,6 +123,9 @@ install: $(BIN) $(DATA)
 	install -D -m755 ./rhc      $(DESTDIR)$(BINDIR)/$(SHORTNAME)
 	install -D -m644 ./rhc.1.gz $(DESTDIR)$(MANDIR)/man1/$(SHORTNAME).1.gz
 	install -D -m644 ./rhc.bash $(DESTDIR)$(DATADIR)/bash-completion/completions/$(SHORTNAME)
+	install -D -m644 ./rhc-canonical-facts.service $(DESTDIR)$(SYSTEMD_SYSTEM_UNIT_DIR)/rhc-canonical-facts.service
+	install -D -m644 ./rhc-canonical-facts.timer $(DESTDIR)$(SYSTEMD_SYSTEM_UNIT_DIR)/rhc-canonical-facts.timer
+	install -D -m644 ./80-rhc.preset $(DESTDIR)$(SYSTEMD_SYSTEM_PRESET_DIR)/80-rhc.preset
 
 .PHONY: uninstall
 uninstall:
