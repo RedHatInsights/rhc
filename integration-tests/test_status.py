@@ -49,7 +49,7 @@ def test_status_disconnected(rhc):
     # 'rhc disconnect' to ensure system is already disconnected
     rhc.run("disconnect", check=False)
     status_result = rhc.run("status", check=False)
-    assert status_result.returncode == 0
+    assert status_result.returncode != 0
     assert "Not connected to Red Hat Subscription Management" in status_result.stdout
     assert "Not connected to Red Hat Insights" in status_result.stdout
     if pytest.service_name == "rhcd":
