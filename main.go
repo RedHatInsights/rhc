@@ -179,6 +179,9 @@ func registerRHSM(ctx *cli.Context) (string, error) {
 				   required, because user is member of more than one organization, then ask for
 				   the organization. */
 				if len(orgs) > 0 {
+					if uiSettings.isMachineReadable {
+						return "Unable to register system to RHSM", cli.Exit("no organization specified", 1)
+					}
 					// Stop spinner to be able to display message and ask for organization
 					if uiSettings.isRich {
 						s.Stop()
@@ -245,12 +248,11 @@ func beforeConnectAction(ctx *cli.Context) error {
 
 	// When machine-readable format is used, then additional requirements have to be met
 	if uiSettings.isMachineReadable {
-		if username != "" {
-			if password == "" {
-				return fmt.Errorf("--password is required, when --username and machine-readable format are used")
-			}
+		if username == "" || password == "" {
+			return fmt.Errorf("--username/--password or --organization/--activation-key are required when a machine-readable format is used")
 		}
 	}
+
 	return nil
 }
 
@@ -441,6 +443,8 @@ func (disconnectResult DisconnectResult) Error() string {
 			return err.Error()
 		}
 		result = string(data)
+	case "":
+		break
 	default:
 		result = "error: unsupported document format: " + disconnectResult.format
 	}
@@ -473,6 +477,8 @@ func (connectResult ConnectResult) Error() string {
 			return err.Error()
 		}
 		result = string(data)
+	case "":
+		break
 	default:
 		result = "error: unsupported document format: " + connectResult.format
 	}
