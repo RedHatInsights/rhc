@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"strings"
 	"text/tabwriter"
@@ -14,7 +13,6 @@ import (
 	"golang.org/x/term"
 
 	"github.com/briandowns/spinner"
-	"github.com/redhatinsights/rhc/internal/http"
 	"github.com/urfave/cli/v2"
 	"github.com/urfave/cli/v2/altsrc"
 )
@@ -122,55 +120,6 @@ func showErrorMessages(action string, errorMessages map[string]LogMessage) error
 		}
 	}
 	return nil
-}
-
-// getConfProfile will retrieve the profile the system is configured
-func getConfProfile(client *http.Client) (map[string]interface{}, error) {
-	var profile map[string]interface{}
-
-	url, err := GuessAPIURL()
-	if err != nil {
-		return nil, err
-	}
-
-	res, err := client.Get(url)
-	if err != nil {
-		return nil, err
-	}
-	defer res.Body.Close()
-
-	if res.StatusCode != 200 {
-		return nil, fmt.Errorf("cannot get system profile: %s", res.Status)
-	}
-	// Read the response body
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	if err = json.Unmarshal(body, &profile); err != nil {
-		return nil, fmt.Errorf("cannot unmarshal profile: %s", res.Status)
-
-	}
-
-	return profile, nil
-}
-
-// showConfProfile shows a list of the system profile enabled features gathered from API
-// https://github.com/RedHatInsights/config-manager/blob/master/internal/http/v2/openapi.json
-func showConfProfile(p *map[string]interface{}) {
-	services := []string{}
-	for service, status := range *p {
-		switch status.(type) {
-		case bool:
-			if service == "active" {
-				service = "remote configuration"
-			}
-			services = append(services, service)
-		}
-	}
-	output := strings.Join(services, `, `)
-	fmt.Printf("%v", output)
 }
 
 // registerRHSM tries to register system against Red Hat Subscription Management server (candlepin server)
@@ -424,42 +373,6 @@ func connectAction(ctx *cli.Context) error {
 			interactivePrintf("%v Activated the %v service\n", uiSettings.iconOK, ServiceName)
 		}
 		durations[ServiceName] = time.Since(start)
-	}
-
-	/* 4. Show Configuration Profile */
-	if len(errorMessages) == 0 {
-		// Update the configuration file
-		// Call D-bus to get the CA directory from rhsm
-		if err = getRHSMConfigOption("rhsm.ca_cert_dir", &config.CADir); err != nil {
-			errorMessages[ServiceName] = LogMessage{
-				level: log.LevelWarn,
-				message: fmt.Errorf("cannot get rhsm configuration: %w",
-					err)}
-		}
-		// Generate a new http client configured with mutual TLS certificate
-		tlsConfig, err := config.CreateTLSClientConfig()
-		if err != nil {
-			errorMessages[ServiceName] = LogMessage{
-				level: log.LevelWarn,
-				message: fmt.Errorf("cannot configure TLS: %w",
-					err)}
-		}
-		client := http.NewHTTPClient(tlsConfig)
-
-		// Get the user profile
-		profile, err := getConfProfile(client)
-		if err != nil {
-			errorMessages[ServiceName] = LogMessage{
-				level: log.LevelWarn,
-				message: fmt.Errorf("cannot get the user profile: %w",
-					err)}
-		} else {
-			if !uiSettings.isMachineReadable {
-				fmt.Printf("%v Enabled console.redhat.com services: ", uiSettings.iconInfo)
-				showConfProfile(&profile)
-				fmt.Printf("\n")
-			}
-		}
 		interactivePrintf("\nSuccessfully connected to Red Hat!\n")
 	}
 
