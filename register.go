@@ -20,9 +20,9 @@ func getConsumerUUID() (string, error) {
 
 	var uuid string
 	if err := conn.Object(
-		"com.redhat.RHSM1",
-		"/com/redhat/RHSM1/Consumer").Call(
-		"com.redhat.RHSM1.Consumer.GetUuid",
+		"com.redhat.RHSM2",
+		"/com/redhat/RHSM2/Consumer").Call(
+		"com.redhat.RHSM2.Consumer.GetUuid",
 		dbus.Flags(0),
 		locale).Store(&uuid); err != nil {
 		return "", unpackRHSMError(err)
@@ -99,41 +99,16 @@ func registerUsernamePassword(username, password, organization, serverURL string
 		return orgs, fmt.Errorf("warning: the system is already registered")
 	}
 
-	registerServer := conn.Object("com.redhat.RHSM1", "/com/redhat/RHSM1/RegisterServer")
-
 	locale := getLocale()
 
-	var privateDbusSocketURI string
-	if err := registerServer.Call(
-		"com.redhat.RHSM1.RegisterServer.Start",
-		dbus.Flags(0),
-		locale).Store(&privateDbusSocketURI); err != nil {
-		return orgs, err
-	}
-	defer registerServer.Call(
-		"com.redhat.RHSM1.RegisterServer.Stop",
-		dbus.FlagNoReplyExpected,
-		locale)
-
-	privConn, err := dbus.Dial(privateDbusSocketURI)
-	if err != nil {
-		return orgs, err
-	}
-	defer privConn.Close()
-
-	if err := privConn.Auth(nil); err != nil {
-		return orgs, err
-	}
-
-	if err := privConn.Object(
-		"com.redhat.RHSM1",
-		"/com/redhat/RHSM1/Register").Call(
-		"com.redhat.RHSM1.Register.Register",
+	if err := conn.Object(
+		"com.redhat.RHSM2",
+		"/com/redhat/RHSM2/Register").Call(
+		"com.redhat.RHSM2.Register.RegisterWithUsername",
 		dbus.Flags(0),
 		organization,
 		username,
 		password,
-		map[string]string{"enable_content": "true"},
 		map[string]string{},
 		locale).Err; err != nil {
 
@@ -150,7 +125,7 @@ func registerUsernamePassword(username, password, organization, serverURL string
 		// try to get list of available organizations
 		if organization == "" && rhsmError.Exception == "OrgNotSpecifiedException" {
 			var s string
-			orgsCall := privConn.Object(
+			orgsCall := conn.Object(
 				"com.redhat.RHSM1",
 				"/com/redhat/RHSM1/Register",
 			).Call(
@@ -158,7 +133,6 @@ func registerUsernamePassword(username, password, organization, serverURL string
 				dbus.Flags(0),
 				username,
 				password,
-				map[string]string{},
 				locale,
 			)
 
@@ -196,42 +170,16 @@ func registerActivationKey(orgID string, activationKeys []string, serverURL stri
 		return fmt.Errorf("warning: the system is already registered")
 	}
 
-	registerServer := conn.Object("com.redhat.RHSM1", "/com/redhat/RHSM1/RegisterServer")
-
-	locale := getLocale()
-
-	var privateDbusSocketURI string
-	if err := registerServer.Call(
-		"com.redhat.RHSM1.RegisterServer.Start",
-		dbus.Flags(0),
-		locale).Store(&privateDbusSocketURI); err != nil {
-		return err
-	}
-	defer registerServer.Call(
-		"com.redhat.RHSM1.RegisterServer.Stop",
-		dbus.FlagNoReplyExpected,
-		locale)
-
-	privConn, err := dbus.Dial(privateDbusSocketURI)
-	if err != nil {
-		return err
-	}
-	defer privConn.Close()
-
-	if err := privConn.Auth(nil); err != nil {
-		return err
-	}
-
-	if err := privConn.Object(
-		"com.redhat.RHSM1",
-		"/com/redhat/RHSM1/Register").Call(
-		"com.redhat.RHSM1.Register.RegisterWithActivationKeys",
+	if err := conn.Object(
+		"com.redhat.RHSM2",
+		"/com/redhat/RHSM2/Register").Call(
+		"com.redhat.RHSM2.Register.RegisterWithActivationKeys",
 		dbus.Flags(0),
 		orgID,
 		activationKeys,
 		map[string]string{},
 		map[string]string{},
-		locale).Err; err != nil {
+		"").Err; err != nil {
 		return unpackRHSMError(err)
 	}
 
@@ -255,11 +203,10 @@ func unregister() error {
 	locale := getLocale()
 
 	err = conn.Object(
-		"com.redhat.RHSM1",
-		"/com/redhat/RHSM1/Unregister").Call(
-		"com.redhat.RHSM1.Unregister.Unregister",
+		"com.redhat.RHSM2",
+		"/com/redhat/RHSM2/Unregister").Call(
+		"com.redhat.RHSM2.Unregister.Unregister",
 		dbus.Flags(0),
-		map[string]string{},
 		locale).Err
 
 	if err != nil {
@@ -289,7 +236,7 @@ func unpackRHSMError(err error) error {
 	rhsmError := RHSMError{}
 	switch e := err.(type) {
 	case dbus.Error:
-		if e.Name == "com.redhat.RHSM1.Error" {
+		if e.Name == "com.redhat.RHSM2.Error" {
 			if jsonErr := json.Unmarshal([]byte(e.Error()), &rhsmError); jsonErr != nil {
 				return jsonErr
 			}
@@ -331,9 +278,9 @@ func configureRHSM(serverURL string) error {
 		return fmt.Errorf("cannot connect to system D-Bus: %w", err)
 	}
 
-	locale := getLocale()
+	config := conn.Object("com.redhat.RHSM2", "/com/redhat/RHSM2/Config")
 
-	config := conn.Object("com.redhat.RHSM1", "/com/redhat/RHSM1/Config")
+	locale := getLocale()
 
 	// If the scheme is empty, attempt to set the server.hostname based on the
 	// path component alone. This enables the --server argument to accept just a
@@ -341,7 +288,7 @@ func configureRHSM(serverURL string) error {
 	if URL.Scheme == "" {
 		if URL.Path != "" {
 			if err := config.Call(
-				"com.redhat.RHSM1.Config.Set",
+				"com.redhat.RHSM2.Config.Set",
 				0,
 				"server.hostname",
 				URL.Path,
@@ -352,7 +299,7 @@ func configureRHSM(serverURL string) error {
 	} else {
 		if URL.Hostname() != "" {
 			if err := config.Call(
-				"com.redhat.RHSM1.Config.Set",
+				"com.redhat.RHSM2.Config.Set",
 				0,
 				"server.hostname",
 				URL.Hostname(),
@@ -363,7 +310,7 @@ func configureRHSM(serverURL string) error {
 
 		if URL.Port() != "" {
 			if err := config.Call(
-				"com.redhat.RHSM1.Config.Set",
+				"com.redhat.RHSM2.Config.Set",
 				0,
 				"server.port",
 				URL.Port(),
@@ -374,7 +321,7 @@ func configureRHSM(serverURL string) error {
 
 		if URL.Path != "" {
 			if err := config.Call(
-				"com.redhat.RHSM1.Config.Set",
+				"com.redhat.RHSM2.Config.Set",
 				0,
 				"server.prefix",
 				URL.Path,
@@ -393,7 +340,7 @@ func getRHSMConfigOption(name string, val interface{}) error {
 		return fmt.Errorf("cannot connect to system D-Bus: %w", err)
 	}
 	locale := getLocale()
-	obj := conn.Object("com.redhat.RHSM1", "/com/redhat/RHSM1/Config")
+	obj := conn.Object("com.redhat.RHSM2", "/com/redhat/RHSM2/Config")
 	if err := obj.Call(
 		"com.redhat.RHSM1.Config.Get",
 		dbus.Flags(0),
