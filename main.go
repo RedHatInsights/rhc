@@ -322,7 +322,7 @@ func connectAction(ctx *cli.Context) error {
 	/* 2. Register insights-client */
 	if errors, exist := errorMessages["rhsm"]; exist {
 		if errors.level == log.LevelError {
-			fmt.Printf(
+			interactivePrintf(
 				"%v Skipping connection to Red Hat Insights\n",
 				uiSettings.iconError,
 			)
