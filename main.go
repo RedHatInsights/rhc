@@ -253,7 +253,7 @@ func beforeConnectAction(ctx *cli.Context) error {
 		}
 	}
 
-	return nil
+	return checkForUnknownArgs(ctx)
 }
 
 // connectAction tries to register system against Red Hat Subscription Management,
@@ -487,7 +487,12 @@ func (connectResult ConnectResult) Error() string {
 
 // beforeDisconnectAction ensures the used has supplied a correct `--format` flag
 func beforeDisconnectAction(ctx *cli.Context) error {
-	return setupFormatOption(ctx)
+	err := setupFormatOption(ctx)
+	if err != nil {
+		return err
+	}
+
+	return checkForUnknownArgs(ctx)
 }
 
 // interactivePrintf is method for printing human-readable output. It suppresses output, when
@@ -648,7 +653,12 @@ func printJSONStatus(systemStatus *SystemStatus) error {
 
 // beforeStatusAction ensures the user has supplied a correct `--format` flag.
 func beforeStatusAction(ctx *cli.Context) error {
-	return setupFormatOption(ctx)
+	err := setupFormatOption(ctx)
+	if err != nil {
+		return err
+	}
+
+	return checkForUnknownArgs(ctx)
 }
 
 // statusAction tries to print status of system. It means that it gives

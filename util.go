@@ -154,3 +154,12 @@ func getLocale() string {
 	locale := os.Getenv("LANG")
 	return locale
 }
+
+// checkForUnknownArgs returns an error if any unknown arguments are present.
+func checkForUnknownArgs(ctx *cli.Context) error {
+	if ctx.Args().Len() != 0 {
+		return fmt.Errorf("error: unknown option(s): %s",
+			strings.Join(ctx.Args().Slice(), " "))
+	}
+	return nil
+}
