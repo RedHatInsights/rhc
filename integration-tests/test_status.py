@@ -4,6 +4,7 @@ More information about this module could be found: https://github.com/ptoscano/p
 """
 
 import pytest
+import json
 from pytest_client_tools import util
 from utils import yggdrasil_service_is_active
 
@@ -32,6 +33,32 @@ def test_status_connected(external_candlepin, rhc, test_config):
         assert "The Remote Host Configuration daemon is active" in status_result.stdout
     else:
         assert "The yggdrasil service is active" in status_result.stdout
+
+
+def test_status_connected_format_json(external_candlepin, rhc, test_config):
+    """
+    Test 'rhc status --format json' command, when host is connected
+    test_steps:
+        1 - rhc connect
+        2 - rhc status
+    expected_output:
+        1 - Validate that output is valid JSON document
+        2 - Validate that JSON document contains expected data
+    """
+    rhc.connect(
+        username=test_config.get("candlepin.username"),
+        password=test_config.get("candlepin.password")
+    )
+    status_result = rhc.run("status", "--format", "json", check=False)
+    assert status_result.returncode == 0
+    status_json = json.loads(status_result.stdout)
+    assert "hostname" in status_json
+    assert "rhsm_connected" in status_json
+    assert type(status_json["rhsm_connected"]) == bool
+    assert "insights_connected" in status_json
+    assert type(status_json["insights_connected"]) == bool
+    assert "yggdrasil_running" in status_json
+    assert type(status_json["yggdrasil_running"]) == bool
 
 
 def test_status_disconnected(rhc):
