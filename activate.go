@@ -10,7 +10,7 @@ import (
 // activateService tries to enable and start yggdrasil service.
 // The service can be branded to rhcd on RHEL
 func activateService() error {
-    ctx := context.Background()
+	ctx := context.Background()
 	conn, err := systemd.NewSystemConnectionContext(ctx)
 	if err != nil {
 		return err
@@ -37,13 +37,18 @@ func activateService() error {
 		return fmt.Errorf("error: The unit %v failed to start. Run 'systemctl status %v' for more information", unitName, unitName)
 	}
 
+	err = conn.ReloadContext(ctx)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
 // deactivateService tries to stop and disable yggdrasil service.
 // The service can be branded to rhcd on RHEL
 func deactivateService() error {
-		// Use simple background context without anything extra
+	// Use simple background context without anything extra
 	ctx := context.Background()
 	conn, err := systemd.NewSystemConnectionContext(ctx)
 	if err != nil {
@@ -60,6 +65,11 @@ func deactivateService() error {
 	<-done
 
 	if _, err := conn.DisableUnitFilesContext(ctx, []string{unitName}, false); err != nil {
+		return err
+	}
+
+	err = conn.ReloadContext(ctx)
+	if err != nil {
 		return err
 	}
 
