@@ -27,7 +27,6 @@ jobs:
     additional_repos:
       - "copr://@yggdrasil/latest"
     targets:
-      - centos-stream-8
       - centos-stream-9
       - centos-stream-10
       - fedora-all
@@ -42,7 +41,6 @@ jobs:
     owner: "@yggdrasil"
     project: latest
     targets:
-      - centos-stream-8
       - centos-stream-9
       - centos-stream-10
       - fedora-all
@@ -53,7 +51,6 @@ jobs:
     trigger: pull_request
     identifier: "unit/centos-stream"
     targets:
-      - centos-stream-8
       - centos-stream-9
       - centos-stream-10
     labels:
