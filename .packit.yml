@@ -30,7 +30,6 @@ jobs:
       - centos-stream-9
       - centos-stream-10
       - fedora-all
-      - rhel-8
       - rhel-9
 
   - job: copr_build
@@ -44,7 +43,6 @@ jobs:
       - centos-stream-9
       - centos-stream-10
       - fedora-all
-      - rhel-8
       - rhel-9
 
   - job: tests
@@ -78,9 +76,6 @@ jobs:
     trigger: pull_request
     identifier: "unit/rhel"
     targets:
-      rhel-8-x86_64:
-        distros:
-          - RHEL-8-Released
       rhel-9-x86_64:
         distros:
           - RHEL-9.4.0-Nightly
