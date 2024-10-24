@@ -1,0 +1,2 @@
+subdir('completion')
+subdir('systemd')

@@ -1,0 +1,155 @@
+# This RPM spec file exists primarily to enable CI/CD pipelines and automatic
+# testing of built RPMs. This RPM can be used as a suitable baseline for a
+# proper distribution package, but changes should be made to suit the needs of
+# the package.
+
+%bcond_without check
+
+%global has_go_rpm_macros (0%{?fedora})
+%define source_date_epoch_from_changelog 0
+
+# must be before %%gometa
+Version: @VERSION@
+
+# https://github.com/redhatinsights/rhc
+%global goipath     github.com/redhatinsights/rhc
+%global commit      @COMMIT@
+%global shortcommit %(c=%{commit}; echo ${c:0:7})
+%global archivename rhc-%{version}
+
+%if %{has_go_rpm_macros}
+%gometa %{?fedora:-f}
+%else
+%global gourl https://github.com/RedHatInsights/%{name}
+%global gomodulesmode GO111MODULES=off
+%global gosource %{gourl}/releases/download/%{version}/rhc-%{version}.tar.gz
+%global gocompilerflags "-buildmode pie -compiler gc"
+%endif
+
+# Manually redefine %%dist to work around an issue in COPR where the build root
+# that creates the srpm does not define a value for %%dist. This should *NOT* be
+# carried in downstream; this is strictly an upstream/COPR/CI workaround.
+%if "%{dist}" == ""
+%global dist %{distprefix}.fc%{fedora}
+%endif
+
+%if 0%{?fedora}
+%global setup_flags -Dvendor=False
+%else
+%global setup_flags -Dvendor=True
+%endif
+
+%global common_description %{expand:
+rhc is a client that registers a system with RHSM and activates the Red Hat yggd
+MQTT client.}
+
+%global golicenses      LICENSE
+%global godocs          CONTRIBUTING.md README.md
+
+Name:    rhc
+Release: 0%{?dist}
+Epoch:   1
+Summary: Client for registering Red Hat Enterprise Linux systems
+
+License: GPL-3.0-only
+URL:     %{gourl}
+Source0: %{gosource}
+
+Requires:      insights-client
+Requires:      yggdrasil >= 0.4
+Requires:      yggdrasil-worker-package-manager
+Requires:      subscription-manager
+
+BuildRequires:  systemd-rpm-macros
+BuildRequires:  meson
+BuildRequires:  pkgconfig(systemd)
+BuildRequires:  pkgconfig(bash-completion)
+BuildRequires:  golang >= 1.18
+
+
+%description %{common_description}
+
+%package compat
+Summary: Transition package to support migrating from rhcd to yggd
+
+Requires:   yggdrasil >= 0.4.2
+Recommends: rhc
+
+%description compat
+Transition package to support migrating from rhcd to yggd.
+
+%if %{has_go_rpm_macros}
+%gopkg
+%endif
+
+%prep
+%if %{has_go_rpm_macros}
+%goprep %{?rhel:-k}
+%else
+%autosetup
+%endif
+
+%if 0%{?fedora}
+%generate_buildrequires
+%go_generate_buildrequires
+%endif
+
+%build
+%undefine _auto_set_build_flags
+export %gomodulesmode
+%{?gobuilddir:export GOPATH="%{gobuilddir}:${GOPATH:+${GOPATH}:}%{?gopath}"}
+%meson %setup_flags "-Dgobuildflags=[%(echo %{expand:%gocompilerflags} | sed -e s/"^"/"'"/ -e s/" "/"', '"/g -e s/"$"/"'"/), '-tags', '"rpm_crashtraceback\ ${BUILDTAGS:-}"', '-a', '-v', '-x']" -Dgoldflags='%{?currentgoldflags} -B 0x%(head -c20 /dev/urandom|od -An -tx1|tr -d " \n") -compressdwarf=false -linkmode=external -extldflags "%{build_ldflags} %{?__golang_extldflags}"'
+%meson_build
+
+%install
+%meson_install
+install --directory %{buildroot}%{_unitdir}
+install --directory %{buildroot}%{_sysconfdir}/rhc
+ln -sf yggdrasil.service        %{buildroot}%{_unitdir}/rhcd.service
+ln -sf ../yggdrasil/config.toml %{buildroot}%{_sysconfdir}/rhc/config.toml
+%if %{has_go_rpm_macros}
+%gopkginstall
+%endif
+
+%if %{with check}
+%check
+%if %{has_go_rpm_macros}
+%gocheck
+%else
+%meson_test
+%endif
+%endif
+
+%post
+%systemd_post rhc-canonical-facts.timer
+if [ $1 -eq 1 ]; then
+     systemctl daemon-reload
+     systemctl start rhc-canonical-facts.timer
+fi
+
+%preun
+%systemd_preun rhc-canonical-facts.timer
+
+%postun
+%systemd_postun_with_restart rhc-canonical-facts.timer
+if [ $1 -eq 0 ]; then
+     systemctl daemon-reload
+fi
+
+%files
+%license LICENSE
+%doc CONTRIBUTING.md README.md
+%{_bindir}/*
+%{_datadir}/bash-completion/completions/*
+%{_mandir}/man1/*
+%{_unitdir}/*
+%{_presetdir}/*
+
+%files compat
+%{_unitdir}/rhcd.service
+%{_sysconfdir}/rhc/config.toml
+
+%changelog
+%if (0%{?fedora} || 0%{?rhel} >= 9)
+%autochangelog
+%endif
