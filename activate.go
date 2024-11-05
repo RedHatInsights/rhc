@@ -4,73 +4,58 @@ import (
 	"context"
 	"fmt"
 
-	systemd "github.com/coreos/go-systemd/v22/dbus"
+	systemd "github.com/redhatinsights/rhc/internal/systemd"
 )
 
-// activateService tries to enable and start yggdrasil service.
-// The service can be branded to rhcd on RHEL
+// activateService tries to enable and start the rhc-canonical-facts.timer,
+// rhc-canonical-facts.service and yggdrasil.service.
 func activateService() error {
-	ctx := context.Background()
-	conn, err := systemd.NewSystemConnectionContext(ctx)
+	conn, err := systemd.NewConnectionContext(context.Background(), systemd.ConnectionTypeSystem)
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot connect to systemd: %v", err)
 	}
 	defer conn.Close()
 
-	unitName := ServiceName + ".service"
-
-	if _, _, err := conn.EnableUnitFilesContext(ctx, []string{unitName}, false, true); err != nil {
-		return err
+	if err := conn.EnableUnit("rhc-canonical-facts.timer", true, false); err != nil {
+		return fmt.Errorf("cannot enable rhc-canonical-facts.timer: %v", err)
 	}
 
-	done := make(chan string)
-	if _, err := conn.StartUnitContext(ctx, unitName, "replace", done); err != nil {
-		return err
-	}
-	<-done
-	properties, err := conn.GetUnitPropertiesContext(ctx, unitName)
-	if err != nil {
-		return err
-	}
-	activeState := properties["ActiveState"]
-	if activeState.(string) != "active" {
-		return fmt.Errorf("error: The unit %v failed to start. Run 'systemctl status %v' for more information", unitName, unitName)
+	// Start the canonical-facts service immediately, so the facts get generated
+	// and written out before yggdrasil.service starts.
+	if err := conn.StartUnit("rhc-canonical-facts.service", false); err != nil {
+		return fmt.Errorf("cannot start rhc-canonical-facts.service: %v", err)
 	}
 
-	err = conn.ReloadContext(ctx)
-	if err != nil {
-		return err
+	if err := conn.EnableUnit("yggdrasil.service", true, false); err != nil {
+		return fmt.Errorf("cannot enable yggdrasil.service: %v", err)
+	}
+
+	if err := conn.Reload(); err != nil {
+		return fmt.Errorf("cannot reload systemd: %v", err)
 	}
 
 	return nil
 }
 
-// deactivateService tries to stop and disable yggdrasil service.
-// The service can be branded to rhcd on RHEL
+// deactivateService tries to stop and disable the rhc-canonical-facts.timer,
+// rhc-canonical-facts.service and yggdrasil.service.
 func deactivateService() error {
-	// Use simple background context without anything extra
-	ctx := context.Background()
-	conn, err := systemd.NewSystemConnectionContext(ctx)
+	conn, err := systemd.NewConnectionContext(context.Background(), systemd.ConnectionTypeSystem)
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot connect to systemd: %v", err)
 	}
 	defer conn.Close()
 
-	unitName := ServiceName + ".service"
-
-	done := make(chan string)
-	if _, err := conn.StopUnitContext(ctx, unitName, "replace", done); err != nil {
-		return err
-	}
-	<-done
-
-	if _, err := conn.DisableUnitFilesContext(ctx, []string{unitName}, false); err != nil {
-		return err
+	if err := conn.DisableUnit("rhc-canonical-facts.timer", true, false); err != nil {
+		return fmt.Errorf("cannot disable rhc-canonical-facts.timer: %v", err)
 	}
 
-	err = conn.ReloadContext(ctx)
-	if err != nil {
-		return err
+	if err := conn.DisableUnit("yggdrasil.service", true, false); err != nil {
+		return fmt.Errorf("cannot disable yggdrasil.service: %v", err)
+	}
+
+	if err := conn.Reload(); err != nil {
+		return fmt.Errorf("cannot reload systemd: %v", err)
 	}
 
 	return nil
