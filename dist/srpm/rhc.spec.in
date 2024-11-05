@@ -143,7 +143,6 @@ fi
 %{_datadir}/bash-completion/completions/*
 %{_mandir}/man1/*
 %{_unitdir}/rhc-canonical-facts.*
-%{_presetdir}/*
 
 %files compat
 %{_unitdir}/rhcd.service
