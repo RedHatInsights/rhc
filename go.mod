@@ -8,7 +8,6 @@ require (
 	github.com/godbus/dbus/v5 v5.1.0
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.6.0
-	github.com/subpop/go-ini v0.1.5
 	github.com/subpop/go-log v0.1.2
 	github.com/urfave/cli/v2 v2.27.5
 	golang.org/x/sys v0.26.0
