@@ -68,3 +68,5 @@ func (conf *Conf) CreateTLSClientConfig() (*tls.Config, error) {
 
 	return tlsConfig, nil
 }
+
+var config = Conf{}

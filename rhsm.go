@@ -1,11 +1,18 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
+	"github.com/briandowns/spinner"
+	"github.com/urfave/cli/v2"
+	"golang.org/x/term"
 	"io"
 	"net/url"
 	"os"
+	"strings"
+	"text/tabwriter"
+	"time"
 
 	"github.com/godbus/dbus/v5"
 )
@@ -403,4 +410,105 @@ func getRHSMConfigOption(name string, val interface{}) error {
 	}
 
 	return nil
+}
+
+// registerRHSM tries to register system against Red Hat Subscription Management server (candlepin server)
+func registerRHSM(ctx *cli.Context) (string, error) {
+	uuid, err := getConsumerUUID()
+	if err != nil {
+		return "Unable to get consumer UUID", cli.Exit(err, 1)
+	}
+	var successMsg string
+
+	if uuid == "" {
+		username := ctx.String("username")
+		password := ctx.String("password")
+		organization := ctx.String("organization")
+		activationKeys := ctx.StringSlice("activation-key")
+
+		if len(activationKeys) == 0 {
+			if username == "" {
+				password = ""
+				scanner := bufio.NewScanner(os.Stdin)
+				fmt.Print("Username: ")
+				_ = scanner.Scan()
+				username = strings.TrimSpace(scanner.Text())
+			}
+			if password == "" {
+				fmt.Print("Password: ")
+				data, err := term.ReadPassword(int(os.Stdin.Fd()))
+				if err != nil {
+					return "Unable to read password", cli.Exit(err, 1)
+				}
+				password = string(data)
+				fmt.Printf("\n\n")
+			}
+		}
+
+		var s *spinner.Spinner
+		if uiSettings.isRich {
+			s = spinner.New(spinner.CharSets[9], 100*time.Millisecond)
+			s.Suffix = " Connecting to Red Hat Subscription Management..."
+			s.Start()
+			defer s.Stop()
+		}
+
+		var err error
+		if len(activationKeys) > 0 {
+			err = registerActivationKey(
+				organization,
+				ctx.StringSlice("activation-key"),
+				ctx.String("server"))
+		} else {
+			var orgs []string
+			if organization != "" {
+				_, err = registerUsernamePassword(username, password, organization, ctx.String("server"))
+			} else {
+				orgs, err = registerUsernamePassword(username, password, "", ctx.String("server"))
+				/* When organization was not specified using CLI option --organization, and it is
+				   required, because user is member of more than one organization, then ask for
+				   the organization. */
+				if len(orgs) > 0 {
+					if uiSettings.isMachineReadable {
+						return "Unable to register system to RHSM", cli.Exit("no organization specified", 1)
+					}
+					// Stop spinner to be able to display message and ask for organization
+					if uiSettings.isRich {
+						s.Stop()
+					}
+
+					// Ask for organization and display hint with list of organizations
+					scanner := bufio.NewScanner(os.Stdin)
+					fmt.Println("Available Organizations:")
+					writer := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
+					for i, org := range orgs {
+						_, _ = fmt.Fprintf(writer, "%v\t", org)
+						if (i+1)%4 == 0 {
+							_, _ = fmt.Fprint(writer, "\n")
+						}
+					}
+					_ = writer.Flush()
+					fmt.Print("\nOrganization: ")
+					_ = scanner.Scan()
+					organization = strings.TrimSpace(scanner.Text())
+					fmt.Printf("\n")
+
+					// Start spinner again
+					if uiSettings.isRich {
+						s.Start()
+					}
+
+					// Try to register once again with given organization
+					_, err = registerUsernamePassword(username, password, organization, ctx.String("server"))
+				}
+			}
+		}
+		if err != nil {
+			return "Unable to register system to RHSM", cli.Exit(err, 1)
+		}
+		successMsg = "Connected to Red Hat Subscription Management"
+	} else {
+		successMsg = "This system is already connected to Red Hat Subscription Management"
+	}
+	return successMsg, nil
 }

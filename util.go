@@ -2,13 +2,13 @@ package main
 
 import (
 	"fmt"
+	"github.com/subpop/go-ini"
 	"io"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/subpop/go-ini"
 	"github.com/subpop/go-log"
 
 	"github.com/urfave/cli/v2"
@@ -162,4 +162,27 @@ func checkForUnknownArgs(ctx *cli.Context) error {
 			strings.Join(ctx.Args().Slice(), " "))
 	}
 	return nil
+}
+
+// setupFormatOption ensures the user has supplied a correct `--format` flag
+// and set values in uiSettings, when JSON format is used.
+func setupFormatOption(ctx *cli.Context) error {
+	// This is run after the `app.Before()` has been run,
+	// the uiSettings is already set up for us to modify.
+	format := ctx.String("format")
+	switch format {
+	case "":
+		return nil
+	case "json":
+		uiSettings.isMachineReadable = true
+		uiSettings.isRich = false
+		return nil
+	default:
+		err := fmt.Errorf(
+			"unsupported format: %s (supported formats: %s)",
+			format,
+			`"json"`,
+		)
+		return cli.Exit(err, 1)
+	}
 }
