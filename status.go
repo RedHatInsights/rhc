@@ -3,11 +3,35 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/briandowns/spinner"
 	systemd "github.com/coreos/go-systemd/v22/dbus"
+	"github.com/subpop/go-log"
 )
+
+var StatePath = "/var/lib/rhc/connected"
+
+func IsConnected() bool {
+	_, err := os.Stat(StatePath)
+	return err == nil
+}
+
+func SetConnected(state bool) {
+	if state {
+		timestamp := time.Now().Format("2006-01-02T15:04:05")
+		err := os.WriteFile(StatePath, []byte(timestamp), 0664)
+		if err != nil {
+			log.Errorf("error writing state file: %v", err)
+		}
+	} else {
+		err := os.Remove(StatePath)
+		if err != nil {
+			log.Errorf("error removing state file: %v", err)
+		}
+	}
+}
 
 // rhsmStatus tries to print status provided by RHSM D-Bus API. If we provide
 // output in machine-readable format, then we only set files in SystemStatus

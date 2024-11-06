@@ -5,7 +5,50 @@ import (
 	"io/fs"
 	"os"
 	"os/exec"
+
+	"github.com/subpop/go-log"
+	"github.com/urfave/cli/v2"
 )
+
+var AnalyticsFeature = Feature{
+	ID:          "analytics",
+	Requires:    []*Feature{&IdentityFeature},
+	Description: "Enable data collection for Red Hat Insights",
+	EnableFunc: func(ctx *cli.Context) error {
+		isRegistered, err := insightsIsRegistered()
+		if err != nil {
+			log.Debugf("Could not determine 'analytics' status: %v", err)
+			return err
+		}
+		if isRegistered {
+			log.Info("Feature 'analytics' is already enabled")
+			return nil
+		}
+		err = showProgress("Connecting to Red Hat Insights", registerInsights)
+		if err != nil {
+			log.Debugf("Could not enable feature 'analytics': %v", err)
+			return err
+		}
+		return nil
+	},
+	DisableFunc: func(ctx *cli.Context) error {
+		isRegistered, err := insightsIsRegistered()
+		if err != nil {
+			log.Debugf("Could not determine 'analytics' status: %v", err)
+			return err
+		}
+		if !isRegistered {
+			log.Info("Feature 'analytics' is already disabled")
+			return nil
+		}
+		err = showProgress("Disconnecting from Red Hat Insights", unregisterInsights)
+		if err != nil {
+			log.Debugf("Could not disble feature 'analytics': %v", err)
+			return err
+		}
+		return nil
+	},
+}
 
 func registerInsights() error {
 	cmd := exec.Command("/usr/bin/insights-client", "--register")

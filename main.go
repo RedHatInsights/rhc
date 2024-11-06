@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 	"text/tabwriter"
 	"time"
@@ -232,6 +233,10 @@ func beforeConnectAction(ctx *cli.Context) error {
 		return err
 	}
 
+	if IsConnected() {
+		return fmt.Errorf("this system is already connected")
+	}
+
 	username := ctx.String("username")
 	password := ctx.String("password")
 	organization := ctx.String("organization")
@@ -290,6 +295,17 @@ func connectAction(ctx *cli.Context) error {
 		}
 	}
 
+	enableFeatureAnalytics := false
+	enableFeatureManagement := false
+	for _, featureID := range GetFeaturesState().Enabled {
+		if featureID == AnalyticsFeature.ID {
+			enableFeatureAnalytics = true
+		}
+		if featureID == ManagementFeature.ID {
+			enableFeatureManagement = true
+		}
+	}
+
 	interactivePrintf("Connecting %v to %v.\nThis might take a few seconds.\n\n", hostname, Provider)
 
 	var start time.Time
@@ -327,6 +343,11 @@ func connectAction(ctx *cli.Context) error {
 				uiSettings.iconError,
 			)
 		}
+	} else if !enableFeatureAnalytics {
+		interactivePrintf(
+			"%v Skipping connection to Red Hat Insights: Analytics feature is disabled\n",
+			uiSettings.iconInfo,
+		)
 	} else {
 		start = time.Now()
 		err = showProgress(" Connecting to Red Hat Insights...", registerInsights)
@@ -353,6 +374,13 @@ func connectAction(ctx *cli.Context) error {
 		interactivePrintf(
 			"%v Skipping activation of %v service\n",
 			uiSettings.iconError,
+			ServiceName,
+		)
+	} else if !enableFeatureManagement {
+		connectResult.YggdrasilStarted = false
+		interactivePrintf(
+			"%v Skipping activation of %v service: Management feature is disabled\n",
+			uiSettings.iconInfo,
 			ServiceName,
 		)
 	} else {
@@ -391,6 +419,10 @@ func connectAction(ctx *cli.Context) error {
 		return err
 	}
 
+	{ // update cache to say we have successfully connected
+		log.Info("system has been connected, updating state file")
+		SetConnected(true)
+	}
 	return cli.Exit(connectResult, 0)
 }
 
@@ -606,6 +638,10 @@ func disconnectAction(ctx *cli.Context) error {
 		}
 	}
 
+	{ // update cache to say we have successfully disconnected
+		log.Info("system has been disconnected, updating state file")
+		SetConnected(false)
+	}
 	return cli.Exit(disconnectResult, 0)
 }
 
@@ -743,6 +779,233 @@ func statusAction(ctx *cli.Context) (err error) {
 	return nil
 }
 
+func configureFeatureAction(ctx *cli.Context) error {
+	if !ctx.IsSet("enable") && !ctx.IsSet("disable") {
+		// no flag entered, let's display help and currently enabled features
+		_ = cli.ShowSubcommandHelp(ctx)
+		return nil
+	}
+
+	// apply determines whether a change should be applied or not
+	var apply bool = IsConnected()
+
+	enableRequest, disableRequest, err := resolveFeatureInput(ctx.StringSlice("enable"), ctx.StringSlice("disable"))
+	if err != nil {
+		return err
+	}
+
+	state := GetFeaturesState()
+	// newState holds true for features that are currently enabled
+	newState := map[string]bool{}
+	{
+		for _, featureID := range state.Enabled {
+			newState[featureID] = true
+		}
+	}
+
+	enable, disable, err := resolveFeatureTransitions(state, enableRequest, disableRequest)
+	if err != nil {
+		return err
+	}
+
+	{ // log what we have resolved
+		var enableIDs, disableIDs []string
+		for _, feature := range enable {
+			enableIDs = append(enableIDs, feature.ID)
+		}
+		for _, feature := range disable {
+			disableIDs = append(disableIDs, feature.ID)
+		}
+		log.Infof(
+			"resolved features: state=%s enable=%s disable=%s",
+			strings.Join(state.Enabled, ","), strings.Join(enableIDs, ","), strings.Join(disableIDs, ","),
+		)
+	}
+
+	{ // first, let's disable features one by one from the most to the least dependent
+		knownFeaturesReversed := make([]*Feature, len(KnownFeatures))
+		copy(knownFeaturesReversed, KnownFeatures)
+		slices.Reverse(knownFeaturesReversed)
+
+		for _, feature := range knownFeaturesReversed {
+			for _, featureToBeDisabled := range disable {
+				if feature.ID == featureToBeDisabled.ID {
+					log.Debugf("Disabling feature %s", feature.ID)
+					if apply {
+						err = feature.DisableFunc(ctx)
+						if err != nil {
+							log.Errorf("Could not disable feature %s: %v", feature.ID, err)
+							return err
+						}
+					}
+					newState[feature.ID] = false
+					log.Debugf("Disabled feature %s", feature.ID)
+					break
+				}
+			}
+		}
+	}
+
+	{ // next, enable features one by one from the last to the most dependent
+		for _, feature := range KnownFeatures {
+			for _, featureToBeEnabled := range enable {
+				if feature.ID == featureToBeEnabled.ID {
+					log.Debugf("Enabling feature %s", feature.ID)
+					if apply {
+						err = feature.EnableFunc(ctx)
+						if err != nil {
+							log.Errorf("Could not enable feature %s: %v", feature.ID, err)
+							return err
+						}
+					}
+					newState[feature.ID] = true
+					log.Debugf("Enabled feature %s", feature.ID)
+					break
+				}
+			}
+		}
+	}
+
+	{ // update the state cache
+		var featureList []string
+		for featureID, enabled := range newState {
+			if enabled {
+				featureList = append(featureList, featureID)
+			}
+		}
+		state.Enabled = featureList
+		log.Debugf("Caching enabled features into %s: %s", FeaturesStatePath, strings.Join(state.Enabled, ","))
+		if err = state.Save(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// resolveFeatureInput determines which features should be enabled and which disabled.
+// It does not take into account the system state, it only evaluates the dependency tree.
+// On conflict, returns an error.
+func resolveFeatureInput(inEnable, inDisable []string) (
+	enable []*Feature, disable []*Feature, err error,
+) {
+	toEnable := map[string]bool{}
+	toDisable := map[string]bool{}
+
+	for _, featureID := range inEnable {
+		feature, ok := GetFeature(featureID)
+		if !ok {
+			err = fmt.Errorf("unknown feature: %s", featureID)
+			return
+		}
+		toEnable[featureID] = true
+		// enable features this feature depends on
+		for _, dependent := range feature.Requires {
+			toEnable[dependent.ID] = true
+		}
+	}
+
+	for _, featureID := range inDisable {
+		feature, ok := GetFeature(featureID)
+		if !ok {
+			err = fmt.Errorf("unknown feature: %s", featureID)
+			return
+		}
+		for _, requiredFeature := range RequiredFeatures {
+			if featureID == requiredFeature.ID {
+				err = fmt.Errorf("feature '%s' cannot be disabled", featureID)
+				return
+			}
+		}
+
+		toDisable[featureID] = true
+		// disable features that depend on this feature
+		for _, knownFeature := range KnownFeatures {
+			for _, knownFeatureDependent := range knownFeature.Requires {
+				if knownFeatureDependent.ID == feature.ID {
+					toDisable[knownFeature.ID] = true
+				}
+			}
+		}
+	}
+
+	// conflictingFeatures contains a sorted list of conflicting features
+	var conflictingFeatures []string
+	for _, feature := range KnownFeatures {
+		wantsEnable, wantsDisable := false, false
+		for featureIDEnable, _ := range toEnable {
+			if featureIDEnable == feature.ID {
+				wantsEnable = true
+			}
+		}
+		for featureIDDisable, _ := range toDisable {
+			if featureIDDisable == feature.ID {
+				wantsDisable = true
+			}
+		}
+		if wantsEnable && wantsDisable {
+			conflictingFeatures = append(conflictingFeatures, feature.ID)
+		}
+	}
+	if len(conflictingFeatures) > 0 {
+		err = fmt.Errorf(
+			"features can't be enabled and disabled at the same time: %s",
+			strings.Join(conflictingFeatures, ", "),
+		)
+		return
+	}
+
+	for featureID, _ := range toEnable {
+		feature, _ := GetFeature(featureID)
+		enable = append(enable, feature)
+	}
+	for featureID, _ := range toDisable {
+		feature, _ := GetFeature(featureID)
+		disable = append(disable, feature)
+	}
+
+	// featureIDs is lambda mapping features to their IDs
+	featureIDs := func(features []*Feature) []string {
+		result := make([]string, len(features))
+		for i, feature := range features {
+			result[i] = feature.ID
+		}
+		return result
+	}
+	log.Debugf(
+		"resolved features input: enable=%s disable=%s",
+		strings.Join(featureIDs(enable), ","),
+		strings.Join(featureIDs(disable), ","),
+	)
+	return
+}
+
+// resolveFeatureTransitions determines which features need to be enabled and disabled.
+func resolveFeatureTransitions(
+	state *FeaturesState, enableRequest []*Feature, disableRequest []*Feature,
+) (
+	enable []*Feature, disable []*Feature, err error,
+) {
+	for _, feature := range enableRequest {
+		isEnabled := false
+		for _, enabledFeatureID := range state.Enabled {
+			if feature.ID == enabledFeatureID {
+				isEnabled = true
+			}
+		}
+		if !isEnabled {
+			enable = append(enable, feature)
+		}
+	}
+	for _, feature := range disableRequest {
+		for _, enabledFeatureID := range state.Enabled {
+			if feature.ID == enabledFeatureID {
+				disable = append(disable, feature)
+			}
+		}
+	}
+	return
+}
+
 // mainAction is triggered in the case, when no sub-command is specified
 func mainAction(c *cli.Context) error {
 	type GenerationFunc func() (string, error)
@@ -807,6 +1070,36 @@ func beforeAction(c *cli.Context) error {
 }
 
 var config = Conf{}
+
+func getConfigureFeaturesDescription() string {
+	state := GetFeaturesState()
+
+	var result = []string{"Current state of features:"}
+	for _, feature := range KnownFeatures {
+		line := ""
+		// FIXME This should probably look the same as the reporting during 'connect'
+		if state.IsEnabled(feature.ID) {
+			line += "[x] "
+		} else {
+			line += "[ ] "
+		}
+		line += fmt.Sprintf("%s: %s", feature.ID, feature.Description)
+		if len(feature.Requires) > 0 {
+			line += " (requires: "
+			var dependsOn []string
+			for _, dependency := range feature.Requires {
+				dependsOn = append(dependsOn, dependency.ID)
+			}
+			line += strings.Join(dependsOn, ", ")
+			line += ")"
+		}
+		if state.IsDefault(feature.ID) {
+			line += " (default)"
+		}
+		result = append(result, line)
+	}
+	return strings.Join(result, "\n")
+}
 
 func main() {
 	app := cli.NewApp()
@@ -948,6 +1241,32 @@ func main() {
 			Description: fmt.Sprintf("The status command prints the state of the connection to Red Hat Subscription Management, Red Hat Insights and %v.", Provider),
 			Before:      beforeStatusAction,
 			Action:      statusAction,
+		},
+		{
+			Name:      "configure",
+			Usage:     "Configures the program functionality",
+			UsageText: fmt.Sprintf("%v configure", app.Name),
+			Subcommands: []*cli.Command{
+				{
+					Name:  "features",
+					Usage: fmt.Sprintf("Manages %s features", app.Name),
+					Description: fmt.Sprintf(
+						"Allows enabling and disabling features of %s.\n\n%s",
+						app.Name, getConfigureFeaturesDescription(),
+					),
+					Flags: []cli.Flag{
+						&cli.StringSliceFlag{
+							Name:  "enable",
+							Usage: "Enable feature",
+						},
+						&cli.StringSliceFlag{
+							Name:  "disable",
+							Usage: "Disable feature",
+						},
+					},
+					Action: configureFeatureAction,
+				},
+			},
 		},
 	}
 	app.EnableBashCompletion = true
