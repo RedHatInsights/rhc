@@ -21,8 +21,6 @@ github.com/mattn/go-isatty v0.0.8 h1:HLtExJ+uU2HOZ+wI0Tt5DtUDrx8yhUqDcp7fYERX4CE
 github.com/mattn/go-isatty v0.0.8/go.mod h1:Iq45c/XA43vh69/j3iqttzPXn0bhXyGjM0Hdxcsrc5s=
 github.com/russross/blackfriday/v2 v2.1.0 h1:JIOH55/0cWyOuilr9/qlrm0BSXldqnqwMsf35Ld67mk=
 github.com/russross/blackfriday/v2 v2.1.0/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=
-github.com/subpop/go-ini v0.1.5 h1:08hu8slz5c4KBXJWYOycyuDQ0E7xHr2vV2rH9x79FrY=
-github.com/subpop/go-ini v0.1.5/go.mod h1:mM5HCw/1+q92kIf4Btd7Oorioa8rAXb4NSBT2ldZNiU=
 github.com/subpop/go-log v0.1.2 h1:NgbZR6frmeDtC+96d+UxOkt4X/JxO626fokwL56Dff0=
 github.com/subpop/go-log v0.1.2/go.mod h1:uAEovif98swmWm/8qYGrzGFahUIRQ/KwlBUpJuoOdds=
 github.com/urfave/cli/v2 v2.27.5 h1:WoHEJLdsXr6dDWoJgMq/CboDmyY/8HMMH1fTECbih+w=

@@ -2,9 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/subpop/go-ini"
 	"io"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -68,71 +66,6 @@ func ConfigPath() (string, error) {
 	}
 
 	return filePath, nil
-}
-
-// GuessAPIURL gets the API server URL based on, insights-client.conf
-// and rhsm.conf. This URL may differ from prod, stage and Satellite
-func GuessAPIURL() (string, error) {
-	var uString string
-	var baseURL *url.URL
-
-	// Check if the server api is set in insights conf
-	// Create the structs needed to read the config file
-	opts := ini.Options{
-		AllowNumberSignComments: true,
-	}
-	type InsightsClientConf struct {
-		BaseUrl string `ini:"base_url"`
-	}
-	type InsightsConf struct {
-		InsightsClient InsightsClientConf `ini:"insights-client"`
-	}
-	var cfg InsightsConf
-	// Read the config file
-	confFilePath := "/etc/insights-client/insights-client.conf"
-	data, err := os.ReadFile(confFilePath)
-	if err != nil {
-		return "", fmt.Errorf("failed to read file '%v': %v", confFilePath, err)
-	}
-	// Get the config into the struct
-	if err := ini.UnmarshalWithOptions(data, &cfg, opts); err != nil {
-		return "", fmt.Errorf("failed to parse file '%v': %v", confFilePath, err)
-	}
-	APIServer := cfg.InsightsClient.BaseUrl
-
-	if APIServer != "" {
-		base, err := url.Parse("https://" + APIServer)
-		if err != nil {
-			return "", fmt.Errorf("cannot get base URL: %w", err)
-		}
-		p, _ := url.Parse("api/config-manager/v2/profiles/current")
-		uString = base.ResolveReference(p).String()
-	} else {
-		// Get the server hostname where this host is connected
-		var serverHost string
-		err = getRHSMConfigOption("server.hostname", &serverHost)
-		if err != nil {
-			return "", fmt.Errorf("cannot get server hostname: %w", err)
-		}
-		// Get the final api server url to make the call
-		// Check if it is the default api server
-		if strings.Contains(serverHost, "subscription.rhsm.redhat.com") {
-			baseURL, _ = url.Parse("https://cert.console.redhat.com")
-			p, _ := url.Parse("api/config-manager/v2/profiles/current")
-			uString = baseURL.ResolveReference(p).String()
-		} else {
-			// Otherwise it is connected to Satellite
-			// Generate the base URL
-			base, err := url.Parse("https://" + serverHost)
-			if err != nil {
-				return "", fmt.Errorf("cannot get base URL: %w", err)
-			}
-			p, _ := url.Parse("redhat_access/r/insights/platform/config-manager/v2/profiles/current")
-			uString = base.ResolveReference(p).String()
-		}
-	}
-
-	return uString, nil
 }
 
 // hasPriorityErrors checks if the errorMessage map has any error
