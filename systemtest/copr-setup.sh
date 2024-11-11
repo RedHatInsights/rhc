@@ -21,5 +21,5 @@ dnf install -y rhc
 
 # These PR packit builds have an older version number for some reason than the released...
 dnf remove -y --noautoremove rhc
-dnf copr -y enable packit/RedHatInsights-rhc-${ghprbPullId} centos-stream-10-x86_64
+dnf copr -y enable packit/RedHatInsights-rhc-${ghprbPullId} ${COPR_REPO}
 dnf install -y rhc rhc-compat --disablerepo=* --enablerepo=*rhc*
