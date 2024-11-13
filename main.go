@@ -157,6 +157,11 @@ func main() {
 					Usage:   "register with `KEY`",
 					Aliases: []string{"a"},
 				},
+				&cli.StringSliceFlag{
+					Name:    "content-template",
+					Usage:   "register with `CONTENT_TEMPLATE`",
+					Aliases: []string{"c"},
+				},
 				&cli.StringFlag{
 					Name:   "server",
 					Hidden: true,
