@@ -290,16 +290,16 @@ func connectAction(ctx *cli.Context) error {
 			level: log.LevelError,
 			message: fmt.Errorf("cannot connect to Red Hat Subscription Management: %w",
 				err)}
-		fmt.Printf(errorPrefix + " Cannot connect to Red Hat Subscription Management\n")
+		fmt.Print(errorPrefix + " Cannot connect to Red Hat Subscription Management\n")
 	} else {
-		fmt.Printf(connectedPrefix + " " + returnedMsg + "\n")
+		fmt.Print(connectedPrefix + " " + returnedMsg + "\n")
 	}
 	durations["rhsm"] = time.Since(start)
 
 	/* 2. Register insights-client */
 	if errors, exist := errorMessages["rhsm"]; exist {
 		if errors.level == log.LevelError {
-			fmt.Printf(disconnectedPrefix + " Skipping connection to Red Hat Insights\n")
+			fmt.Print(disconnectedPrefix + " Skipping connection to Red Hat Insights\n")
 		}
 	} else {
 		start = time.Now()
@@ -309,9 +309,9 @@ func connectAction(ctx *cli.Context) error {
 				level: log.LevelError,
 				message: fmt.Errorf("cannot connect to Red Hat Insights: %w",
 					err)}
-			fmt.Printf(errorPrefix + " Cannot connect to Red Hat Insights\n")
+			fmt.Print(errorPrefix + " Cannot connect to Red Hat Insights\n")
 		} else {
-			fmt.Printf(connectedPrefix + " Connected to Red Hat Insights\n")
+			fmt.Print(connectedPrefix + " Connected to Red Hat Insights\n")
 		}
 		durations["insights"] = time.Since(start)
 	}
@@ -365,7 +365,7 @@ func connectAction(ctx *cli.Context) error {
 				message: fmt.Errorf("cannot get the user profile: %w",
 					err)}
 		} else {
-			fmt.Printf(infoPrefix + " Enabled console.redhat.com services: ")
+			fmt.Print(infoPrefix + " Enabled console.redhat.com services: ")
 			showConfProfile(&profile)
 			fmt.Printf("\n")
 		}
@@ -429,7 +429,7 @@ func disconnectAction(ctx *cli.Context) error {
 			level: log.LevelError,
 			message: fmt.Errorf("cannot disconnect from Red Hat Insights: %w",
 				err)}
-		fmt.Printf(errorPrefix + " Cannot disconnect from Red Hat Insights\n")
+		fmt.Print(errorPrefix + " Cannot disconnect from Red Hat Insights\n")
 	} else {
 		fmt.Print(disconnectedPrefix + " Disconnected from Red Hat Insights\n")
 	}
@@ -442,9 +442,9 @@ func disconnectAction(ctx *cli.Context) error {
 			level: log.LevelError,
 			message: fmt.Errorf("cannot disconnect from Red Hat Subscription Management: %w",
 				err)}
-		fmt.Printf(errorPrefix + " Cannot disconnect from Red Hat Subscription Management\n")
+		fmt.Print(errorPrefix + " Cannot disconnect from Red Hat Subscription Management\n")
 	} else {
-		fmt.Printf(disconnectedPrefix + " Disconnected from Red Hat Subscription Management\n")
+		fmt.Print(disconnectedPrefix + " Disconnected from Red Hat Subscription Management\n")
 	}
 	durations["rhsm"] = time.Since(start)
 
@@ -573,13 +573,13 @@ func statusAction(ctx *cli.Context) (err error) {
 		if machineReadable {
 			systemStatus.RHSMConnected = false
 		} else {
-			fmt.Printf(disconnectedPrefix + " Not connected to Red Hat Subscription Management\n")
+			fmt.Print(disconnectedPrefix + " Not connected to Red Hat Subscription Management\n")
 		}
 	} else {
 		if machineReadable {
 			systemStatus.RHSMConnected = true
 		} else {
-			fmt.Printf(connectedPrefix + " Connected to Red Hat Subscription Management\n")
+			fmt.Print(connectedPrefix + " Connected to Red Hat Subscription Management\n")
 		}
 	}
 
