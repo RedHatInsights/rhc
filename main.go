@@ -175,6 +175,33 @@ func main() {
 			Action:      connectAction,
 		},
 		{
+			Name:      "configure",
+			Usage:     "Configure the host",
+			UsageText: fmt.Sprintf("%v configure [sub-command]", app.Name),
+			Subcommands: []*cli.Command{
+				{
+					Name:        "satellite",
+					Usage:       "Configure the host to use with Satellite server",
+					UsageText:   fmt.Sprintf("%v configure satellite [command options]", app.Name),
+					Description: "The satellite sub-command configure the system for connection to a Satellite server",
+					Flags: []cli.Flag{
+						&cli.StringFlag{
+							Name:    "url",
+							Usage:   "URL of the Satellite server",
+							Aliases: []string{"u"},
+						},
+						&cli.StringFlag{
+							Name:    "format",
+							Usage:   "prints output of satellite configure in machine-readable format (supported formats: \"json\")",
+							Aliases: []string{"f"},
+						},
+					},
+					Before: beforeSatelliteAction,
+					Action: satelliteAction,
+				},
+			},
+		},
+		{
 			Name: "disconnect",
 			Flags: []cli.Flag{
 				&cli.StringFlag{
