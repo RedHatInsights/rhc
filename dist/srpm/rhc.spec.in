@@ -3,37 +3,74 @@
 # proper distribution package, but changes should be made to suit the needs of
 # the package.
 
-%define debug_package %{nil}
+%bcond_without check
+
+%global has_go_rpm_macros (0%{?fedora})
 %define source_date_epoch_from_changelog 0
 
-Name:    rhc
+# must be before %%gometa
 Version: @VERSION@
-Release: 0%{?dist}
+
+# https://github.com/redhatinsights/rhc
+%global goipath     github.com/redhatinsights/rhc
+%global commit      @COMMIT@
+%global shortcommit %(c=%{commit}; echo ${c:0:7})
+%global date        %(date "+%Y%m%d")
+%global archivename rhc-%{version}
+
+%if %{has_go_rpm_macros}
+%gometa %{?fedora:-f}
+%else
+%global gourl https://github.com/RedHatInsights/%{name}
+%global gomodulesmode GO111MODULES=off
+%global gosource %{gourl}/releases/download/%{version}/rhc-%{version}.tar.gz
+%global gocompilerflags "-buildmode pie -compiler gc"
+%global scm git
+%forgemeta
+%endif
+
+# Manually redefine %%dist to work around an issue in COPR where the build root
+# that creates the srpm does not define a value for %%dist. This should *NOT* be
+# carried in downstream; this is strictly an upstream/COPR/CI workaround.
+%if "%{dist}" == ""
+%global dist %{distprefix}.fc%{fedora}
+%endif
+
+%if 0%{?fedora}
+%global setup_flags -Dvendor=False
+%else
+%endif
+%global setup_flags -Dvendor=True
+
+%global common_description %{expand:
+rhc is a client that registers a system with RHSM and activates the Red Hat yggd
+MQTT client.}
+
+%global golicenses      LICENSE
+%global godocs          CONTRIBUTING.md README.md
+
+Name:    rhc
+Release: 99%{?dist}
 Epoch:   1
 Summary: Client for registering Red Hat Enterprise Linux systems
+
 License: GPL-3.0-only
-URL:     https://github.com/redhatinsights/rhc
-
-Source0: %{name}-%{version}.tar.gz
-
-ExclusiveArch: %{go_arches}
+URL:     %{gourl}
+Source0: %{gosource}
 
 Requires:      insights-client
 Requires:      yggdrasil >= 0.4
 Requires:      yggdrasil-worker-package-manager
 Requires:      subscription-manager
 
-BuildRequires: bash-completion
-BuildRequires: golang
-BuildRequires: dbus-devel
-BuildRequires: meson
-BuildRequires: systemd-devel
-BuildRequires: systemd
+BuildRequires:  systemd-rpm-macros
+BuildRequires:  meson
+BuildRequires:  pkgconfig(systemd)
+BuildRequires:  pkgconfig(bash-completion)
+BuildRequires:  golang >= 1.18
 
 
-%description
-rhc is a client that registers a system with RHSM and activates the Red Hat yggd
-MQTT client.
+%description %{common_description}
 
 %package compat
 Summary: Transition package to support migrating from rhcd to yggd
@@ -44,14 +81,30 @@ Recommends: rhc
 %description compat
 Transition package to support migrating from rhcd to yggd.
 
-%prep
-%autosetup
+%if %{has_go_rpm_macros}
+%gopkg
+%endif
 
+%prep
+%if 0%{?fedora}
+%goprep
+%else
+%autosetup
+%endif
+
+%if 0%{?fedora}
+%generate_buildrequires
+%go_generate_buildrequires
+%endif
 
 %build
-%meson
+%undefine _auto_set_build_flags
+export %gomodulesmode
+%{?gobuilddir:export GOPATH="%{gobuilddir}:${GOPATH:+${GOPATH}:}%{?gopath}"}
+ls
+pwd
+%meson %setup_flags "-Dgobuildflags=[%(echo %{expand:%gocompilerflags} | sed -e s/"^"/"'"/ -e s/" "/"', '"/g -e s/"$"/"'"/), '-tags', '"rpm_crashtraceback\ ${BUILDTAGS:-}"', '-a', '-v', '-x']" -Dgoldflags='%{?currentgoldflags} -B 0x%(head -c20 /dev/urandom|od -An -tx1|tr -d " \n") -compressdwarf=false -linkmode=external -extldflags "%{build_ldflags} %{?__golang_extldflags}"'
 %meson_build
-
 
 %install
 %meson_install
@@ -59,6 +112,15 @@ install --directory %{buildroot}%{_unitdir}
 install --directory %{buildroot}%{_sysconfdir}/rhc
 ln -sf yggdrasil.service        %{buildroot}%{_unitdir}/rhcd.service
 ln -sf ../yggdrasil/config.toml %{buildroot}%{_sysconfdir}/rhc/config.toml
+
+%if %{with check}
+%check
+%if 0%{?fedora}
+%gocheck
+%else
+%meson_test
+%endif
+%endif
 
 %post
 %systemd_post rhc-canonical-facts.timer
@@ -77,7 +139,8 @@ if [ $1 -eq 0 ]; then
 fi
 
 %files
-%doc README.md
+%license LICENSE
+%doc CONTRIBUTING.md README.md
 %{_bindir}/*
 %{_datadir}/bash-completion/completions/*
 %{_mandir}/man1/*
