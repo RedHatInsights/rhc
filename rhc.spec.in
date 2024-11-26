@@ -6,15 +6,37 @@
 %define debug_package %{nil}
 %define source_date_epoch_from_changelog 0
 
+%global has_go_rpm_macros (0%{?fedora})
+
+# must be before %%gometa
+Version:        @VERSION@
+
+# https://github.com/redhatinsights/rhc
+%global goipath         github.com/redhatinsights/rhc
+%global commit          @COMMIT@
+%global shortcommit     %(c=%{commit}; echo ${c:0:7})
+%global date            %(date "+%Y%m%d")
+%global archivename     rhc-%{version}
+
+%if %{has_go_rpm_macros}
+%gometa %{?fedora:-f}
+%else
+%global gourl https://github.com/RedHatInsights/%{name}
+%global gomodulesmode GO111MODULES=off
+%global gosource %{gourl}/releases/download/%{version}/rhc-%{version}.tar.gz
+%global gocompilerflags "-buildmode pie -compiler gc"
+%global scm git
+%forgemeta
+%endif
+
 Name:    @LONGNAME@
-Version: @VERSION@
-Release: 0%{?dist}
+Release: 99%{?dist}
 Epoch:   1
 Summary: Client for registering Red Hat Enterprise Linux systems
 License: GPL-3.0-only
-URL:     https://github.com/redhatinsights/rhc
+URL:     %{gourl}
 
-Source0: %{name}-%{version}.tar.gz
+Source0: %{gosource}
 
 ExclusiveArch: %{go_arches}
 
@@ -23,6 +45,7 @@ Requires:      yggdrasil >= 0.4
 Requires:      yggdrasil-worker-package-manager
 Requires:      subscription-manager
 
+BuildRequires: git-core
 BuildRequires: golang
 BuildRequires: dbus-devel
 BuildRequires: systemd-devel
@@ -43,11 +66,13 @@ Recommends: rhc
 Transition package to support migrating from rhcd to yggd.
 
 %prep
-%setup -c
-
+%if 0%{?fedora}
+%forgeautosetup
+%else
+%autosetup
+%endif
 
 %build
-cd %{name}-%{version}
 make PREFIX=%{_prefix} \
      SYSCONFDIR=%{_sysconfdir} \
      LOCALSTATEDIR=%{_localstatedir} \
@@ -58,11 +83,10 @@ make PREFIX=%{_prefix} \
      VERSION=%{version} \
      DATAHOST=@DATAHOST@ \
      SERVICENAME=@SERVICENAME@ \
-     'PROVIDER=@PROVIDER@'
-
+     'PROVIDER=@PROVIDER@' \
+     all
 
 %install
-cd %{name}-%{version}
 make PREFIX=%{_prefix} \
      SYSCONFDIR=%{_sysconfdir} \
      LOCALSTATEDIR=%{_localstatedir} \
@@ -98,7 +122,7 @@ if [ $1 -eq 0 ]; then
 fi
 
 %files
-%doc %{name}-%{version}/README.md
+%doc README.md
 %{_bindir}/@SHORTNAME@
 %{_datadir}/bash-completion/completions/*
 %{_mandir}/man1/*

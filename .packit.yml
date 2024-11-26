@@ -9,6 +9,7 @@ srpm_build_deps:
   - make
   - 'pkgconfig(dbus-1)'
   - 'pkgconfig(systemd)'
+  - 'rpm_macro(forgemeta)'
   - rpm-build
 
 actions:

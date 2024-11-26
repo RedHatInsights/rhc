@@ -24,6 +24,8 @@ TOPICPREFIX := redhat/insights
 DATAHOST := cert.cloud.redhat.com
 # Used to identify the agency providing the connection broker.
 PROVIDER := Red Hat
+# Used to encode git information into packages
+COMMIT := $(shell git rev-parse HEAD)
 
 # Installation directories
 PREFIX        ?= /usr/local
@@ -168,6 +170,7 @@ rhc.spec: rhc.spec.in
 		-e 's,[@]LOCALSTATEDIR[@],$(LOCALSTATEDIR),g' \
 		-e 's,[@]DOCDIR[@],$(DOCDIR),g' \
 		-e 's,[@]SERVICENAME[@],$(SERVICENAME),g' \
+		-e 's,[@]COMMIT[@],$(COMMIT),g' \
 		$^ > $@
 
 .PHONY: clean
