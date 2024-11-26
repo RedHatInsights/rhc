@@ -1,0 +1,6 @@
+[Unit]
+Description=Testdata Unit
+
+[Service]
+Type=simple
+ExecStart=tail -f /dev/null

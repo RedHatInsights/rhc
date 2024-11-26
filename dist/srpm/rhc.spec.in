@@ -68,7 +68,9 @@ BuildRequires:  meson
 BuildRequires:  pkgconfig(systemd)
 BuildRequires:  pkgconfig(bash-completion)
 BuildRequires:  golang >= 1.18
-
+%if %{with check}
+BuildRequires:  /usr/bin/dbus-launch
+%endif
 
 %description %{common_description}
 
