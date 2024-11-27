@@ -157,6 +157,16 @@ func main() {
 					Usage:   "register with `KEY`",
 					Aliases: []string{"a"},
 				},
+				&cli.StringSliceFlag{
+					Name:    "enable-feature",
+					Usage:   "enable feature during connection",
+					Aliases: []string{"e"},
+				},
+				&cli.StringSliceFlag{
+					Name:    "disable-feature",
+					Usage:   "disable feature during connection",
+					Aliases: []string{"d"},
+				},
 				&cli.StringFlag{
 					Name:   "server",
 					Hidden: true,

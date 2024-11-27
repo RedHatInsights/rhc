@@ -2,12 +2,13 @@ package main
 
 import (
 	"fmt"
-	"github.com/briandowns/spinner"
-	"github.com/subpop/go-log"
-	"github.com/urfave/cli/v2"
 	"os"
 	"text/tabwriter"
 	"time"
+
+	"github.com/briandowns/spinner"
+	"github.com/subpop/go-log"
+	"github.com/urfave/cli/v2"
 )
 
 const (
@@ -36,6 +37,10 @@ type userInterfaceSettings struct {
 // It is managed by calling the configureUISettings method.
 var uiSettings = userInterfaceSettings{}
 
+const symbolOK string = "✓"
+const symbolInfo string = "●"
+const symbolError string = "𐄂"
+
 // configureUISettings is called by the CLI library when it loads up.
 // It sets up the uiSettings object.
 func configureUISettings(ctx *cli.Context) {
@@ -43,17 +48,17 @@ func configureUISettings(ctx *cli.Context) {
 		uiSettings = userInterfaceSettings{
 			isRich:            false,
 			isMachineReadable: false,
-			iconOK:            "✓",
-			iconInfo:          "·",
-			iconError:         "𐄂",
+			iconOK:            symbolOK,
+			iconInfo:          symbolInfo,
+			iconError:         symbolError,
 		}
 	} else {
 		uiSettings = userInterfaceSettings{
 			isRich:            true,
 			isMachineReadable: false,
-			iconOK:            colorGreen + "●" + colorReset,
-			iconInfo:          colorYellow + "●" + colorReset,
-			iconError:         colorRed + "●" + colorReset,
+			iconOK:            colorGreen + symbolOK + colorReset,
+			iconInfo:          colorYellow + symbolInfo + colorReset,
+			iconError:         colorRed + symbolError + colorReset,
 		}
 	}
 }
@@ -67,6 +72,7 @@ func showProgress(
 	var s *spinner.Spinner
 	if uiSettings.isRich {
 		s = spinner.New(spinner.CharSets[9], 100*time.Millisecond)
+		s.Prefix = " "
 		s.Suffix = progressMessage
 		s.Start()
 		// Stop spinner after running function
