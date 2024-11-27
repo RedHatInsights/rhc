@@ -162,6 +162,16 @@ func main() {
 					Usage:   "register with `CONTENT_TEMPLATE`",
 					Aliases: []string{"c"},
 				},
+				&cli.StringSliceFlag{
+					Name:    "enable-feature",
+					Usage:   "enable `FEATURE` during connection",
+					Aliases: []string{"e"},
+				},
+				&cli.StringSliceFlag{
+					Name:    "disable-feature",
+					Usage:   "disable `FEATURE` during connection",
+					Aliases: []string{"d"},
+				},
 				&cli.StringFlag{
 					Name:   "server",
 					Hidden: true,

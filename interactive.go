@@ -2,12 +2,13 @@ package main
 
 import (
 	"fmt"
-	"github.com/briandowns/spinner"
-	"github.com/subpop/go-log"
-	"github.com/urfave/cli/v2"
 	"os"
 	"text/tabwriter"
 	"time"
+
+	"github.com/briandowns/spinner"
+	"github.com/subpop/go-log"
+	"github.com/urfave/cli/v2"
 )
 
 const (
@@ -16,6 +17,9 @@ const (
 	colorRed    = "\u001B[31m"
 	colorReset  = "\u001B[0m"
 )
+
+const smallIndent = " "
+const mediumIndent = "  "
 
 // userInterfaceSettings manages standard output preference.
 // It tracks colors, icons and machine-readable output (e.g. json).
@@ -36,6 +40,10 @@ type userInterfaceSettings struct {
 // It is managed by calling the configureUISettings method.
 var uiSettings = userInterfaceSettings{}
 
+const symbolOK string = "✓"
+const symbolInfo string = "●"
+const symbolError string = "𐄂"
+
 // configureUISettings is called by the CLI library when it loads up.
 // It sets up the uiSettings object.
 func configureUISettings(ctx *cli.Context) {
@@ -43,17 +51,17 @@ func configureUISettings(ctx *cli.Context) {
 		uiSettings = userInterfaceSettings{
 			isRich:            false,
 			isMachineReadable: false,
-			iconOK:            "✓",
-			iconInfo:          "·",
-			iconError:         "𐄂",
+			iconOK:            symbolOK,
+			iconInfo:          symbolInfo,
+			iconError:         symbolError,
 		}
 	} else {
 		uiSettings = userInterfaceSettings{
 			isRich:            true,
 			isMachineReadable: false,
-			iconOK:            colorGreen + "●" + colorReset,
-			iconInfo:          colorYellow + "●" + colorReset,
-			iconError:         colorRed + "●" + colorReset,
+			iconOK:            colorGreen + symbolOK + colorReset,
+			iconInfo:          colorYellow + symbolInfo + colorReset,
+			iconError:         colorRed + symbolError + colorReset,
 		}
 	}
 }
@@ -63,11 +71,13 @@ func configureUISettings(ctx *cli.Context) {
 func showProgress(
 	progressMessage string,
 	function func() error,
+	prefixSpaces string,
 ) error {
 	var s *spinner.Spinner
 	if uiSettings.isRich {
 		s = spinner.New(spinner.CharSets[9], 100*time.Millisecond)
-		s.Suffix = progressMessage
+		s.Prefix = prefixSpaces + "["
+		s.Suffix = "]" + progressMessage
 		s.Start()
 		// Stop spinner after running function
 		defer func() { s.Stop() }()
