@@ -32,7 +32,8 @@ jobs:
     targets:
       - centos-stream-9
       - centos-stream-10
-      - fedora-all
+      - fedora-stable
+      - fedora-rawhide
       - rhel-9
 
   - job: copr_build
@@ -45,7 +46,8 @@ jobs:
     targets:
       - centos-stream-9
       - centos-stream-10
-      - fedora-all
+      - fedora-stable
+      - fedora-rawhide
       - rhel-9
 
   - job: tests
@@ -66,7 +68,8 @@ jobs:
     trigger: pull_request
     identifier: "unit/fedora"
     targets:
-      - fedora-all
+      - fedora-stable
+      - fedora-rawhide
     labels:
       - unit
     tf_extra_params:
