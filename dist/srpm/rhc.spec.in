@@ -6,7 +6,7 @@
 %define debug_package %{nil}
 %define source_date_epoch_from_changelog 0
 
-Name:    @LONGNAME@
+Name:    rhc
 Version: @VERSION@
 Release: 0%{?dist}
 Epoch:   1
@@ -23,8 +23,10 @@ Requires:      yggdrasil >= 0.4
 Requires:      yggdrasil-worker-package-manager
 Requires:      subscription-manager
 
+BuildRequires: bash-completion
 BuildRequires: golang
 BuildRequires: dbus-devel
+BuildRequires: meson
 BuildRequires: systemd-devel
 BuildRequires: systemd
 
@@ -43,39 +45,16 @@ Recommends: rhc
 Transition package to support migrating from rhcd to yggd.
 
 %prep
-%setup -c
+%autosetup
 
 
 %build
-cd %{name}-%{version}
-make PREFIX=%{_prefix} \
-     SYSCONFDIR=%{_sysconfdir} \
-     LOCALSTATEDIR=%{_localstatedir} \
-     SHORTNAME=@SHORTNAME@ \
-     LONGNAME=@LONGNAME@ \
-     PKGNAME=@PKGNAME@ \
-     TOPICPREFIX=@TOPICPREFIX@ \
-     VERSION=%{version} \
-     DATAHOST=@DATAHOST@ \
-     SERVICENAME=@SERVICENAME@ \
-     'PROVIDER=@PROVIDER@'
+%meson
+%meson_build
 
 
 %install
-cd %{name}-%{version}
-make PREFIX=%{_prefix} \
-     SYSCONFDIR=%{_sysconfdir} \
-     LOCALSTATEDIR=%{_localstatedir} \
-     DESTDIR=%{buildroot} \
-     SHORTNAME=@SHORTNAME@ \
-     LONGNAME=@LONGNAME@ \
-     PKGNAME=@PKGNAME@ \
-     TOPICPREFIX=@TOPICPREFIX@ \
-     VERSION=%{version} \
-     DATAHOST=@DATAHOST@ \
-     SERVICENAME=@SERVICENAME@ \
-     'PROVIDER=@PROVIDER@' \
-     install
+%meson_install
 install --directory %{buildroot}%{_unitdir}
 install --directory %{buildroot}%{_sysconfdir}/rhc
 ln -sf yggdrasil.service        %{buildroot}%{_unitdir}/rhcd.service
@@ -98,13 +77,12 @@ if [ $1 -eq 0 ]; then
 fi
 
 %files
-%doc %{name}-%{version}/README.md
-%{_bindir}/@SHORTNAME@
+%doc README.md
+%{_bindir}/*
 %{_datadir}/bash-completion/completions/*
 %{_mandir}/man1/*
-%{_unitdir}/*
+%{_unitdir}/rhc-canonical-facts.*
 %{_presetdir}/*
-
 
 %files compat
 %{_unitdir}/rhcd.service

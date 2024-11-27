@@ -10,8 +10,11 @@ fully function.
 It is possible to build `rhc` binary simply by running:
 
 ```
-make
+meson setup builddir
+meson compile -C builddir
 ```
+
+The resulting binary will be in the `builddir` directory.
 
 If you want to install `rhc` into system, then it is recommended to create
 RPM package and install rhc using package manager like dnf. You can
