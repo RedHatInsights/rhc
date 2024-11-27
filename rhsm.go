@@ -85,7 +85,7 @@ func unpackOrgs(s string) ([]string, error) {
 // registerUsernamePassword tries to register system against candlepin server (Red Hat Management Service)
 // username and password are mandatory. When organization is not obtained, then this method
 // returns list of available organization and user can select one organization from the list.
-func registerUsernamePassword(username, password, organization, serverURL string) ([]string, error) {
+func registerUsernamePassword(username, password, organization, serverURL string, enableContent bool) ([]string, error) {
 	var orgs []string
 	if serverURL != "" {
 		if err := configureRHSM(serverURL); err != nil {
@@ -132,6 +132,13 @@ func registerUsernamePassword(username, password, organization, serverURL string
 		return orgs, err
 	}
 
+	var enabledContentStr string
+	if enableContent {
+		enabledContentStr = "true"
+	} else {
+		enabledContentStr = "false"
+	}
+
 	if err := privConn.Object(
 		"com.redhat.RHSM1",
 		"/com/redhat/RHSM1/Register").Call(
@@ -140,7 +147,7 @@ func registerUsernamePassword(username, password, organization, serverURL string
 		organization,
 		username,
 		password,
-		map[string]string{"enable_content": "true"},
+		map[string]string{"enable_content": enabledContentStr},
 		map[string]string{},
 		locale).Err; err != nil {
 
@@ -183,7 +190,7 @@ func registerUsernamePassword(username, password, organization, serverURL string
 	return orgs, nil
 }
 
-func registerActivationKey(orgID string, activationKeys []string, serverURL string) error {
+func registerActivationKey(orgID string, activationKeys []string, serverURL string, enableContent bool) error {
 	if serverURL != "" {
 		if err := configureRHSM(serverURL); err != nil {
 			return fmt.Errorf("cannot configure RHSM: %w", err)
@@ -229,6 +236,13 @@ func registerActivationKey(orgID string, activationKeys []string, serverURL stri
 		return err
 	}
 
+	var enabledContentStr string
+	if enableContent {
+		enabledContentStr = "true"
+	} else {
+		enabledContentStr = "false"
+	}
+
 	if err := privConn.Object(
 		"com.redhat.RHSM1",
 		"/com/redhat/RHSM1/Register").Call(
@@ -236,7 +250,7 @@ func registerActivationKey(orgID string, activationKeys []string, serverURL stri
 		dbus.Flags(0),
 		orgID,
 		activationKeys,
-		map[string]string{},
+		map[string]string{"enable_content": enabledContentStr},
 		map[string]string{},
 		locale).Err; err != nil {
 		return unpackRHSMError(err)
@@ -395,7 +409,7 @@ func configureRHSM(serverURL string) error {
 }
 
 // registerRHSM tries to register system against Red Hat Subscription Management server (candlepin server)
-func registerRHSM(ctx *cli.Context) (string, error) {
+func registerRHSM(ctx *cli.Context, enableContent bool) (string, error) {
 	uuid, err := getConsumerUUID()
 	if err != nil {
 		return "Unable to get consumer UUID", cli.Exit(err, 1)
@@ -440,13 +454,14 @@ func registerRHSM(ctx *cli.Context) (string, error) {
 			err = registerActivationKey(
 				organization,
 				ctx.StringSlice("activation-key"),
-				ctx.String("server"))
+				ctx.String("server"),
+				enableContent)
 		} else {
 			var orgs []string
 			if organization != "" {
-				_, err = registerUsernamePassword(username, password, organization, ctx.String("server"))
+				_, err = registerUsernamePassword(username, password, organization, ctx.String("server"), enableContent)
 			} else {
-				orgs, err = registerUsernamePassword(username, password, "", ctx.String("server"))
+				orgs, err = registerUsernamePassword(username, password, "", ctx.String("server"), enableContent)
 				/* When organization was not specified using CLI option --organization, and it is
 				   required, because user is member of more than one organization, then ask for
 				   the organization. */
@@ -481,7 +496,7 @@ func registerRHSM(ctx *cli.Context) (string, error) {
 					}
 
 					// Try to register once again with given organization
-					_, err = registerUsernamePassword(username, password, organization, ctx.String("server"))
+					_, err = registerUsernamePassword(username, password, organization, ctx.String("server"), enableContent)
 				}
 			}
 		}
