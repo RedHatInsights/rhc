@@ -92,3 +92,6 @@ func init() {
 		ServiceName = "yggdrasil"
 	}
 }
+
+const smallIndent = " "
+const mediumIndent = "  "

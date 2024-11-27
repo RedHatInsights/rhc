@@ -3,10 +3,11 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/subpop/go-log"
-	"github.com/urfave/cli/v2"
 	"os"
 	"time"
+
+	"github.com/subpop/go-log"
+	"github.com/urfave/cli/v2"
 )
 
 // DisconnectResult is structure holding information about result of
@@ -95,7 +96,7 @@ func disconnectAction(ctx *cli.Context) error {
 	/* 1. Deactivate yggdrasil (rhcd) service */
 	start = time.Now()
 	progressMessage := fmt.Sprintf(" Deactivating the %v service", ServiceName)
-	err = showProgress(progressMessage, deactivateService)
+	err = showProgress(progressMessage, deactivateService, smallIndent)
 	if err != nil {
 		errMsg := fmt.Sprintf("Cannot deactivate %s service: %v", ServiceName, err)
 		errorMessages[ServiceName] = LogMessage{
@@ -103,16 +104,16 @@ func disconnectAction(ctx *cli.Context) error {
 			message: fmt.Errorf("%v", errMsg)}
 		disconnectResult.YggdrasilStopped = false
 		disconnectResult.YggdrasilStoppedError = errMsg
-		interactivePrintf("%v %v\n", uiSettings.iconError, errMsg)
+		interactivePrintf(" [%v] %v\n", uiSettings.iconError, errMsg)
 	} else {
 		disconnectResult.YggdrasilStopped = true
-		interactivePrintf("%v Deactivated the %v service\n", uiSettings.iconOK, ServiceName)
+		interactivePrintf(" [%v] Deactivated the %v service\n", uiSettings.iconOK, ServiceName)
 	}
 	durations[ServiceName] = time.Since(start)
 
 	/* 2. Disconnect from Red Hat Insights */
 	start = time.Now()
-	err = showProgress(" Disconnecting from Red Hat Insights...", unregisterInsights)
+	err = showProgress(" Disconnecting from Red Hat Insights...", unregisterInsights, smallIndent)
 	if err != nil {
 		errMsg := fmt.Sprintf("Cannot disconnect from Red Hat Insights: %v", err)
 		errorMessages["insights"] = LogMessage{
@@ -120,16 +121,18 @@ func disconnectAction(ctx *cli.Context) error {
 			message: fmt.Errorf("%v", errMsg)}
 		disconnectResult.InsightsDisconnected = false
 		disconnectResult.InsightsDisconnectedError = errMsg
-		interactivePrintf("%v %v\n", uiSettings.iconError, errMsg)
+		interactivePrintf(" [%v] %v\n", uiSettings.iconError, errMsg)
 	} else {
 		disconnectResult.InsightsDisconnected = true
-		interactivePrintf("%v Disconnected from Red Hat Insights\n", uiSettings.iconOK)
+		interactivePrintf(" [%v] Disconnected from Red Hat Insights\n", uiSettings.iconOK)
 	}
 	durations["insights"] = time.Since(start)
 
 	/* 3. Unregister system from Red Hat Subscription Management */
 	err = showProgress(
-		" Disconnecting from Red Hat Subscription Management...", unregister,
+		" Disconnecting from Red Hat Subscription Management...",
+		unregister,
+		smallIndent,
 	)
 	if err != nil {
 		errMsg := fmt.Sprintf("Cannot disconnect from Red Hat Subscription Management: %v", err)
@@ -139,10 +142,10 @@ func disconnectAction(ctx *cli.Context) error {
 
 		disconnectResult.RHSMDisconnected = false
 		disconnectResult.RHSMDisconnectedError = errMsg
-		interactivePrintf("%v %v\n", uiSettings.iconError, errMsg)
+		interactivePrintf(" [%v] %v\n", uiSettings.iconError, errMsg)
 	} else {
 		disconnectResult.RHSMDisconnected = true
-		interactivePrintf("%v Disconnected from Red Hat Subscription Management\n", uiSettings.iconOK)
+		interactivePrintf(" [%v] Disconnected from Red Hat Subscription Management\n", uiSettings.iconOK)
 	}
 	durations["rhsm"] = time.Since(start)
 

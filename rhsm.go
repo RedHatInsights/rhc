@@ -87,7 +87,7 @@ func unpackOrgs(s string) ([]string, error) {
 // registerUsernamePassword tries to register system against candlepin server (Red Hat Management Service)
 // username and password are mandatory. When organization is not obtained, then this method
 // returns list of available organization and user can select one organization from the list.
-func registerUsernamePassword(username, password, organization string, environments []string, serverURL string) ([]string, error) {
+func registerUsernamePassword(username, password, organization string, environments []string, serverURL string, enableContent bool) ([]string, error) {
 	var orgs []string
 	if serverURL != "" {
 		if err := configureRHSM(serverURL); err != nil {
@@ -140,7 +140,8 @@ func registerUsernamePassword(username, password, organization string, environme
 		options["environment_type"] = EnvTypeContentTemplate
 
 	}
-	options["enable_content"] = "true"
+
+	options["enable_content"] = fmt.Sprintf("%v", enableContent)
 
 	if err := privConn.Object(
 		"com.redhat.RHSM1",
@@ -193,7 +194,7 @@ func registerUsernamePassword(username, password, organization string, environme
 	return orgs, nil
 }
 
-func registerActivationKey(orgID string, activationKeys []string, environments []string, serverURL string) error {
+func registerActivationKey(orgID string, activationKeys []string, environments []string, serverURL string, enableContent bool) error {
 	if serverURL != "" {
 		if err := configureRHSM(serverURL); err != nil {
 			return fmt.Errorf("cannot configure RHSM: %w", err)
@@ -243,8 +244,9 @@ func registerActivationKey(orgID string, activationKeys []string, environments [
 	if len(environments) != 0 {
 		options["environment_names"] = strings.Join(environments, ",")
 		options["environment_type"] = EnvTypeContentTemplate
-
 	}
+
+	options["enable_content"] = fmt.Sprintf("%v", enableContent)
 
 	if err := privConn.Object(
 		"com.redhat.RHSM1",
@@ -412,7 +414,7 @@ func configureRHSM(serverURL string) error {
 }
 
 // registerRHSM tries to register system against Red Hat Subscription Management server (candlepin server)
-func registerRHSM(ctx *cli.Context) (string, error) {
+func registerRHSM(ctx *cli.Context, enableContent bool) (string, error) {
 	uuid, err := getConsumerUUID()
 	if err != nil {
 		return "Unable to get consumer UUID", cli.Exit(err, 1)
@@ -448,7 +450,8 @@ func registerRHSM(ctx *cli.Context) (string, error) {
 		var s *spinner.Spinner
 		if uiSettings.isRich {
 			s = spinner.New(spinner.CharSets[9], 100*time.Millisecond)
-			s.Suffix = " Connecting to Red Hat Subscription Management..."
+			s.Prefix = smallIndent + "["
+			s.Suffix = "] Connecting to Red Hat Subscription Management..."
 			s.Start()
 			defer s.Stop()
 		}
@@ -459,13 +462,14 @@ func registerRHSM(ctx *cli.Context) (string, error) {
 				organization,
 				ctx.StringSlice("activation-key"),
 				contentTemplates,
-				ctx.String("server"))
+				ctx.String("server"),
+				enableContent)
 		} else {
 			var orgs []string
 			if organization != "" {
-				_, err = registerUsernamePassword(username, password, organization, contentTemplates, ctx.String("server"))
+				_, err = registerUsernamePassword(username, password, organization, contentTemplates, ctx.String("server"), enableContent)
 			} else {
-				orgs, err = registerUsernamePassword(username, password, "", contentTemplates, ctx.String("server"))
+				orgs, err = registerUsernamePassword(username, password, "", contentTemplates, ctx.String("server"), enableContent)
 				/* When organization was not specified using CLI option --organization, and it is
 				   required, because user is member of more than one organization, then ask for
 				   the organization. */
@@ -500,7 +504,7 @@ func registerRHSM(ctx *cli.Context) (string, error) {
 					}
 
 					// Try to register once again with given organization
-					_, err = registerUsernamePassword(username, password, organization, contentTemplates, ctx.String("server"))
+					_, err = registerUsernamePassword(username, password, organization, contentTemplates, ctx.String("server"), enableContent)
 				}
 			}
 		}
