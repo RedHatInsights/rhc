@@ -39,8 +39,8 @@ Version: @VERSION@
 %if 0%{?fedora}
 %global setup_flags -Dvendor=False
 %else
-%endif
 %global setup_flags -Dvendor=True
+%endif
 
 %global common_description %{expand:
 rhc is a client that registers a system with RHSM and activates the Red Hat yggd
@@ -101,8 +101,6 @@ Transition package to support migrating from rhcd to yggd.
 %undefine _auto_set_build_flags
 export %gomodulesmode
 %{?gobuilddir:export GOPATH="%{gobuilddir}:${GOPATH:+${GOPATH}:}%{?gopath}"}
-ls
-pwd
 %meson %setup_flags "-Dgobuildflags=[%(echo %{expand:%gocompilerflags} | sed -e s/"^"/"'"/ -e s/" "/"', '"/g -e s/"$"/"'"/), '-tags', '"rpm_crashtraceback\ ${BUILDTAGS:-}"', '-a', '-v', '-x']" -Dgoldflags='%{?currentgoldflags} -B 0x%(head -c20 /dev/urandom|od -An -tx1|tr -d " \n") -compressdwarf=false -linkmode=external -extldflags "%{build_ldflags} %{?__golang_extldflags}"'
 %meson_build
 
