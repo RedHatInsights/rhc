@@ -9,6 +9,7 @@ import pytest
 from utils import yggdrasil_service_is_active
 
 
+@pytest.mark.tier1
 def test_rhc_disconnect(external_candlepin, rhc, test_config):
     """Verify that RHC disconnect command disconnects host from server
     and deactivates yggdrasil service.
