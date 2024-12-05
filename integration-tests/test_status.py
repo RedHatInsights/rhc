@@ -9,6 +9,7 @@ from pytest_client_tools import util
 from utils import yggdrasil_service_is_active
 
 
+@pytest.mark.tier1
 def test_status_connected(external_candlepin, rhc, test_config):
     """Test RHC Status command when the host is connected.
     test_steps:
@@ -47,7 +48,7 @@ def test_status_connected_format_json(external_candlepin, rhc, test_config):
     """
     rhc.connect(
         username=test_config.get("candlepin.username"),
-        password=test_config.get("candlepin.password")
+        password=test_config.get("candlepin.password"),
     )
     status_result = rhc.run("status", "--format", "json", check=False)
     assert status_result.returncode == 0
@@ -65,6 +66,7 @@ def test_status_connected_format_json(external_candlepin, rhc, test_config):
         assert type(status_json["yggdrasil_running"]) == bool
 
 
+@pytest.mark.tier1
 def test_status_disconnected(rhc):
     """Test RHC Status command when the host is disconnected.
     Ref: https://issues.redhat.com/browse/CCT-525

@@ -19,7 +19,7 @@ from utils import (
 
 logger = logging.getLogger(__name__)
 
-
+@pytest.mark.tier1
 @pytest.mark.parametrize(
     "auth, output_format",
     [
