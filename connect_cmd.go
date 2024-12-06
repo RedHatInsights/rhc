@@ -56,6 +56,7 @@ func beforeConnectAction(ctx *cli.Context) error {
 	password := ctx.String("password")
 	organization := ctx.String("organization")
 	activationKeys := ctx.StringSlice("activation-key")
+	contentTemplates := ctx.StringSlice("content-template")
 
 	if len(activationKeys) > 0 {
 		if username != "" {
@@ -64,6 +65,11 @@ func beforeConnectAction(ctx *cli.Context) error {
 		if organization == "" {
 			return fmt.Errorf("--organization is required, when --activation-key is used")
 		}
+	}
+
+	if len(contentTemplates) > 0 && organization == "" {
+		err := fmt.Errorf("--organization is required, when --content-template is used")
+		return cli.Exit(err, 1)
 	}
 
 	// When machine-readable format is used, then additional requirements have to be met
