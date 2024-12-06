@@ -108,6 +108,7 @@ export %gomodulesmode
 %meson_install
 install --directory %{buildroot}%{_unitdir}
 install --directory %{buildroot}%{_sysconfdir}/rhc
+mkdir -p %{buildroot}%{_sharedstatedir}/rhc
 ln -sf yggdrasil.service        %{buildroot}%{_unitdir}/rhcd.service
 ln -sf ../yggdrasil/config.toml %{buildroot}%{_sysconfdir}/rhc/config.toml
 
@@ -144,6 +145,7 @@ fi
 %{_mandir}/man1/*
 %{_unitdir}/rhc-canonical-facts.*
 %{_presetdir}/*
+%dir %{_sharedstatedir}/rhc
 
 %files compat
 %{_unitdir}/rhcd.service
