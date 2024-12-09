@@ -20,6 +20,7 @@ type ConnectResult struct {
 	UIDError              string `json:"uid_error,omitempty"`
 	RHSMConnected         bool   `json:"rhsm_connected"`
 	RHSMConnectError      string `json:"rhsm_connect_error,omitempty"`
+	ContentEnabled        bool   `json:"content_enabled"`
 	InsightsConnected     bool   `json:"insights_connected"`
 	InsightsError         string `json:"insights_connect_error,omitempty"`
 	YggdrasilStarted      bool   `json:"yggdrasil_started"`
@@ -149,6 +150,7 @@ func connectAction(ctx *cli.Context) error {
 				err)}
 		if uiSettings.isMachineReadable {
 			connectResult.RHSMConnectError = errorMessages["rhsm"].message.Error()
+			connectResult.ContentEnabled = false
 		} else {
 			fmt.Printf(
 				" [%v] Cannot connect to Red Hat Subscription Management\n",
@@ -163,8 +165,14 @@ func connectAction(ctx *cli.Context) error {
 		connectResult.RHSMConnected = true
 		interactivePrintf(" [%v] %v\n", uiSettings.iconOK, returnedMsg)
 		if ContentFeature.Enabled {
+			if uiSettings.isMachineReadable {
+				connectResult.ContentEnabled = true
+			}
 			interactivePrintf("  [%v] Content ... Red Hat repository file generated\n", uiSettings.iconOK)
 		} else {
+			if uiSettings.isMachineReadable {
+				connectResult.ContentEnabled = false
+			}
 			interactivePrintf("  [ ] Content ... Red Hat repository file not generated\n")
 		}
 	}
