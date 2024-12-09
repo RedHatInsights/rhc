@@ -4,8 +4,8 @@ Documentation=https://github.com/RedHatInsights/rhc
 
 [Service]
 Type=oneshot
-User=root
-Group=yggdrasil-worker
+ExecStart=touch /var/lib/yggdrasil/canonical-facts.json
+ExecStart=chown yggdrasil:yggdrasil /var/lib/yggdrasil/canonical-facts.json
 ExecStart=rhc canonical-facts
 StandardOutput=truncate:/var/lib/yggdrasil/canonical-facts.json
 StandardError=journal
