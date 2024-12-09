@@ -85,7 +85,7 @@ func unpackOrgs(s string) ([]string, error) {
 // registerUsernamePassword tries to register system against candlepin server (Red Hat Management Service)
 // username and password are mandatory. When organization is not obtained, then this method
 // returns list of available organization and user can select one organization from the list.
-func registerUsernamePassword(username, password, organization, serverURL string) ([]string, error) {
+func registerUsernamePassword(username, password, organization string, environments []string, serverURL string) ([]string, error) {
 	var orgs []string
 	if serverURL != "" {
 		if err := configureRHSM(serverURL); err != nil {
@@ -132,6 +132,32 @@ func registerUsernamePassword(username, password, organization, serverURL string
 		return orgs, err
 	}
 
+	var options = make(map[string]string)
+	options["enable_content"] = "true"
+
+	if len(environments) > 0 && organization != "" {
+		var useEnvIDs = false
+		envList, err := getEnvironmentsList(privConn, username, password, organization)
+		if err != nil {
+			if strings.Contains(err.Error(), "org.freedesktop.DBus.Error.UnknownMethod") {
+				useEnvIDs = true
+			} else {
+				return orgs, err
+
+			}
+		}
+
+		if useEnvIDs {
+			options["environments"] = strings.Join(environments, ",")
+		} else {
+			envNames, err := mapEnvironmentIDsToNames(environments, envList, true)
+			if err != nil {
+				return orgs, err
+			}
+			options["environments"] = strings.Join(envNames, ",")
+		}
+	}
+
 	if err := privConn.Object(
 		"com.redhat.RHSM1",
 		"/com/redhat/RHSM1/Register").Call(
@@ -140,7 +166,7 @@ func registerUsernamePassword(username, password, organization, serverURL string
 		organization,
 		username,
 		password,
-		map[string]string{"enable_content": "true"},
+		options,
 		map[string]string{},
 		locale).Err; err != nil {
 
@@ -183,7 +209,7 @@ func registerUsernamePassword(username, password, organization, serverURL string
 	return orgs, nil
 }
 
-func registerActivationKey(orgID string, activationKeys []string, serverURL string) error {
+func registerActivationKey(orgID string, activationKeys []string, environments []string, serverURL string) error {
 	if serverURL != "" {
 		if err := configureRHSM(serverURL); err != nil {
 			return fmt.Errorf("cannot configure RHSM: %w", err)
@@ -229,6 +255,9 @@ func registerActivationKey(orgID string, activationKeys []string, serverURL stri
 		return err
 	}
 
+	options := make(map[string]string)
+	options["environments"] = strings.Join(environments, ",")
+
 	if err := privConn.Object(
 		"com.redhat.RHSM1",
 		"/com/redhat/RHSM1/Register").Call(
@@ -236,7 +265,7 @@ func registerActivationKey(orgID string, activationKeys []string, serverURL stri
 		dbus.Flags(0),
 		orgID,
 		activationKeys,
-		map[string]string{},
+		options,
 		map[string]string{},
 		locale).Err; err != nil {
 		return unpackRHSMError(err)
@@ -407,6 +436,7 @@ func registerRHSM(ctx *cli.Context) (string, error) {
 		password := ctx.String("password")
 		organization := ctx.String("organization")
 		activationKeys := ctx.StringSlice("activation-key")
+		contentTemplates := ctx.StringSlice("content-template")
 
 		if len(activationKeys) == 0 {
 			if username == "" {
@@ -440,13 +470,14 @@ func registerRHSM(ctx *cli.Context) (string, error) {
 			err = registerActivationKey(
 				organization,
 				ctx.StringSlice("activation-key"),
+				contentTemplates,
 				ctx.String("server"))
 		} else {
 			var orgs []string
 			if organization != "" {
-				_, err = registerUsernamePassword(username, password, organization, ctx.String("server"))
+				_, err = registerUsernamePassword(username, password, organization, contentTemplates, ctx.String("server"))
 			} else {
-				orgs, err = registerUsernamePassword(username, password, "", ctx.String("server"))
+				orgs, err = registerUsernamePassword(username, password, "", contentTemplates, ctx.String("server"))
 				/* When organization was not specified using CLI option --organization, and it is
 				   required, because user is member of more than one organization, then ask for
 				   the organization. */
@@ -481,7 +512,7 @@ func registerRHSM(ctx *cli.Context) (string, error) {
 					}
 
 					// Try to register once again with given organization
-					_, err = registerUsernamePassword(username, password, organization, ctx.String("server"))
+					_, err = registerUsernamePassword(username, password, organization, contentTemplates, ctx.String("server"))
 				}
 			}
 		}
@@ -493,4 +524,75 @@ func registerRHSM(ctx *cli.Context) (string, error) {
 		successMsg = "This system is already connected to Red Hat Subscription Management"
 	}
 	return successMsg, nil
+}
+
+type Environment struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Type        string `json:"type"`
+}
+
+func (e *Environment) isContentTemplate() bool {
+	return e.Type == "content-template"
+}
+
+func unpackEnvironments(s string) ([]Environment, error) {
+	var environments []Environment
+	err := json.Unmarshal([]byte(s), &environments)
+	if err != nil {
+		return nil, err
+	}
+	return environments, nil
+}
+
+func getEnvironmentsList(conn *dbus.Conn, username, password, organization string) ([]Environment, error) {
+	var err error
+	locale := getLocale()
+	obj := conn.Object("com.redhat.RHSM1.Register", "/com/redhat/RHSM1/Register")
+	var envString string
+	if err := obj.Call(
+		"com.redhat.RHSM1.Register.GetEnvironments",
+		dbus.Flags(0),
+		username,
+		password,
+		organization,
+		map[string]string{},
+		locale).Store(&envString); err != nil {
+		return nil, unpackRHSMError(err)
+	}
+
+	var environments []Environment
+	if environments, err = unpackEnvironments(envString); err != nil {
+		return nil, err
+	}
+
+	return environments, nil
+}
+
+func mapEnvironmentIDsToNames(names []string, environmentList []Environment, contentTemplates bool) ([]string, error) {
+	var ids []string
+
+	for _, name := range names {
+		found := false
+		for _, environment := range environmentList {
+			if environment.Name == name {
+				if contentTemplates && !environment.isContentTemplate() {
+					return nil, fmt.Errorf("environment \"%s\" is not a content template", environment.Name)
+				}
+				ids = append(ids, environment.ID)
+				found = true
+				break
+			}
+		}
+		if !found {
+			typeString := "environment"
+			if contentTemplates {
+				typeString = "content template"
+			}
+			return nil, fmt.Errorf(typeString+" named \"%s\" was not found", name)
+		}
+	}
+
+	return ids, nil
 }
