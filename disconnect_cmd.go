@@ -3,10 +3,11 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/subpop/go-log"
-	"github.com/urfave/cli/v2"
 	"os"
 	"time"
+
+	"github.com/subpop/go-log"
+	"github.com/urfave/cli/v2"
 )
 
 // DisconnectResult is structure holding information about result of
@@ -103,10 +104,10 @@ func disconnectAction(ctx *cli.Context) error {
 			message: fmt.Errorf("%v", errMsg)}
 		disconnectResult.YggdrasilStopped = false
 		disconnectResult.YggdrasilStoppedError = errMsg
-		interactivePrintf("%v %v\n", uiSettings.iconError, errMsg)
+		interactivePrintf(" [%v] %v\n", uiSettings.iconError, errMsg)
 	} else {
 		disconnectResult.YggdrasilStopped = true
-		interactivePrintf("%v Deactivated the %v service\n", uiSettings.iconOK, ServiceName)
+		interactivePrintf(" [%v] Deactivated the %v service\n", uiSettings.iconOK, ServiceName)
 	}
 	durations[ServiceName] = time.Since(start)
 
@@ -120,10 +121,10 @@ func disconnectAction(ctx *cli.Context) error {
 			message: fmt.Errorf("%v", errMsg)}
 		disconnectResult.InsightsDisconnected = false
 		disconnectResult.InsightsDisconnectedError = errMsg
-		interactivePrintf("%v %v\n", uiSettings.iconError, errMsg)
+		interactivePrintf(" [%v] %v\n", uiSettings.iconError, errMsg)
 	} else {
 		disconnectResult.InsightsDisconnected = true
-		interactivePrintf("%v Disconnected from Red Hat Insights\n", uiSettings.iconOK)
+		interactivePrintf(" [%v] Disconnected from Red Hat Insights\n", uiSettings.iconOK)
 	}
 	durations["insights"] = time.Since(start)
 
@@ -139,10 +140,10 @@ func disconnectAction(ctx *cli.Context) error {
 
 		disconnectResult.RHSMDisconnected = false
 		disconnectResult.RHSMDisconnectedError = errMsg
-		interactivePrintf("%v %v\n", uiSettings.iconError, errMsg)
+		interactivePrintf(" [%v] %v\n", uiSettings.iconError, errMsg)
 	} else {
 		disconnectResult.RHSMDisconnected = true
-		interactivePrintf("%v Disconnected from Red Hat Subscription Management\n", uiSettings.iconOK)
+		interactivePrintf(" [%v] Disconnected from Red Hat Subscription Management\n", uiSettings.iconOK)
 	}
 	durations["rhsm"] = time.Since(start)
 

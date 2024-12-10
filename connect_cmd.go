@@ -3,25 +3,30 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"os"
+	"strings"
+	"time"
+
 	"github.com/subpop/go-log"
 	"github.com/urfave/cli/v2"
-	"os"
-	"time"
 )
 
 // ConnectResult is structure holding information about results
 // of connect command. The result could be printed in machine-readable format.
 type ConnectResult struct {
-	Hostname              string `json:"hostname"`
-	HostnameError         string `json:"hostname_error,omitempty"`
-	UID                   int    `json:"uid"`
-	UIDError              string `json:"uid_error,omitempty"`
-	RHSMConnected         bool   `json:"rhsm_connected"`
-	RHSMConnectError      string `json:"rhsm_connect_error,omitempty"`
-	InsightsConnected     bool   `json:"insights_connected"`
-	InsightsError         string `json:"insights_connect_error,omitempty"`
-	YggdrasilStarted      bool   `json:"yggdrasil_started"`
-	YggdrasilStartedError string `json:"yggdrasil_started_error,omitempty"`
+	Hostname              string   `json:"hostname"`
+	HostnameError         string   `json:"hostname_error,omitempty"`
+	UID                   int      `json:"uid"`
+	UIDError              string   `json:"uid_error,omitempty"`
+	EnabledFeatures       []string `json:"enabled_features"`
+	DisabledFeatures      []string `json:"disabled_features"`
+	RHSMConnected         bool     `json:"rhsm_connected"`
+	RHSMConnectError      string   `json:"rhsm_connect_error,omitempty"`
+	ContentEnabled        bool     `json:"content_enabled"`
+	InsightsConnected     bool     `json:"insights_connected"`
+	InsightsError         string   `json:"insights_connect_error,omitempty"`
+	YggdrasilStarted      bool     `json:"yggdrasil_started"`
+	YggdrasilStartedError string   `json:"yggdrasil_started_error,omitempty"`
 	format                string
 }
 
@@ -56,6 +61,8 @@ func beforeConnectAction(ctx *cli.Context) error {
 	password := ctx.String("password")
 	organization := ctx.String("organization")
 	activationKeys := ctx.StringSlice("activation-key")
+	enabledFeatures := ctx.StringSlice("enable-feature")
+	disabledFeatures := ctx.StringSlice("disable-feature")
 
 	if len(activationKeys) > 0 {
 		if username != "" {
@@ -71,6 +78,11 @@ func beforeConnectAction(ctx *cli.Context) error {
 		if username == "" || password == "" {
 			return fmt.Errorf("--username/--password or --organization/--activation-key are required when a machine-readable format is used")
 		}
+	}
+
+	err = checkFeatureInput(&enabledFeatures, &disabledFeatures)
+	if err != nil {
+		return err
 	}
 
 	return checkForUnknownArgs(ctx)
@@ -112,13 +124,30 @@ func connectAction(ctx *cli.Context) error {
 
 	interactivePrintf("Connecting %v to %v.\nThis might take a few seconds.\n\n", hostname, Provider)
 
+	var featuresStr []string
+	for _, feature := range KnownFeatures {
+		if feature.Enabled {
+			if uiSettings.isMachineReadable {
+				connectResult.EnabledFeatures = append(connectResult.EnabledFeatures, feature.ID)
+			}
+			featuresStr = append(featuresStr, "["+symbolOK+"]"+feature.ID)
+		} else {
+			if uiSettings.isMachineReadable {
+				connectResult.DisabledFeatures = append(connectResult.EnabledFeatures, feature.ID)
+			}
+			featuresStr = append(featuresStr, "[ ]"+feature.ID)
+		}
+	}
+	featuresListStr := strings.Join(featuresStr, ", ")
+	interactivePrintf("Features preferences: %s\n\n", featuresListStr)
+
 	var start time.Time
 	durations := make(map[string]time.Duration)
 	errorMessages := make(map[string]LogMessage)
 	/* 1. Register to RHSM, because we need to get consumer certificate. This blocks following action */
 	start = time.Now()
 	var returnedMsg string
-	returnedMsg, err = registerRHSM(ctx)
+	returnedMsg, err = registerRHSM(ctx, ContentFeature.Enabled)
 	if err != nil {
 		connectResult.RHSMConnected = false
 		errorMessages["rhsm"] = LogMessage{
@@ -127,76 +156,101 @@ func connectAction(ctx *cli.Context) error {
 				err)}
 		if uiSettings.isMachineReadable {
 			connectResult.RHSMConnectError = errorMessages["rhsm"].message.Error()
+			connectResult.ContentEnabled = false
 		} else {
 			fmt.Printf(
-				"%v Cannot connect to Red Hat Subscription Management\n",
+				" [%v] Cannot connect to Red Hat Subscription Management\n",
+				uiSettings.iconError,
+			)
+			fmt.Printf(
+				"  [%v] Skipping generation of Red Hat repository file\n",
 				uiSettings.iconError,
 			)
 		}
 	} else {
 		connectResult.RHSMConnected = true
-		interactivePrintf("%v %v\n", uiSettings.iconOK, returnedMsg)
+		interactivePrintf(" [%v] %v\n", uiSettings.iconOK, returnedMsg)
+		if ContentFeature.Enabled {
+			if uiSettings.isMachineReadable {
+				connectResult.ContentEnabled = true
+			}
+			interactivePrintf("  [%v] Content ... Red Hat repository file generated\n", uiSettings.iconOK)
+		} else {
+			if uiSettings.isMachineReadable {
+				connectResult.ContentEnabled = false
+			}
+			interactivePrintf("  [ ] Content ... Red Hat repository file not generated\n")
+		}
 	}
 	durations["rhsm"] = time.Since(start)
 
 	/* 2. Register insights-client */
-	if errors, exist := errorMessages["rhsm"]; exist {
-		if errors.level == log.LevelError {
-			interactivePrintf(
-				"%v Skipping connection to Red Hat Insights\n",
-				uiSettings.iconError,
-			)
-		}
-	} else {
-		start = time.Now()
-		err = showProgress(" Connecting to Red Hat Insights...", registerInsights)
-		if err != nil {
-			connectResult.InsightsConnected = false
-			errorMessages["insights"] = LogMessage{
-				level:   log.LevelError,
-				message: fmt.Errorf("cannot connect to Red Hat Insights: %w", err)}
-			if uiSettings.isMachineReadable {
-				connectResult.InsightsError = errorMessages["insights"].message.Error()
-			} else {
-				fmt.Printf("%v Cannot connect to Red Hat Insights\n", uiSettings.iconError)
+	if AnalyticsFeature.Enabled {
+		if errors, exist := errorMessages["rhsm"]; exist {
+			if errors.level == log.LevelError {
+				interactivePrintf(
+					"  [%v] Skipping connection to Red Hat Insights\n",
+					uiSettings.iconError,
+				)
 			}
 		} else {
-			connectResult.InsightsConnected = true
-			interactivePrintf("%v Connected to Red Hat Insights\n", uiSettings.iconOK)
+			start = time.Now()
+			err = showProgress(" Connecting to Red Hat Insights...", registerInsights)
+			if err != nil {
+				connectResult.InsightsConnected = false
+				errorMessages["insights"] = LogMessage{
+					level:   log.LevelError,
+					message: fmt.Errorf("cannot connect to Red Hat Insights: %w", err)}
+				if uiSettings.isMachineReadable {
+					connectResult.InsightsError = errorMessages["insights"].message.Error()
+				} else {
+					fmt.Printf("  [%v] Analytics ... Cannot connect to Red Hat Insights\n", uiSettings.iconError)
+				}
+			} else {
+				connectResult.InsightsConnected = true
+				interactivePrintf("  [%v] Analytics ... Connected to Red Hat Insights\n", uiSettings.iconOK)
+			}
+			durations["insights"] = time.Since(start)
 		}
-		durations["insights"] = time.Since(start)
+	} else {
+		interactivePrintf(" [ ] Analytics ... Connecting to Red Hat Insights disabled\n")
 	}
 
-	/* 3. Start yggdrasil (rhcd) service */
-	if rhsmErrMsg, exist := errorMessages["rhsm"]; exist && rhsmErrMsg.level == log.LevelError {
-		connectResult.YggdrasilStarted = false
-		interactivePrintf(
-			"%v Skipping activation of %v service\n",
-			uiSettings.iconError,
-			ServiceName,
-		)
-	} else {
-		start = time.Now()
-		progressMessage := fmt.Sprintf(" Activating the %v service", ServiceName)
-		err = showProgress(progressMessage, activateService)
-		if err != nil {
+	if ManagementFeature.Enabled {
+		/* 3. Start yggdrasil (rhcd) service */
+		if rhsmErrMsg, exist := errorMessages["rhsm"]; exist && rhsmErrMsg.level == log.LevelError {
 			connectResult.YggdrasilStarted = false
-			errorMessages[ServiceName] = LogMessage{
-				level: log.LevelError,
-				message: fmt.Errorf("cannot activate %s service: %w",
-					ServiceName, err)}
-			if uiSettings.isMachineReadable {
-				connectResult.YggdrasilStartedError = errorMessages[ServiceName].message.Error()
-			} else {
-				fmt.Printf("%v Cannot activate the %v service\n", uiSettings.iconError, ServiceName)
-			}
+			interactivePrintf(
+				"  [%v] Skipping activation of %v service\n",
+				uiSettings.iconError,
+				ServiceName,
+			)
 		} else {
-			connectResult.YggdrasilStarted = true
-			interactivePrintf("%v Activated the %v service\n", uiSettings.iconOK, ServiceName)
+			start = time.Now()
+			progressMessage := fmt.Sprintf(" Activating the %v service", ServiceName)
+			err = showProgress(progressMessage, activateService)
+			if err != nil {
+				connectResult.YggdrasilStarted = false
+				errorMessages[ServiceName] = LogMessage{
+					level: log.LevelError,
+					message: fmt.Errorf("cannot activate %s service: %w",
+						ServiceName, err)}
+				if uiSettings.isMachineReadable {
+					connectResult.YggdrasilStartedError = errorMessages[ServiceName].message.Error()
+				} else {
+					interactivePrintf("  [%v] Remote Management ... Cannot activate the %v service\n", uiSettings.iconError, ServiceName)
+				}
+			} else {
+				connectResult.YggdrasilStarted = true
+				interactivePrintf("  [%v] Remote Management ... Activated the %v service\n", uiSettings.iconOK, ServiceName)
+			}
+			durations[ServiceName] = time.Since(start)
 		}
-		durations[ServiceName] = time.Since(start)
-		interactivePrintf("\nSuccessfully connected to Red Hat!\n")
+	} else {
+		interactivePrintf(" [ ] Management .... Starting %s service disabled\n", ServiceName)
 	}
+
+	interactivePrintf("\nSuccessfully connected to Red Hat!\n")
 
 	if !uiSettings.isMachineReadable {
 		/* 5. Show footer message */
