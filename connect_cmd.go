@@ -14,17 +14,19 @@ import (
 // ConnectResult is structure holding information about results
 // of connect command. The result could be printed in machine-readable format.
 type ConnectResult struct {
-	Hostname              string `json:"hostname"`
-	HostnameError         string `json:"hostname_error,omitempty"`
-	UID                   int    `json:"uid"`
-	UIDError              string `json:"uid_error,omitempty"`
-	RHSMConnected         bool   `json:"rhsm_connected"`
-	RHSMConnectError      string `json:"rhsm_connect_error,omitempty"`
-	ContentEnabled        bool   `json:"content_enabled"`
-	InsightsConnected     bool   `json:"insights_connected"`
-	InsightsError         string `json:"insights_connect_error,omitempty"`
-	YggdrasilStarted      bool   `json:"yggdrasil_started"`
-	YggdrasilStartedError string `json:"yggdrasil_started_error,omitempty"`
+	Hostname              string   `json:"hostname"`
+	HostnameError         string   `json:"hostname_error,omitempty"`
+	UID                   int      `json:"uid"`
+	UIDError              string   `json:"uid_error,omitempty"`
+	EnabledFeatures       []string `json:"enabled_features"`
+	DisabledFeatures      []string `json:"disabled_features"`
+	RHSMConnected         bool     `json:"rhsm_connected"`
+	RHSMConnectError      string   `json:"rhsm_connect_error,omitempty"`
+	ContentEnabled        bool     `json:"content_enabled"`
+	InsightsConnected     bool     `json:"insights_connected"`
+	InsightsError         string   `json:"insights_connect_error,omitempty"`
+	YggdrasilStarted      bool     `json:"yggdrasil_started"`
+	YggdrasilStartedError string   `json:"yggdrasil_started_error,omitempty"`
 	format                string
 }
 
@@ -122,18 +124,22 @@ func connectAction(ctx *cli.Context) error {
 
 	interactivePrintf("Connecting %v to %v.\nThis might take a few seconds.\n\n", hostname, Provider)
 
-	if !uiSettings.isMachineReadable {
-		var featuresStr []string
-		for _, feature := range KnownFeatures {
-			if feature.Enabled {
-				featuresStr = append(featuresStr, "["+symbolOK+"]"+feature.ID)
-			} else {
-				featuresStr = append(featuresStr, "[ ]"+feature.ID)
+	var featuresStr []string
+	for _, feature := range KnownFeatures {
+		if feature.Enabled {
+			if uiSettings.isMachineReadable {
+				connectResult.EnabledFeatures = append(connectResult.EnabledFeatures, feature.ID)
 			}
+			featuresStr = append(featuresStr, "["+symbolOK+"]"+feature.ID)
+		} else {
+			if uiSettings.isMachineReadable {
+				connectResult.DisabledFeatures = append(connectResult.EnabledFeatures, feature.ID)
+			}
+			featuresStr = append(featuresStr, "[ ]"+feature.ID)
 		}
-		featuresListStr := strings.Join(featuresStr, ", ")
-		interactivePrintf("Features preferences: %s\n\n", featuresListStr)
 	}
+	featuresListStr := strings.Join(featuresStr, ", ")
+	interactivePrintf("Features preferences: %s\n\n", featuresListStr)
 
 	var start time.Time
 	durations := make(map[string]time.Duration)
