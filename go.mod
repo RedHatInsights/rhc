@@ -11,7 +11,7 @@ require (
 	github.com/subpop/go-log v0.1.2
 	github.com/urfave/cli/v2 v2.27.5
 	golang.org/x/sys v0.29.0
-	golang.org/x/term v0.27.0
+	golang.org/x/term v0.28.0
 )
 
 require (
