@@ -160,6 +160,7 @@ func main() {
 				&cli.StringSliceFlag{
 					Name:    "content-template",
 					Usage:   "register with `CONTENT_TEMPLATE`",
+					Hidden:  true,
 					Aliases: []string{"c"},
 				},
 				&cli.StringFlag{
