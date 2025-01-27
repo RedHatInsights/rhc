@@ -3,6 +3,7 @@
 # proper distribution package, but changes should be made to suit the needs of
 # the package.
 
+%bcond_without    rhcd_compat
 %bcond_without check
 
 %global has_go_rpm_macros (0%{?fedora})
@@ -42,6 +43,10 @@ Version: @VERSION@
 %global setup_flags -Dvendor=True
 %endif
 
+%if %{with rhcd_compat}
+%global setup_flags %{setup_flags} -Drhcd_compatibility=True
+%endif
+
 %global common_description %{expand:
 rhc is a client that registers a system with RHSM and activates the Red Hat yggd
 MQTT client.}
@@ -74,15 +79,6 @@ BuildRequires:  /usr/bin/dbus-launch
 
 %description %{common_description}
 
-%package compat
-Summary: Transition package to support migrating from rhcd to yggd
-
-Requires:   yggdrasil >= 0.4.2
-Recommends: rhc
-
-%description compat
-Transition package to support migrating from rhcd to yggd.
-
 %if %{has_go_rpm_macros}
 %gopkg
 %endif
@@ -108,10 +104,9 @@ export %gomodulesmode
 
 %install
 %meson_install
-install --directory %{buildroot}%{_unitdir}
+%if %{with rhcd_compat}
 install --directory %{buildroot}%{_sysconfdir}/rhc
-ln -sf yggdrasil.service        %{buildroot}%{_unitdir}/rhcd.service
-ln -sf ../yggdrasil/config.toml %{buildroot}%{_sysconfdir}/rhc/config.toml
+%endif
 
 %if %{with check}
 %check
@@ -122,12 +117,30 @@ ln -sf ../yggdrasil/config.toml %{buildroot}%{_sysconfdir}/rhc/config.toml
 %endif
 %endif
 
+%pre
+%if %{with rhcd_compat}
+if [ $1 -eq 2 ]; then
+    if [ -f /etc/rhc/config.toml ]; then
+        cp /etc/rhc/config.toml /etc/yggdrasil/config.toml.migrated
+    fi
+fi
+%endif
+
 %post
 %systemd_post rhc-canonical-facts.timer
 if [ $1 -eq 1 ]; then
      systemctl daemon-reload
      systemctl start rhc-canonical-facts.timer
 fi
+%if %{with rhcd_compat}
+if [ $1 -eq 2 ]; then
+    if [ -f /etc/yggdrasil/config.toml.migrated ]; then
+        sed -E 's#^broker( ?=)#server\1#' /etc/yggdrasil/config.toml.migrated > /etc/yggdrasil/config.toml
+        echo 'facts-file = "/var/lib/yggdrasil/canonical-facts.json"' >> /etc/yggdrasil/config.toml
+        rm /etc/yggdrasil/config.toml.migrated
+    fi
+fi
+%endif
 
 %preun
 %systemd_preun rhc-canonical-facts.timer
@@ -145,10 +158,9 @@ fi
 %{_datadir}/bash-completion/completions/*
 %{_mandir}/man1/*
 %{_unitdir}/rhc-canonical-facts.*
-
-%files compat
-%{_unitdir}/rhcd.service
-%{_sysconfdir}/rhc/config.toml
+%if %{with rhcd_compat}
+%{_unitdir}/yggdrasil.service.d/rhcd.conf
+%endif
 
 %changelog
 %if (0%{?fedora} || 0%{?rhel} >= 9)
