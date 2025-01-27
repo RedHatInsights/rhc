@@ -61,6 +61,15 @@ func beforeConnectAction(ctx *cli.Context) error {
 		return err
 	}
 
+	// When machine is already connected, then return error
+	uuid, err := getConsumerUUID()
+	if err != nil {
+		return fmt.Errorf("unable to get consumer UUID: %s", err)
+	}
+	if uuid != "" {
+		return fmt.Errorf("this system is already connected")
+	}
+
 	username := ctx.String("username")
 	password := ctx.String("password")
 	organization := ctx.String("organization")
