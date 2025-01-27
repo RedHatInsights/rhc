@@ -22,3 +22,9 @@ option(
   value: false,
   description: 'Bundle go module dependencies in the vendor directory',
 )
+option(
+  'rhcd_compatibility',
+  type: 'boolean',
+  value: true,
+  description: 'Include files that support migration from rhcd to yggdrasil'
+)
