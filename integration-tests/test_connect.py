@@ -111,6 +111,7 @@ def test_connect_wrong_parameters(
     assert not yggdrasil_service_is_active()
 
 
+@pytest.mark.skip("Test cannot be run due to unresolved issues CCT-696")
 @pytest.mark.parametrize("auth", ["basic", "activation-key"])
 def test_rhc_worker_playbook_install_after_rhc_connect(
     external_candlepin, rhc, test_config, auth
