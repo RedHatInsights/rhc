@@ -76,6 +76,7 @@ func beforeConnectAction(ctx *cli.Context) error {
 	activationKeys := ctx.StringSlice("activation-key")
 	enabledFeatures := ctx.StringSlice("enable-feature")
 	disabledFeatures := ctx.StringSlice("disable-feature")
+	contentTemplates := ctx.StringSlice("content-template")
 
 	if len(activationKeys) > 0 {
 		if username != "" {
@@ -96,6 +97,10 @@ func beforeConnectAction(ctx *cli.Context) error {
 	err = checkFeatureInput(&enabledFeatures, &disabledFeatures)
 	if err != nil {
 		return err
+	}
+
+	if !ContentFeature.Enabled && len(contentTemplates) > 0 {
+		return fmt.Errorf("'--content-template' can not be used together with '--disable-feature content'")
 	}
 
 	return checkForUnknownArgs(ctx)
