@@ -175,6 +175,7 @@ func registerRHSM(ctx *cli.Context) (string, error) {
 		password := ctx.String("password")
 		organization := ctx.String("organization")
 		activationKeys := ctx.StringSlice("activation-key")
+		contentTemplates := ctx.StringSlice("content-template")
 
 		if len(activationKeys) == 0 {
 			if username == "" {
@@ -208,13 +209,14 @@ func registerRHSM(ctx *cli.Context) (string, error) {
 			err = registerActivationKey(
 				organization,
 				ctx.StringSlice("activation-key"),
+				contentTemplates,
 				ctx.String("server"))
 		} else {
 			var orgs []string
 			if organization != "" {
-				_, err = registerUsernamePassword(username, password, organization, ctx.String("server"))
+				_, err = registerUsernamePassword(username, password, organization, contentTemplates, ctx.String("server"))
 			} else {
-				orgs, err = registerUsernamePassword(username, password, "", ctx.String("server"))
+				orgs, err = registerUsernamePassword(username, password, "", contentTemplates, ctx.String("server"))
 				/* When organization was not specified using CLI option --organization, and it is
 				   required, because user is member of more than one organization, then ask for
 				   the organization. */
@@ -246,7 +248,7 @@ func registerRHSM(ctx *cli.Context) (string, error) {
 					}
 
 					// Try to register once again with given organization
-					_, err = registerUsernamePassword(username, password, organization, ctx.String("server"))
+					_, err = registerUsernamePassword(username, password, organization, contentTemplates, ctx.String("server"))
 				}
 			}
 		}
@@ -802,6 +804,11 @@ func main() {
 					Name:    "activation-key",
 					Usage:   "register with `KEY`",
 					Aliases: []string{"a"},
+				},
+				&cli.StringSliceFlag{
+					Name:    "content-template",
+					Usage:   "register with `CONTENT_TEMPLATE`",
+					Aliases: []string{"c"},
 				},
 				&cli.StringFlag{
 					Name:   "server",
