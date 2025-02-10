@@ -79,19 +79,25 @@ def test_connect(external_candlepin, rhc, test_config, auth):
             None,
         ),
         # invalid combination of parameters
-        (
+        pytest.param(
             {
                 "username": "candlepin.username",
                 "activation-key": "candlepin.activation_keys",
             },
             None,
+            marks=pytest.mark.xfail(
+                reason="Unresolved Bug https://issues.redhat.com/browse/CCT-1155"
+            ),
         ),
-        (
+        pytest.param(
             {
                 "activation-key": "candlepin.activation_keys",
                 "password": "candlepin.password",
             },
             None,
+            marks=pytest.mark.xfail(
+                reason="Unresolved Bug https://issues.redhat.com/browse/CCT-1155"
+            ),
         ),
     ],
 )
