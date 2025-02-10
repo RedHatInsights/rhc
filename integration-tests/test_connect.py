@@ -20,6 +20,7 @@ from utils import (
 logger = logging.getLogger(__name__)
 
 
+@pytest.mark.tier1
 @pytest.mark.parametrize("auth", ["basic", "activation-key"])
 def test_connect(external_candlepin, rhc, test_config, auth):
     """Test if RHC can connect to CRC using basic auth and activation key,
