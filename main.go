@@ -6,6 +6,7 @@ import (
 	"github.com/urfave/cli/v2"
 	"github.com/urfave/cli/v2/altsrc"
 	"os"
+	"strings"
 )
 
 // mainAction is triggered in the case, when no sub-command is specified
@@ -88,6 +89,12 @@ func main() {
 	log.SetFlags(0)
 	log.SetPrefix("")
 
+	var featureIdSlice []string
+	for _, featureID := range KnownFeatures {
+		featureIdSlice = append(featureIdSlice, featureID.ID)
+	}
+	featureIDs := strings.Join(featureIdSlice, ", ")
+
 	defaultConfigFilePath, err := ConfigPath()
 	if err != nil {
 		log.Fatal(err)
@@ -164,12 +171,12 @@ func main() {
 				},
 				&cli.StringSliceFlag{
 					Name:    "enable-feature",
-					Usage:   "enable `FEATURE` during connection",
+					Usage:   fmt.Sprintf("enable `FEATURE` during connection (allowed values: %s)", featureIDs),
 					Aliases: []string{"e"},
 				},
 				&cli.StringSliceFlag{
 					Name:    "disable-feature",
-					Usage:   "disable `FEATURE` during connection",
+					Usage:   fmt.Sprintf("disable `FEATURE` during connection (allowed values: %s)", featureIDs),
 					Aliases: []string{"d"},
 				},
 				&cli.StringFlag{
