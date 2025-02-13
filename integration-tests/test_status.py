@@ -57,8 +57,12 @@ def test_status_connected_format_json(external_candlepin, rhc, test_config):
     assert type(status_json["rhsm_connected"]) == bool
     assert "insights_connected" in status_json
     assert type(status_json["insights_connected"]) == bool
-    assert "yggdrasil_running" in status_json
-    assert type(status_json["yggdrasil_running"]) == bool
+    if pytest.service_name == "rhcd":
+        assert "rhcd_running" in status_json
+        assert type(status_json["rhcd_running"]) == bool
+    else:
+        assert "yggdrasil_running" in status_json
+        assert type(status_json["yggdrasil_running"]) == bool
 
 
 def test_status_disconnected(rhc):
