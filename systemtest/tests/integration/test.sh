@@ -4,12 +4,15 @@ set -ux
 # get to project root
 cd ../../../
 
-# Check for GitHub pull request ID and install build if needed.
-# This is for the downstream PR jobs.
-[ -z "${ghprbPullId+x}" ] || ./systemtest/copr-setup.sh
+# Check for bootc/image-mode deployments which should not run dnf
+if ! command -v bootc >/dev/null || bootc status | grep -q 'type: null'; then
+  # Check for GitHub pull request ID and install build if needed.
+  # This is for the downstream PR jobs.
+  [ -z "${ghprbPullId+x}" ] || ./systemtest/copr-setup.sh
 
-dnf --setopt install_weak_deps=False install -y \
-  podman git-core python3-pip python3-pytest logrotate
+  dnf --setopt install_weak_deps=False install -y \
+    podman git-core python3-pip python3-pytest logrotate
+fi
 
 python3 -m venv venv
 # shellcheck disable=SC1091
