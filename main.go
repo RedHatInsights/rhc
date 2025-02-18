@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"github.com/subpop/go-log"
 	"github.com/urfave/cli/v2"
@@ -234,6 +235,14 @@ func main() {
 	app.Before = beforeAction
 
 	if err := app.Run(os.Args); err != nil {
-		log.Error(err)
+		var exitErr cli.ExitCoder
+		if errors.As(err, &exitErr) {
+			log.Error(exitErr.Error())
+			os.Exit(exitErr.ExitCode())
+		} else {
+			log.Error(err)
+			// When it is generic error, then return 1
+			os.Exit(ExitCodeErr)
+		}
 	}
 }
