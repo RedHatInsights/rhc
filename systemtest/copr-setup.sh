@@ -6,10 +6,13 @@ dnf install -y dnf-plugins-core
 # 'centos-stream-9-x86_64', 'rhel-9-x86_64', 'fedora-40-x86_64',
 # 'fedora-39-x86_64', 'fedora-rawhide-x86_64'
 source /etc/os-release
-if [ "$ID" == "centos" ]; then
+
+VERSION_MAJOR=$(echo ${VERSION_ID} | cut -d '.' -f 1)
+
+if [[ "$ID" == "centos" ]] || { [[ "$ID" == "rhel" ]] && [[ "$VERSION_MAJOR" == "10" ]]; }; then
   ID='centos-stream'
 fi
-VERSION_MAJOR=$(echo ${VERSION_ID} | cut -d '.' -f 1)
+
 COPR_REPO="${ID}-${VERSION_MAJOR}-$(uname -m)"
 
 #get yggdrasil
