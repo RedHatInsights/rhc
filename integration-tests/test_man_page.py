@@ -50,3 +50,18 @@ def test_man_page_connect_options(options):
     command_op = subprocess.check_output(["man", "rhc"]).decode("utf-8")
     for option in options:
         assert option in command_op
+
+@pytest.mark.parametrize(
+    "feature_id",
+    [
+        "content",
+        "analytics",
+        "remote-management",
+    ]
+)
+def test_man_page_feature_ids(feature_id):
+    """
+    Test verifies if man page contains IDs of features
+    """
+    command_op = subprocess.check_output(["man", "rhc"]).decode("utf-8")
+    assert feature_id in command_op
