@@ -32,19 +32,21 @@ def test_man_page_commands(command):
 
 
 @pytest.mark.parametrize(
-    "option",
+    "options",
     [
-        "--activation-key, -a",
-        "--organization, -o",
-        "--password, -p",
-        "--server",
-        "--username, -u",
+        ["--activation-key", "-a"],
+        ["--organization", "-o"],
+        ["--password", "-p"],
+        ["--username", "-u"],
+        ["--enable-feature", "-e"],
+        ["--disable-feature", "-d"],
+        ["--content-template", "-c"],
     ],
 )
-def test_man_page_connect_options(option):
-    """Test verifies if man page displays existing options for commands"""
+def test_man_page_connect_options(options):
+    """
+    Test verifies if man page displays existing options for commands
+    """
     command_op = subprocess.check_output(["man", "rhc"]).decode("utf-8")
-    if option == "--server":
-        assert option not in command_op
-    else:
+    for option in options:
         assert option in command_op
