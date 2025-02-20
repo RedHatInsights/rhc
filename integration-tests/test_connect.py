@@ -92,6 +92,12 @@ def test_connect(external_candlepin, rhc, test_config, auth):
             },
             None,
         ),
+        (  # invalid combination of parameters (activation-key without organization)
+                {
+                    "activation-key": "candlepin.activation_keys",
+                },
+                None,
+        ),
     ],
 )
 def test_connect_wrong_parameters(
