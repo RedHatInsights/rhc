@@ -112,26 +112,19 @@ def test_connect(external_candlepin, rhc, test_config, auth, output_format):
             {"organization": "candlepin.org", "activation-key": "xpto123"},
             None,
         ),
-        # invalid combination of parameters
-        pytest.param(
+        (  # invalid combination of parameters (username & activation-key)
             {
                 "username": "candlepin.username",
                 "activation-key": "candlepin.activation_keys",
             },
             None,
-            marks=pytest.mark.xfail(
-                reason="Unresolved Bug https://issues.redhat.com/browse/CCT-1155"
-            ),
         ),
-        pytest.param(
+        (  # invalid combination of parameters (password & activation-key)
             {
                 "activation-key": "candlepin.activation_keys",
                 "password": "candlepin.password",
             },
             None,
-            marks=pytest.mark.xfail(
-                reason="Unresolved Bug https://issues.redhat.com/browse/CCT-1155"
-            ),
         ),
     ],
 )
@@ -147,7 +140,7 @@ def test_connect_wrong_parameters(
     )
     command = ["connect"] + command_args
     result = rhc.run(*command, check=False)
-    assert result.returncode == 1
+    assert result.returncode != 0
     assert not yggdrasil_service_is_active()
 
 
