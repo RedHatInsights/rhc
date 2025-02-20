@@ -2,6 +2,59 @@ package main
 
 import "path/filepath"
 
+const (
+	// ExitCodeOK for successful termination
+	ExitCodeOK = 0
+
+	// ExitCodeErr for generic error
+	ExitCodeErr = 1
+
+	// ExitCodeUsage for command line usage error
+	ExitCodeUsage = 64
+
+	// ExitCodeDataErr for data format error
+	ExitCodeDataErr = 65
+
+	// ExitCodeNoInput for cannot open input
+	ExitCodeNoInput = 66
+
+	// ExitCodeNoUser for addressee unknown
+	ExitCodeNoUser = 67
+
+	// ExitCodeNoHost for host name unknown
+	ExitCodeNoHost = 68
+
+	// ExitCodeUnavailable for service unavailable
+	ExitCodeUnavailable = 69
+
+	// ExitCodeSoftware for internal software error
+	ExitCodeSoftware = 70
+
+	// ExitCodeOSErr system error (e.g., can't fork)
+	ExitCodeOSErr = 71
+
+	// ExitCodeOSFile critical OS file missing
+	ExitCodeOSFile = 72
+
+	// ExitCodeCantCreat for can't create (user) output file
+	ExitCodeCantCreat = 73
+
+	// ExitCodeIOErr for input/output error
+	ExitCodeIOErr = 74
+
+	// ExitCodeTempFail for temp failure; user is invited to retry
+	ExitCodeTempFail = 75
+
+	// ExitCodeProtocol for remote error in protocol
+	ExitCodeProtocol = 76
+
+	// ExitCodeNoPerm for permission denied
+	ExitCodeNoPerm = 77
+
+	// ExitCodeConfig for configuration error
+	ExitCodeConfig = 78
+)
+
 var (
 	// Version is the version as described by git.
 	Version string
