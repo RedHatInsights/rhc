@@ -364,5 +364,9 @@ func connectAction(ctx *cli.Context) error {
 		return err
 	}
 
-	return cli.Exit(connectResult, 0)
+	if uiSettings.isMachineReadable {
+		fmt.Println(connectResult.Error())
+	}
+
+	return nil
 }
