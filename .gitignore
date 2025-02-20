@@ -7,3 +7,5 @@ BUILDROOT
 RPMS
 SOURCES
 SRPMS
+settings.toml
+.secrets.toml

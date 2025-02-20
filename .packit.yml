@@ -90,9 +90,9 @@ jobs:
     trigger: pull_request
     identifier: "unit/rhel"
     targets:
-      rhel-9-x86_64:
+      centos-stream-10-x86_64: # TODO: Change me back to RHEL
         distros:
-          - RHEL-9.4.0-Nightly
+          - RHEL-10-Nightly
     labels:
       - unit
     tf_extra_params:
