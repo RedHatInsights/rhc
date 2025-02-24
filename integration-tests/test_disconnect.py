@@ -72,9 +72,6 @@ def test_rhc_disconnect(external_candlepin, rhc, test_config):
     )
 
 
-@pytest.mark.skip(
-    reason="Test cannot be run due to unresolved issue https://issues.redhat.com/browse/CCT-525"
-)
 def test_disconnect_when_already_disconnected(rhc):
     """
     :id: 99e6e998-691c-4800-9a81-45c668e6968b
@@ -92,38 +89,23 @@ def test_disconnect_when_already_disconnected(rhc):
     :expectedresults:
         1.  The disconnect command attempts to run.
         2.  The command executes.
-        3.  The exit code is non-zero (specifically 1).
+        3.  The exit code 0
         4.  The system is unregistered.
         5.  Stdout contains "Deactivated the yggdrasil/rhcd service",
-            "Cannot disconnect from Red Hat Insights",
-            "Cannot disconnect from Red Hat Subscription Management",
-            and "warning: the system is already unregistered".
+            "The yggdrasil service is already inactive",
+            "Already disconnected from Red Hat Insights",
+            and "Already disconnected from Red Hat Subscription Management".
     """
 
     # one attempt to disconnect to ensure system is already disconnected
     rhc.run("disconnect", check=False)
     # second attempt to disconnect already disconnected system
     disconnect_result = rhc.run("disconnect", check=False)
-    assert disconnect_result.returncode == 1
+    assert disconnect_result.returncode == 0
     assert not rhc.is_registered
-    if pytest.service_name == "rhcd":
-        assert (
-            "Deactivated the Remote Host Configuration daemon"
-            in disconnect_result.stdout
-        )
-    else:
-        assert "Deactivated the yggdrasil service" in disconnect_result.stdout
-    assert "Cannot disconnect from Red Hat Insights" in disconnect_result.stdout
+    assert "The yggdrasil service is already inactive" in disconnect_result.stdout
+    assert "Already disconnected from Red Hat Insights" in disconnect_result.stdout
     assert (
-        "Cannot disconnect from Red Hat Subscription Management"
-        in disconnect_result.stdout
-    )
-    assert (
-        "rhsm      cannot disconnect from Red Hat Subscription Management:"
-        in disconnect_result.stdout
-    )
-    assert "warning: the system is already unregistered" in disconnect_result.stdout
-    assert (
-        "ERROR  insights  cannot disconnect from Red Hat Insights"
+        "Already disconnected from Red Hat Subscription Management"
         in disconnect_result.stdout
     )
