@@ -46,9 +46,6 @@ def test_rhc_disconnect(external_candlepin, rhc, test_config):
     )
 
 
-@pytest.mark.skip(
-    reason="Test cannot be run due to unresolved issue https://issues.redhat.com/browse/CCT-525"
-)
 def test_disconnect_when_already_disconnected(rhc):
     """Test RHC disconnect command when the host is already
     disconnected from CRC
@@ -81,11 +78,11 @@ def test_disconnect_when_already_disconnected(rhc):
         in disconnect_result.stdout
     )
     assert (
-        "rhsm      cannot disconnect from Red Hat Subscription Management:"
+        "rhsm      Cannot disconnect from Red Hat Subscription Management:"
         in disconnect_result.stdout
     )
     assert "warning: the system is already unregistered" in disconnect_result.stdout
     assert (
-        "ERROR  insights  cannot disconnect from Red Hat Insights"
+        "ERROR  insights  Cannot disconnect from Red Hat Insights"
         in disconnect_result.stdout
     )
