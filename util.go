@@ -104,7 +104,10 @@ func GuessAPIURL() (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("cannot get base URL: %w", err)
 		}
-		p, _ := url.Parse("api/config-manager/v2/profiles/current")
+		p, err := url.Parse("api/config-manager/v2/profiles/current")
+		if err != nil {
+			return "", fmt.Errorf("cannot parse API Path: %w", err)
+		}
 		uString = base.ResolveReference(p).String()
 	} else {
 		// Get the server hostname where this host is connected
@@ -116,8 +119,14 @@ func GuessAPIURL() (string, error) {
 		// Get the final api server url to make the call
 		// Check if it is the default api server
 		if strings.Contains(serverHost, "subscription.rhsm.redhat.com") {
-			baseURL, _ = url.Parse("https://cert.console.redhat.com")
-			p, _ := url.Parse("api/config-manager/v2/profiles/current")
+			baseURL, err = url.Parse("https://cert.console.redhat.com")
+			if err != nil {
+				return "", fmt.Errorf("cannot parse Base URL: %w", err)
+			}
+			p, err := url.Parse("api/config-manager/v2/profiles/current")
+			if err != nil {
+				return "", fmt.Errorf("cannot parse API Path: %w", err)
+			}
 			uString = baseURL.ResolveReference(p).String()
 		} else {
 			// Otherwise it is connected to Satellite
@@ -126,7 +135,10 @@ func GuessAPIURL() (string, error) {
 			if err != nil {
 				return "", fmt.Errorf("cannot get base URL: %w", err)
 			}
-			p, _ := url.Parse("redhat_access/r/insights/platform/config-manager/v2/profiles/current")
+			p, err := url.Parse("redhat_access/r/insights/platform/config-manager/v2/profiles/current")
+			if err != nil {
+				return "", fmt.Errorf("cannot parse API Path: %w", err)
+			}
 			uString = base.ResolveReference(p).String()
 		}
 	}
