@@ -20,29 +20,63 @@ from utils import (
 logger = logging.getLogger(__name__)
 
 
-@pytest.mark.parametrize("auth", ["basic", "activation-key"])
-def test_connect(external_candlepin, rhc, test_config, auth):
-    """Test if RHC can connect to CRC using basic auth and activation key,
-    Also verify that yggdrasil/rhcd service is in active state afterward.
+@pytest.mark.parametrize(
+    "auth, output_format",
+    [
+        ("basic", None),
+        ("basic", "json"),
+        ("activation-key", None),
+        ("activation-key", "json"),
+    ]
+)
+def test_connect(external_candlepin, rhc, test_config, auth, output_format):
     """
+     Test if RHC can connect to CRC using basic auth and activation key,
+     Also verify that yggdrasil/rhcd service is in active state afterward.
+     Two variants of output format is considered.
+       * Default text output
+       * Machine readable output (JSON document)
+     """
     # rhc+satellite does not support basic auth for now
     # refer: https://issues.redhat.com/browse/RHEL-53436
     if "satellite" in test_config.environment and auth == "basic":
         pytest.skip("rhc+satellite only support activation key registration now")
     with contextlib.suppress(Exception):
         rhc.disconnect()
-    command_args = prepare_args_for_connect(test_config, auth=auth)
+    command_args = prepare_args_for_connect(test_config, auth=auth, output_format=output_format)
     command = ["connect"] + command_args
     result = rhc.run(*command)
     assert rhc.is_registered
     assert yggdrasil_service_is_active()
-    assert "Connected to Red Hat Subscription Management" in result.stdout
-    assert "Connected to Red Hat Insights" in result.stdout
+
+    if output_format is None:
+        assert "Connected to Red Hat Subscription Management" in result.stdout
+        assert "Connected to Red Hat Insights" in result.stdout
+    elif output_format == "json":
+        pass
+        # TODO: parse result.stdout, when CCT-1191 is fixed. It is not possible now, because
+        #       "rhc connect --format json" prints JSON document to stderr (not stdout)
+        # json_output = json.loads(result.stdout)
+        # assert json_output["rhsm_connected"] is True
+
     if pytest.service_name == "rhcd":
-        assert "Activated the Remote Host Configuration daemon" in result.stdout
+        if output_format is None:
+            assert "Activated the Remote Host Configuration daemon" in result.stdout
+        elif output_format == "json":
+            pass
+            # TODO: parse result.stdout, when CCT-1191 is fixed
     else:
-        assert "Activated the yggdrasil service" in result.stdout
-    assert "Successfully connected to Red Hat!" in result.stdout
+        if output_format is None:
+            assert "Activated the yggdrasil service" in result.stdout
+        elif output_format == "json":
+            pass
+            # TODO: parse result.stdout, when CCT-1191 is fixed
+
+    if output_format is None:
+        assert "Successfully connected to Red Hat!" in result.stdout
+    elif output_format == "json":
+        pass
+        # TODO: parse result.stdout, when CCT-1191 is fixed
 
 
 @pytest.mark.parametrize(
