@@ -1,5 +1,6 @@
 import pytest
 import sh
+import time
 
 
 def yggdrasil_service_is_active():
@@ -9,6 +10,8 @@ def yggdrasil_service_is_active():
     """
     try:
         stdout = sh.systemctl(f"is-active {pytest.service_name}".split()).strip()
+        print(stdout)
+        time.sleep(5)
         return stdout == "active"
     except sh.ErrorReturnCode_3:
         return False

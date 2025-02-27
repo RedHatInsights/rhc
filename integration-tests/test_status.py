@@ -47,7 +47,7 @@ def test_status_connected_format_json(external_candlepin, rhc, test_config):
     """
     rhc.connect(
         username=test_config.get("candlepin.username"),
-        password=test_config.get("candlepin.password")
+        password=test_config.get("candlepin.password"),
     )
     status_result = rhc.run("status", "--format", "json", check=False)
     assert status_result.returncode == 0
@@ -80,11 +80,13 @@ def test_status_disconnected(rhc):
     # 'rhc disconnect' to ensure system is already disconnected
     rhc.run("disconnect", check=False)
     status_result = rhc.run("status", check=False)
-    assert status_result.returncode != 0
+    assert status_result.returncode == 0
     assert "Not connected to Red Hat Subscription Management" in status_result.stdout
     assert "Not connected to Red Hat Insights" in status_result.stdout
     if pytest.service_name == "rhcd":
-        assert "The Remote Host Configuration daemon is active" in status_result.stdout
+        assert (
+            "The Remote Host Configuration daemon is inactive" in status_result.stdout
+        )
     else:
         assert "The yggdrasil service is inactive" in status_result.stdout
 
