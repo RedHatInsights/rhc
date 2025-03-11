@@ -82,14 +82,19 @@ func beforeConnectAction(ctx *cli.Context) error {
 		if username != "" {
 			return fmt.Errorf("--username and --activation-key can not be used together")
 		}
+		if password != "" {
+			return fmt.Errorf("--password and --activation-key can not be used together")
+		}
 		if organization == "" {
 			return fmt.Errorf("--organization is required, when --activation-key is used")
 		}
 	}
 
-	// When machine-readable format is used, then additional requirements have to be met
+	// When machine-readable format is used, then additional requirements have to be met.
+	// User has to provide username & password or at least one activation key and organization,
+	// because no interaction with user is possible in this case.
 	if uiSettings.isMachineReadable {
-		if username == "" || password == "" {
+		if !((username != "" && password != "") || (len(activationKeys) > 0 && organization != "")) {
 			return fmt.Errorf("--username/--password or --organization/--activation-key are required when a machine-readable format is used")
 		}
 	}
