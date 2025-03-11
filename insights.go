@@ -13,7 +13,14 @@ func registerInsights() error {
 	return cmd.Run()
 }
 
+// unregisterInsights tries to unregister insights-client.
+// When .registered file  does not exist, then skip unregistering
+// process, because insights-client has not been registered
 func unregisterInsights() error {
+	_, err := os.Stat("/etc/insights-client/.registered")
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
 	cmd := exec.Command("/usr/bin/insights-client", "--unregister")
 
 	return cmd.Run()
