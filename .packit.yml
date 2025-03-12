@@ -93,6 +93,7 @@ jobs:
       centos-stream-10-x86_64: # TODO: Change me back to RHEL
         distros:
           - RHEL-10-Nightly
+          - RHEL-10.0-image-mode
     labels:
       - unit
     tf_extra_params:
