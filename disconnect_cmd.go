@@ -159,5 +159,9 @@ func disconnectAction(ctx *cli.Context) error {
 		}
 	}
 
-	return cli.Exit(disconnectResult, 0)
+	if uiSettings.isMachineReadable {
+		fmt.Println(disconnectResult.Error())
+	}
+
+	return nil
 }
