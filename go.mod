@@ -10,7 +10,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/subpop/go-log v0.1.2
 	github.com/urfave/cli/v2 v2.27.6
-	golang.org/x/sys v0.30.0
+	golang.org/x/sys v0.31.0
 	golang.org/x/term v0.29.0
 )
 
