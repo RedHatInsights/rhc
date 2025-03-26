@@ -1,6 +1,6 @@
 """
 This Python module contains integration tests for rhc. It uses pytest-client-tools Python module.
-More information about this module could be found: https://github.com/ptoscano/pytest-client-tools/
+More information about this module could be found: https://github.com/RedHatInsights/pytest-client-tools/
 """
 
 import pytest
