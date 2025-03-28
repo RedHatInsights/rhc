@@ -137,8 +137,8 @@ func (c *Conn) StopUnit(name string, wait bool) error {
 	return nil
 }
 
-// getUnitState checks the given unit's "ActiveState" property.
-func (c *Conn) getUnitState(name string) (string, error) {
+// GetUnitState checks the given unit's "ActiveState" property.
+func (c *Conn) GetUnitState(name string) (string, error) {
 	prop, err := c.conn.GetUnitPropertyContext(c.ctx, name, "ActiveState")
 	if err != nil {
 		return "", fmt.Errorf("cannot get unit property 'ActiveState': %v", err)
@@ -159,7 +159,7 @@ func (c *Conn) waitForState(unit string, wantState string, timeout time.Duration
 		case <-after:
 			return fmt.Errorf("timed out waiting %v for unit state '%v'", timeout, wantState)
 		default:
-			state, err := c.getUnitState(unit)
+			state, err := c.GetUnitState(unit)
 			if err != nil {
 				return fmt.Errorf("cannot get unit state: %v", err)
 			}

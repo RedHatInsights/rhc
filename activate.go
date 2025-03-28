@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-
 	systemd "github.com/redhatinsights/rhc/internal/systemd"
 )
 
@@ -35,6 +34,25 @@ func activateService() error {
 	}
 
 	return nil
+}
+
+// isServiceInState returns true, when yggdrasil.service is in given state
+func isServiceInState(wantedState string) (bool, error) {
+	conn, err := systemd.NewConnectionContext(context.Background(), systemd.ConnectionTypeSystem)
+	if err != nil {
+		return false, fmt.Errorf("cannot connect to systemd: %v", err)
+	}
+	defer conn.Close()
+
+	state, err := conn.GetUnitState("yggdrasil.service")
+	if err != nil {
+		return false, fmt.Errorf("cannot get unit state: %v", err)
+	}
+	if state == wantedState {
+		return true, nil
+	} else {
+		return false, nil
+	}
 }
 
 // deactivateService tries to stop and disable the rhc-canonical-facts.timer,

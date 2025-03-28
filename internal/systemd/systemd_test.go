@@ -71,7 +71,7 @@ func TestUnit(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				got, err := conn.getUnitState(filepath.Base(test.input.unitFile))
+				got, err := conn.GetUnitState(filepath.Base(test.input.unitFile))
 				if err != nil {
 					t.Fatal(err)
 				}

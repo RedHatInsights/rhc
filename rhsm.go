@@ -517,3 +517,15 @@ func registerRHSM(ctx *cli.Context, enableContent bool) (string, error) {
 	}
 	return successMsg, nil
 }
+
+// isRHSMRegistered returns true, when system is registered
+func isRHSMRegistered() (bool, error) {
+	uuid, err := getConsumerUUID()
+	if err != nil {
+		return false, err
+	}
+	if uuid != "" {
+		return true, nil
+	}
+	return false, nil
+}
