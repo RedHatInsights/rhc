@@ -80,13 +80,30 @@ func beforeConnectAction(ctx *cli.Context) error {
 
 	if len(activationKeys) > 0 {
 		if username != "" {
-			return fmt.Errorf("--username and --activation-key can not be used together")
+			exitErr := cli.Exit(
+				"--username and --activation-key can not be used together",
+				ExitCodeUsage,
+			)
+			return exitErr
+
+		}
+		if password != "" {
+			exitErr := cli.Exit(
+				"--password and --activation-key can not be used together",
+				ExitCodeUsage,
+			)
+			return exitErr
+
 		}
 		if password != "" {
 			return fmt.Errorf("--password and --activation-key can not be used together")
 		}
 		if organization == "" {
-			return fmt.Errorf("--organization is required, when --activation-key is used")
+			exitErr := cli.Exit(
+				"--organization is required, when --activation-key is used",
+				ExitCodeUsage,
+			)
+			return exitErr
 		}
 	}
 
