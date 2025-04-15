@@ -1,6 +1,6 @@
 module github.com/redhatinsights/rhc
 
-go 1.18
+go 1.23
 
 require (
 	github.com/briandowns/spinner v1.23.2
