@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/briandowns/spinner"
+	"github.com/subpop/go-log"
 	"github.com/urfave/cli/v2"
 	"golang.org/x/term"
 	"io"
@@ -128,7 +129,12 @@ func registerUsernamePassword(username, password, organization string, environme
 	if err != nil {
 		return orgs, err
 	}
-	defer privConn.Close()
+	defer func() {
+		err = privConn.Close()
+		if err != nil {
+			log.Errorf("unable to close connection to private dbus socket %v: %v", privateDbusSocketURI, err)
+		}
+	}()
 
 	if err := privConn.Auth(nil); err != nil {
 		return orgs, err
@@ -234,7 +240,12 @@ func registerActivationKey(orgID string, activationKeys []string, environments [
 	if err != nil {
 		return err
 	}
-	defer privConn.Close()
+	defer func() {
+		err = privConn.Close()
+		if err != nil {
+			log.Errorf("unable to close connection to private dbus socket %v: %v", privateDbusSocketURI, err)
+		}
+	}()
 
 	if err := privConn.Auth(nil); err != nil {
 		return err
@@ -327,24 +338,34 @@ func unpackRHSMError(err error) error {
 }
 
 func configureRHSM(serverURL string) error {
-	if _, err := os.Stat("/etc/rhsm/rhsm.conf.orig"); os.IsNotExist(err) {
-		src, err := os.Open("/etc/rhsm/rhsm.conf")
+	const srcFileName = "/etc/rhsm/rhsm.conf"
+	const origFileName = "/etc/rhsm/rhsm.conf.orig"
+	if _, err := os.Stat(origFileName); os.IsNotExist(err) {
+		src, err := os.Open(srcFileName)
 		if err != nil {
-			return fmt.Errorf("cannot open file for reading: %w", err)
+			return fmt.Errorf("cannot open file %s for reading: %w", srcFileName, err)
 		}
-		defer src.Close()
+		defer func() {
+			err = src.Close()
+			if err != nil {
+				log.Errorf("unable to close file %s: %v", srcFileName, err)
+			}
+		}()
 
-		dst, err := os.Create("/etc/rhsm/rhsm.conf.orig")
+		dst, err := os.Create(origFileName)
 		if err != nil {
-			return fmt.Errorf("cannot open file for writing: %w", err)
+			return fmt.Errorf("cannot open file %s for writing: %w", origFileName, err)
 		}
-		defer dst.Close()
+		defer func() {
+			err = dst.Close()
+			if err != nil {
+				log.Errorf("unable to close file %s: %v", origFileName, err)
+			}
+		}()
 
 		if _, err := io.Copy(dst, src); err != nil {
 			return fmt.Errorf("cannot backup rhsm.conf: %w", err)
 		}
-		src.Close()
-		dst.Close()
 	}
 
 	URL, err := url.Parse(serverURL)
