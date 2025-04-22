@@ -95,9 +95,6 @@ func beforeConnectAction(ctx *cli.Context) error {
 			return exitErr
 
 		}
-		if password != "" {
-			return fmt.Errorf("--password and --activation-key can not be used together")
-		}
 		if organization == "" {
 			exitErr := cli.Exit(
 				"--organization is required, when --activation-key is used",
@@ -111,8 +108,12 @@ func beforeConnectAction(ctx *cli.Context) error {
 	// User has to provide username & password or at least one activation key and organization,
 	// because no interaction with user is possible in this case.
 	if uiSettings.isMachineReadable {
-		if !((username != "" && password != "") || (len(activationKeys) > 0 && organization != "")) {
-			return fmt.Errorf("--username/--password or --organization/--activation-key are required when a machine-readable format is used")
+		if (username == "" || password == "") && (len(activationKeys) == 0 || organization == "") {
+			exitErr := cli.Exit(
+				"--username/--password or --organization/--activation-key are required when a machine-readable format is used",
+				ExitCodeUsage,
+			)
+			return exitErr
 		}
 	}
 
