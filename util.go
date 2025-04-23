@@ -116,6 +116,6 @@ func setupFormatOption(ctx *cli.Context) error {
 			format,
 			`"json"`,
 		)
-		return cli.Exit(err, 1)
+		return cli.Exit(err, ExitCodeDataErr)
 	}
 }
