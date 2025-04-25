@@ -8,8 +8,6 @@ import (
 	"github.com/subpop/go-log"
 	"github.com/urfave/cli/v2"
 	"golang.org/x/term"
-	"io"
-	"net/url"
 	"os"
 	"strings"
 	"text/tabwriter"
@@ -88,13 +86,8 @@ func unpackOrgs(s string) ([]string, error) {
 // registerUsernamePassword tries to register system against candlepin server (Red Hat Management Service)
 // username and password are mandatory. When organization is not obtained, then this method
 // returns list of available organization and user can select one organization from the list.
-func registerUsernamePassword(username, password, organization string, environments []string, serverURL string, enableContent bool) ([]string, error) {
+func registerUsernamePassword(username, password, organization string, environments []string, enableContent bool) ([]string, error) {
 	var orgs []string
-	if serverURL != "" {
-		if err := configureRHSM(serverURL); err != nil {
-			return orgs, fmt.Errorf("cannot configure RHSM: %w", err)
-		}
-	}
 
 	conn, err := dbus.SystemBus()
 	if err != nil {
@@ -200,12 +193,7 @@ func registerUsernamePassword(username, password, organization string, environme
 	return orgs, nil
 }
 
-func registerActivationKey(orgID string, activationKeys []string, environments []string, serverURL string, enableContent bool) error {
-	if serverURL != "" {
-		if err := configureRHSM(serverURL); err != nil {
-			return fmt.Errorf("cannot configure RHSM: %w", err)
-		}
-	}
+func registerActivationKey(orgID string, activationKeys []string, environments []string, enableContent bool) error {
 
 	conn, err := dbus.SystemBus()
 	if err != nil {
@@ -337,103 +325,6 @@ func unpackRHSMError(err error) error {
 	return err
 }
 
-func configureRHSM(serverURL string) error {
-	const srcFileName = "/etc/rhsm/rhsm.conf"
-	const origFileName = "/etc/rhsm/rhsm.conf.orig"
-	if _, err := os.Stat(origFileName); os.IsNotExist(err) {
-		src, err := os.Open(srcFileName)
-		if err != nil {
-			return fmt.Errorf("cannot open file %s for reading: %w", srcFileName, err)
-		}
-		defer func() {
-			err = src.Close()
-			if err != nil {
-				log.Errorf("unable to close file %s: %v", srcFileName, err)
-			}
-		}()
-
-		dst, err := os.Create(origFileName)
-		if err != nil {
-			return fmt.Errorf("cannot open file %s for writing: %w", origFileName, err)
-		}
-		defer func() {
-			err = dst.Close()
-			if err != nil {
-				log.Errorf("unable to close file %s: %v", origFileName, err)
-			}
-		}()
-
-		if _, err := io.Copy(dst, src); err != nil {
-			return fmt.Errorf("cannot backup rhsm.conf: %w", err)
-		}
-	}
-
-	URL, err := url.Parse(serverURL)
-	if err != nil {
-		return fmt.Errorf("cannot parse URL: %w", err)
-	}
-
-	conn, err := dbus.SystemBus()
-	if err != nil {
-		return fmt.Errorf("cannot connect to system D-Bus: %w", err)
-	}
-
-	locale := getLocale()
-
-	config := conn.Object("com.redhat.RHSM1", "/com/redhat/RHSM1/Config")
-
-	// If the scheme is empty, attempt to set the server.hostname based on the
-	// path component alone. This enables the --server argument to accept just a
-	// host name without a full URI.
-	if URL.Scheme == "" {
-		if URL.Path != "" {
-			if err := config.Call(
-				"com.redhat.RHSM1.Config.Set",
-				0,
-				"server.hostname",
-				URL.Path,
-				locale).Err; err != nil {
-				return unpackRHSMError(err)
-			}
-		}
-	} else {
-		if URL.Hostname() != "" {
-			if err := config.Call(
-				"com.redhat.RHSM1.Config.Set",
-				0,
-				"server.hostname",
-				URL.Hostname(),
-				locale).Err; err != nil {
-				return unpackRHSMError(err)
-			}
-		}
-
-		if URL.Port() != "" {
-			if err := config.Call(
-				"com.redhat.RHSM1.Config.Set",
-				0,
-				"server.port",
-				URL.Port(),
-				locale).Err; err != nil {
-				return unpackRHSMError(err)
-			}
-		}
-
-		if URL.Path != "" {
-			if err := config.Call(
-				"com.redhat.RHSM1.Config.Set",
-				0,
-				"server.prefix",
-				URL.Path,
-				locale).Err; err != nil {
-				return unpackRHSMError(err)
-			}
-		}
-	}
-
-	return nil
-}
-
 // registerRHSM tries to register system against Red Hat Subscription Management server (candlepin server)
 func registerRHSM(ctx *cli.Context, enableContent bool) (string, error) {
 	uuid, err := getConsumerUUID()
@@ -483,14 +374,13 @@ func registerRHSM(ctx *cli.Context, enableContent bool) (string, error) {
 				organization,
 				ctx.StringSlice("activation-key"),
 				contentTemplates,
-				ctx.String("server"),
 				enableContent)
 		} else {
 			var orgs []string
 			if organization != "" {
-				_, err = registerUsernamePassword(username, password, organization, contentTemplates, ctx.String("server"), enableContent)
+				_, err = registerUsernamePassword(username, password, organization, contentTemplates, enableContent)
 			} else {
-				orgs, err = registerUsernamePassword(username, password, "", contentTemplates, ctx.String("server"), enableContent)
+				orgs, err = registerUsernamePassword(username, password, "", contentTemplates, enableContent)
 				/* When organization was not specified using CLI option --organization, and it is
 				   required, because user is member of more than one organization, then ask for
 				   the organization. */
@@ -525,7 +415,7 @@ func registerRHSM(ctx *cli.Context, enableContent bool) (string, error) {
 					}
 
 					// Try to register once again with given organization
-					_, err = registerUsernamePassword(username, password, organization, contentTemplates, ctx.String("server"), enableContent)
+					_, err = registerUsernamePassword(username, password, organization, contentTemplates, enableContent)
 				}
 			}
 		}

@@ -180,11 +180,6 @@ func main() {
 					Aliases: []string{"d"},
 				},
 				&cli.StringFlag{
-					Name:   "server",
-					Hidden: true,
-					Usage:  "register against `URL`",
-				},
-				&cli.StringFlag{
 					Name:    "format",
 					Usage:   "prints output of connection in machine-readable format (supported formats: \"json\")",
 					Aliases: []string{"f"},
