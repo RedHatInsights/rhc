@@ -10,7 +10,20 @@ import (
 
 	"github.com/briandowns/spinner"
 	systemd "github.com/coreos/go-systemd/v22/dbus"
+	"github.com/invopop/jsonschema"
 )
+
+// printJsonSchema tries to print JSON schema of JSON document that
+// is printed to stdout, when "rhc status --format json" is used.
+func printJsonSchema() error {
+	schema := jsonschema.Reflect(&SystemStatus{})
+	data, err := json.MarshalIndent(schema, "", "  ")
+	if err != nil {
+		return err
+	}
+	fmt.Println(string(data))
+	return nil
+}
 
 // rhsmStatus tries to print status provided by RHSM D-Bus API. If we provide
 // output in machine-readable format, then we only set files in SystemStatus
@@ -114,14 +127,14 @@ func serviceStatus(systemStatus *SystemStatus) error {
 // When more file format is supported, then add more tags for fields
 // like xml:"hostname"
 type SystemStatus struct {
-	SystemHostname    string `json:"hostname"`
-	HostnameError     string `json:"hostname_error,omitempty"`
-	RHSMConnected     bool   `json:"rhsm_connected"`
-	RHSMError         string `json:"rhsm_error,omitempty"`
-	InsightsConnected bool   `json:"insights_connected"`
-	InsightsError     string `json:"insights_error,omitempty"`
-	YggdrasilRunning  bool   `json:"yggdrasil_running"`
-	YggdrasilError    string `json:"yggdrasil_error,omitempty"`
+	SystemHostname    string `json:"hostname" jsonschema_description:"System Hostname"`
+	HostnameError     string `json:"hostname_error,omitempty" jsonschema_description:"Optional error message of getting system hostname"`
+	RHSMConnected     bool   `json:"rhsm_connected" jsonschema_description:"Is true, when connected to Red Hat Subscription Management (RHSM)"`
+	RHSMError         string `json:"rhsm_error,omitempty" jsonschema_description:"Optional error message of connecting to RHSM"`
+	InsightsConnected bool   `json:"insights_connected" jsonschema_description:"Is true, when the system is connected to Insights server"`
+	InsightsError     string `json:"insights_error,omitempty" jsonschema_description:"Optional error message of connecting to Insights server"`
+	YggdrasilRunning  bool   `json:"yggdrasil_running" jsonschema_description:"Is true, when yggdrasil.service is running"`
+	YggdrasilError    string `json:"yggdrasil_error,omitempty" jsonschema_description:"Optional error message from getting status of yggdrasil.service"`
 	returnCode        int
 }
 
@@ -138,6 +151,13 @@ func printJSONStatus(systemStatus *SystemStatus) error {
 
 // beforeStatusAction ensures the user has supplied a correct `--format` flag.
 func beforeStatusAction(ctx *cli.Context) error {
+	format := ctx.String("format")
+	schema := ctx.String("schema")
+
+	if schema != "" && format != "" {
+		return cli.Exit("--schema and --format cannot be used together", ExitCodeUsage)
+	}
+
 	err := setupFormatOption(ctx)
 	if err != nil {
 		return err
@@ -156,6 +176,23 @@ func beforeStatusAction(ctx *cli.Context) error {
 func statusAction(ctx *cli.Context) (err error) {
 	var systemStatus SystemStatus
 	var machineReadablePrintFunc func(systemStatus *SystemStatus) error
+
+	schema := ctx.String("schema")
+	if schema != "" {
+		switch schema {
+		case "json":
+			err := printJsonSchema()
+			if err != nil {
+				return cli.Exit(
+					fmt.Sprintf("unable to print json schema for status command: %s", err),
+					ExitCodeDataErr,
+				)
+			}
+		default:
+			return cli.Exit(fmt.Sprintf("unsupported schema: %s", schema), ExitCodeDataErr)
+		}
+		return nil
+	}
 
 	format := ctx.String("format")
 	switch format {

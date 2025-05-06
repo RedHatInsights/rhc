@@ -227,6 +227,13 @@ func main() {
 					Usage:   "prints status in machine-readable format (supported formats: \"json\")",
 					Aliases: []string{"f"},
 				},
+				&cli.StringFlag{
+					Name:        "schema",
+					Usage:       "Print schema of machine-readable format (supported formats: \"json\")",
+					Aliases:     []string{"s"},
+					Required:    false,
+					DefaultText: "",
+				},
 			},
 			Usage:       "Prints status of the system's connection to " + Provider,
 			UsageText:   fmt.Sprintf("%v status", app.Name),
