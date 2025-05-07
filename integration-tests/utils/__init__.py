@@ -36,7 +36,7 @@ def check_yggdrasil_journalctl_logs(
 
 
 def prepare_args_for_connect(
-    test_config, auth: str = None, credentials: dict = None, output_format: str = None, server: str = None
+    test_config, auth: str = None, credentials: dict = None, output_format: str = None
 ):
     """Method to create arguments to be passed in 'rhc connect' command
     This method expects either auth type or custom credentials
@@ -75,8 +75,5 @@ def prepare_args_for_connect(
 
     if output_format:
         args.extend(["--format", output_format])
-
-    if server:
-        args.extend(["--server", server])
 
     return args
