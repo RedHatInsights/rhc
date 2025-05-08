@@ -14,6 +14,14 @@ if ! command -v bootc >/dev/null || bootc status | grep -q 'type: null'; then
     podman git-core python3-pip python3-pytest logrotate
 fi
 
+
+# TEST_RPMS is set in jenkins jobs after parsing CI Messages in gating Jobs.
+# If TEST_RPMS is set then install the RPM builds for gating.
+if [[ -v TEST_RPMS ]]; then
+	echo "Installing RPMs: ${TEST_RPMS}"
+	dnf -y install --allowerasing ${TEST_RPMS}
+fi
+
 python3 -m venv venv
 # shellcheck disable=SC1091
 . venv/bin/activate
