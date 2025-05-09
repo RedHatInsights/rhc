@@ -14,6 +14,11 @@ if ! command -v bootc >/dev/null || bootc status | grep -q 'type: null'; then
     podman git-core python3-pip python3-pytest logrotate
 fi
 
+if [[ -n "${TEST_RPMS+x}" ]]; then
+	echo "Installing RPMs: ${TEST_RPMS}"
+	dnf -y install --allowerasing ${TEST_RPMS}
+fi
+
 python3 -m venv venv
 # shellcheck disable=SC1091
 . venv/bin/activate
