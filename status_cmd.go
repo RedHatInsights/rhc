@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/godbus/dbus/v5"
 	"github.com/urfave/cli/v2"
 	"os"
 	"time"
@@ -33,6 +34,49 @@ func rhsmStatus(systemStatus *SystemStatus) error {
 			systemStatus.RHSMConnected = true
 		} else {
 			fmt.Printf("%v Connected to Red Hat Subscription Management\n", uiSettings.iconOK)
+		}
+	}
+	return nil
+}
+
+// isContentEnabled tries to read the configuration file rhsm.conf using D-Bus API
+// and get the manage_repos option from the section [rhsm]. If the option is equal
+// to "1", then content is managed by subscription-manager/RHSM
+func isContentEnabled(systemStatus *SystemStatus) error {
+	conn, err := dbus.SystemBus()
+	if err != nil {
+		return fmt.Errorf("cannot connect to system D-Bus: %w", err)
+	}
+
+	locale := getLocale()
+
+	config := conn.Object("com.redhat.RHSM1", "/com/redhat/RHSM1/Config")
+
+	var contentEnabled string
+	if err := config.Call(
+		"com.redhat.RHSM1.Config.Get",
+		0,
+		"rhsm.manage_repos",
+		locale).Store(&contentEnabled); err != nil {
+		return unpackRHSMError(err)
+	}
+
+	uuid, err := getConsumerUUID()
+	if err != nil {
+		return fmt.Errorf("unable to get consumer UUID: %s", err)
+	}
+
+	if contentEnabled == "1" && uuid != "" {
+		if uiSettings.isMachineReadable {
+			systemStatus.ContentEnabled = true
+		} else {
+			fmt.Printf("%v Content is enabled\n", uiSettings.iconOK)
+		}
+	} else {
+		if uiSettings.isMachineReadable {
+			systemStatus.ContentEnabled = false
+		} else {
+			fmt.Printf("%v Content is disabled\n", uiSettings.iconInfo)
 		}
 	}
 	return nil
@@ -118,6 +162,8 @@ type SystemStatus struct {
 	HostnameError     string `json:"hostname_error,omitempty"`
 	RHSMConnected     bool   `json:"rhsm_connected"`
 	RHSMError         string `json:"rhsm_error,omitempty"`
+	ContentEnabled    bool   `json:"content_enabled"`
+	ContentError      string `json:"content_error,omitempty"`
 	InsightsConnected bool   `json:"insights_connected"`
 	InsightsError     string `json:"insights_error,omitempty"`
 	YggdrasilRunning  bool   `json:"yggdrasil_running"`
@@ -206,7 +252,13 @@ func statusAction(ctx *cli.Context) (err error) {
 		return cli.Exit(err, 1)
 	}
 
-	/* 2. Get status of insights-client */
+	/* 2. Is content enabled */
+	err = isContentEnabled(&systemStatus)
+	if err != nil {
+		return cli.Exit(err, 1)
+	}
+
+	/* 3. Get status of insights-client */
 	insightStatus(&systemStatus)
 
 	/* 3. Get status of yggdrasil (rhcd) service */
