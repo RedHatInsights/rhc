@@ -27,13 +27,20 @@ func rhsmStatus(systemStatus *SystemStatus) error {
 		if uiSettings.isMachineReadable {
 			systemStatus.RHSMConnected = false
 		} else {
-			fmt.Printf("%v Not connected to Red Hat Subscription Management\n", uiSettings.iconInfo)
+			interactivePrintf(
+				"%s[ ] Not connected to Red Hat Subscription Management\n",
+				smallIndent,
+			)
 		}
 	} else {
 		if uiSettings.isMachineReadable {
 			systemStatus.RHSMConnected = true
 		} else {
-			fmt.Printf("%v Connected to Red Hat Subscription Management\n", uiSettings.iconOK)
+			interactivePrintf(
+				"%s[%v] Connected to Red Hat Subscription Management\n",
+				smallIndent,
+				uiSettings.iconOK,
+			)
 		}
 	}
 	return nil
@@ -70,13 +77,27 @@ func isContentEnabled(systemStatus *SystemStatus) error {
 		if uiSettings.isMachineReadable {
 			systemStatus.ContentEnabled = true
 		} else {
-			fmt.Printf("%v Content is enabled\n", uiSettings.iconOK)
+			interactivePrintf(
+				"%s[%v] Content ... Red Hat repository file generated\n",
+				mediumIndent,
+				uiSettings.iconOK,
+			)
 		}
 	} else {
 		if uiSettings.isMachineReadable {
 			systemStatus.ContentEnabled = false
 		} else {
-			fmt.Printf("%v Content is disabled\n", uiSettings.iconInfo)
+			if uuid != "" {
+				interactivePrintf(
+					"%s[ ] Content ... Generating of Red Hat repository file disabled in rhsm.conf\n",
+					mediumIndent,
+				)
+			} else {
+				interactivePrintf(
+					"%s[ ] Content ... Red Hat repository file not generated\n",
+					mediumIndent,
+				)
+			}
 		}
 	}
 	return nil
@@ -87,7 +108,8 @@ func insightStatus(systemStatus *SystemStatus) {
 	var s *spinner.Spinner
 	if uiSettings.isRich {
 		s = spinner.New(spinner.CharSets[9], 100*time.Millisecond)
-		s.Suffix = " Checking Red Hat Insights..."
+		s.Prefix = mediumIndent + "["
+		s.Suffix = "] Checking Red Hat Insights..."
 		s.Start()
 	}
 	isRegistered, err := insightsIsRegistered()
@@ -98,7 +120,11 @@ func insightStatus(systemStatus *SystemStatus) {
 		if uiSettings.isMachineReadable {
 			systemStatus.InsightsConnected = true
 		} else {
-			fmt.Print(uiSettings.iconOK + " Connected to Red Hat Insights\n")
+			interactivePrintf(
+				"%s[%v] Analytics ... Connected to Red Hat Insights\n",
+				mediumIndent,
+				uiSettings.iconOK,
+			)
 		}
 	} else {
 		systemStatus.returnCode += 1
@@ -106,14 +132,22 @@ func insightStatus(systemStatus *SystemStatus) {
 			if uiSettings.isMachineReadable {
 				systemStatus.InsightsConnected = false
 			} else {
-				fmt.Print(uiSettings.iconInfo + " Not connected to Red Hat Insights\n")
+				interactivePrintf(
+					"%s[ ] Analytics ... Not connected to Red Hat Insights\n",
+					mediumIndent,
+				)
 			}
 		} else {
 			if uiSettings.isMachineReadable {
 				systemStatus.InsightsConnected = false
 				systemStatus.InsightsError = err.Error()
 			} else {
-				fmt.Printf(uiSettings.iconError+" Cannot detect Red Hat Insights status: %v\n", err)
+				interactivePrintf(
+					"%s[%v] Analytics ... Cannot detect Red Hat Insights status: %v\n",
+					mediumIndent,
+					uiSettings.iconError,
+					err,
+				)
 			}
 		}
 	}
@@ -136,19 +170,29 @@ func serviceStatus(systemStatus *SystemStatus) error {
 		systemStatus.YggdrasilError = err.Error()
 		return fmt.Errorf("unable to get properties of %s: %s", unitName, err)
 	}
+
 	activeState := properties["ActiveState"]
 	if activeState.(string) == "active" {
 		if uiSettings.isMachineReadable {
 			systemStatus.YggdrasilRunning = true
 		} else {
-			fmt.Printf(uiSettings.iconOK+" The %v service is active\n", ServiceName)
+			interactivePrintf(
+				"%s[%v] Remote Management ... The %v service is active\n",
+				mediumIndent,
+				uiSettings.iconOK,
+				ServiceName,
+			)
 		}
 	} else {
 		systemStatus.returnCode += 1
 		if uiSettings.isMachineReadable {
 			systemStatus.YggdrasilRunning = false
 		} else {
-			fmt.Printf(uiSettings.iconInfo+" The %v service is inactive\n", ServiceName)
+			interactivePrintf(
+				"%s[ ] Remote Management ... The %v service is inactive\n",
+				mediumIndent,
+				ServiceName,
+			)
 		}
 	}
 	return nil
