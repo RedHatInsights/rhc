@@ -80,36 +80,34 @@ def test_connect(external_candlepin, rhc, test_config, auth, output_format):
 
 
 @pytest.mark.parametrize(
-    "credentials,server",
+    "credentials,return_code",
     [
-        (  # username and password: valid, server: invalid
-            {"username": "candlepin.username", "password": "candlepin.password"},
-            "http://non-existent.server",
-        ),
-        (  # organization and activation-key: valid, server: invalid
+        (  # username: invalid, password: valid
             {
-                "organization": "candlepin.org",
-                "activation-key": "candlepin.activation_keys",
+                "username": "non-existent-user",
+                "password": "candlepin.password"
             },
-            "http://non-existent.server",
-        ),
-        (  # password and server: valid, username: invalid
-            {"username": "non-existent-user", "password": "candlepin.password"},
             None,
         ),
-        (  # activation-key and server: valid, organization: invalid
+        (  # username: valid, password: invalid
+            {
+                "username": "candlepin.username",
+                "password": "xpto123"
+            },
+            None,
+        ),
+        (  # organization: invalid, activation-key: valid
             {
                 "organization": "non-existent-org",
                 "activation-key": "candlepin.activation_keys",
             },
             None,
         ),
-        (  # username and server: valid, password: invalid
-            {"username": "candlepin.username", "password": "xpto123"},
-            None,
-        ),
-        (  # organization and server: valid, activation-key: invalid
-            {"organization": "candlepin.org", "activation-key": "xpto123"},
+        (  # organization: valid, activation-key: invalid
+            {
+                "organization": "candlepin.org",
+                "activation-key": "xpto123"
+            },
             None,
         ),
         (  # invalid combination of parameters (username & activation-key)
@@ -127,26 +125,29 @@ def test_connect(external_candlepin, rhc, test_config, auth, output_format):
             None,
         ),
         (  # invalid combination of parameters (activation-key without organization)
-                {
-                    "activation-key": "candlepin.activation_keys",
-                },
-                None,
+            {
+                "activation-key": "candlepin.activation_keys",
+            },
+            None,
         ),
     ],
 )
 def test_connect_wrong_parameters(
-    external_candlepin, rhc, test_config, credentials, server
+    external_candlepin, rhc, test_config, credentials, return_code
 ):
     """Test if RHC handles invalid credentials properly"""
     # An attempt to bring system in disconnected state in case it is not.
     with contextlib.suppress(Exception):
         rhc.disconnect()
     command_args = prepare_args_for_connect(
-        test_config, credentials=credentials, server=server
+        test_config, credentials=credentials
     )
     command = ["connect"] + command_args
     result = rhc.run(*command, check=False)
-    assert result.returncode != 0
+    if return_code is not None:
+        assert result.returncode == return_code
+    else:
+        assert result.returncode != 0
     assert not yggdrasil_service_is_active()
 
 

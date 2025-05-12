@@ -180,11 +180,6 @@ func main() {
 					Aliases: []string{"d"},
 				},
 				&cli.StringFlag{
-					Name:   "server",
-					Hidden: true,
-					Usage:  "register against `URL`",
-				},
-				&cli.StringFlag{
 					Name:    "format",
 					Usage:   "prints output of connection in machine-readable format (supported formats: \"json\")",
 					Aliases: []string{"f"},
@@ -226,6 +221,13 @@ func main() {
 					Name:    "format",
 					Usage:   "prints status in machine-readable format (supported formats: \"json\")",
 					Aliases: []string{"f"},
+				},
+				&cli.StringFlag{
+					Name:        "schema",
+					Usage:       "Print schema of machine-readable format (supported formats: \"json\")",
+					Aliases:     []string{"s"},
+					Required:    false,
+					DefaultText: "",
 				},
 			},
 			Usage:       "Prints status of the system's connection to " + Provider,
