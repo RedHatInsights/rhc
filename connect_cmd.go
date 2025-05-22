@@ -52,8 +52,11 @@ func (connectResult ConnectResult) Error() string {
 	return result
 }
 
-// beforeConnectAction ensures that user has supplied a correct CLI options
-// and there is no conflict between provided options
+// beforeConnectAction ensures that user has supplied correct CLI options
+// and there is no conflict between them. When there is anything wrong,
+// then this function will invoke cli.Exit() with an appropriate error
+// message and error code. The exit codes are defined in the
+// constants.go module
 func beforeConnectAction(ctx *cli.Context) error {
 	// First check if machine-readable format is used
 	err := setupFormatOption(ctx)
@@ -64,10 +67,13 @@ func beforeConnectAction(ctx *cli.Context) error {
 	// When machine is already connected, then return error
 	uuid, err := getConsumerUUID()
 	if err != nil {
-		return fmt.Errorf("unable to get consumer UUID: %s", err)
+		return cli.Exit(
+			fmt.Sprintf("unable to get consumer UUID: %s", err),
+			ExitCodeSoftware,
+		)
 	}
 	if uuid != "" {
-		return fmt.Errorf("this system is already connected")
+		return cli.Exit("this system is already connected", ExitCodeUsage)
 	}
 
 	username := ctx.String("username")
@@ -119,14 +125,22 @@ func beforeConnectAction(ctx *cli.Context) error {
 
 	err = checkFeatureInput(&enabledFeatures, &disabledFeatures)
 	if err != nil {
-		return err
+		return cli.Exit(err.Error(), ExitCodeUsage)
 	}
 
 	if !ContentFeature.Enabled && len(contentTemplates) > 0 {
-		return fmt.Errorf("'--content-template' can not be used together with '--disable-feature content'")
+		return cli.Exit(
+			"'--content-template' can not be used together with '--disable-feature content'",
+			ExitCodeUsage,
+		)
 	}
 
-	return checkForUnknownArgs(ctx)
+	err = checkForUnknownArgs(ctx)
+	if err != nil {
+		return cli.Exit(err.Error(), ExitCodeUsage)
+	}
+
+	return nil
 }
 
 // connectAction tries to register system against Red Hat Subscription Management,
