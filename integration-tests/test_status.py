@@ -29,6 +29,7 @@ def test_status_connected(external_candlepin, rhc, test_config):
     status_result = rhc.run("status", check=False)
     assert status_result.returncode == 0
     assert "Connected to Red Hat Subscription Management" in status_result.stdout
+    assert "Red Hat repository file generated" in status_result.stdout
     assert "Connected to Red Hat Insights" in status_result.stdout
     if pytest.service_name == "rhcd":
         assert "The Remote Host Configuration daemon is active" in status_result.stdout
@@ -56,6 +57,8 @@ def test_status_connected_format_json(external_candlepin, rhc, test_config):
     assert "hostname" in status_json
     assert "rhsm_connected" in status_json
     assert type(status_json["rhsm_connected"]) == bool
+    assert "content_enabled" in status_json
+    assert type(status_json["content_enabled"]) == bool
     assert "insights_connected" in status_json
     assert type(status_json["insights_connected"]) == bool
     if pytest.service_name == "rhcd":
@@ -84,6 +87,7 @@ def test_status_disconnected(rhc):
     status_result = rhc.run("status", check=False)
     assert status_result.returncode != 0
     assert "Not connected to Red Hat Subscription Management" in status_result.stdout
+    assert "Red Hat repository file not generated" in status_result.stdout
     assert "Not connected to Red Hat Insights" in status_result.stdout
     if pytest.service_name == "rhcd":
         assert "The Remote Host Configuration daemon is active" in status_result.stdout
