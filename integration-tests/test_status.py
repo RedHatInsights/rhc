@@ -74,6 +74,40 @@ def test_status_connected_format_json(external_candlepin, rhc, test_config):
         assert status_json["yggdrasil_running"] == True
 
 
+def test_status_disconnected_format_json(external_candlepin, rhc, test_config):
+    """
+    Test 'rhc status --format json' command, when host is disconnected
+    test_steps:
+        1 - rhc disconnect
+        2 - rhc status
+    expected_output:
+        1 - Validate that output is valid JSON document
+        2 - Validate that JSON document contains expected data
+    """
+    rhc.run("disconnect", check=False)
+    status_result = rhc.run("status", "--format", "json", check=False)
+    assert status_result.returncode != 0
+    status_json = json.loads(status_result.stdout)
+    assert "hostname" in status_json
+    assert "rhsm_connected" in status_json
+    assert type(status_json["rhsm_connected"]) == bool
+    assert status_json["rhsm_connected"] == False
+    assert "content_enabled" in status_json
+    assert type(status_json["content_enabled"]) == bool
+    assert status_json["content_enabled"] == False
+    assert "insights_connected" in status_json
+    assert type(status_json["insights_connected"]) == bool
+    assert status_json["insights_connected"] == False
+    if pytest.service_name == "rhcd":
+        assert "rhcd_running" in status_json
+        assert type(status_json["rhcd_running"]) == bool
+        assert status_json["rhcd_running"] == False
+    else:
+        assert "yggdrasil_running" in status_json
+        assert type(status_json["yggdrasil_running"]) == bool
+        assert status_json["yggdrasil_running"] == False
+
+
 @pytest.mark.tier1
 def test_status_disconnected(rhc):
     """Test RHC Status command when the host is disconnected.
