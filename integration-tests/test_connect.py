@@ -115,20 +115,20 @@ def test_connect(external_candlepin, rhc, test_config, auth, output_format):
                 "username": "candlepin.username",
                 "activation-key": "candlepin.activation_keys",
             },
-            None,
+            64,
         ),
         (  # invalid combination of parameters (password & activation-key)
             {
                 "activation-key": "candlepin.activation_keys",
                 "password": "candlepin.password",
             },
-            None,
+            64,
         ),
         (  # invalid combination of parameters (activation-key without organization)
             {
                 "activation-key": "candlepin.activation_keys",
             },
-            None,
+            64,
         ),
     ],
 )
