@@ -57,16 +57,21 @@ def test_status_connected_format_json(external_candlepin, rhc, test_config):
     assert "hostname" in status_json
     assert "rhsm_connected" in status_json
     assert type(status_json["rhsm_connected"]) == bool
+    assert status_json["rhsm_connected"] == True
     assert "content_enabled" in status_json
     assert type(status_json["content_enabled"]) == bool
+    assert status_json["content_enabled"] == True
     assert "insights_connected" in status_json
     assert type(status_json["insights_connected"]) == bool
+    assert status_json["insights_connected"] == True
     if pytest.service_name == "rhcd":
         assert "rhcd_running" in status_json
         assert type(status_json["rhcd_running"]) == bool
+        assert status_json["rhcd_running"] == True
     else:
         assert "yggdrasil_running" in status_json
         assert type(status_json["yggdrasil_running"]) == bool
+        assert status_json["yggdrasil_running"] == True
 
 
 @pytest.mark.tier1
