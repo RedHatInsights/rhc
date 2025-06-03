@@ -27,23 +27,27 @@ actions:
 jobs:
   - job: copr_build
     trigger: pull_request
-    identifier: "pr_build/el9"
-    additional_repos:
-      - "copr://@yggdrasil/el9"
+    identifier: "pr_build"
     targets:
-      - centos-stream-9-aarch64
-      - centos-stream-9-x86_64
-      - rhel-9-aarch64
-      - rhel-9-x86_64
+      centos-stream-9-aarch64:
+        additional_repos:
+        - "copr://@yggdrasil/el9"
+      centos-stream-9-x86_64:
+        additional_repos:
+        - "copr://@yggdrasil/el9"
+      rhel-9-aarch64:
+        additional_repos:
+        - "copr://@yggdrasil/el9"
+      rhel-9-x86_64:
+        additional_repos:
+        - "copr://@yggdrasil/el9"
+      rhel-8-aarch64:
+        additional_repos:
+        - "copr://@yggdrasil/el8"
+      rhel-8-x86_64:
+        additional_repos:
+        - "copr://@yggdrasil/el8"
 
-  - job: copr_build
-    trigger: pull_request
-    identifier: "pr_build/el8"
-    additional_repos:
-      - "copr://@yggdrasil/el8"
-    targets:
-      - rhel-8-aarch64
-      - rhel-8-x86_64
 
   - job: copr_build
     trigger: commit
@@ -70,3 +74,41 @@ jobs:
     targets:
       - rhel-8-aarch64
       - rhel-8-x86_64
+
+  - job: tests
+    trigger: pull_request
+    identifier: "unit/centos-stream"
+    targets:
+      - centos-stream-8
+      - centos-stream-9
+    labels:
+      - integration_test
+    tf_extra_params:
+      environments:
+        - artifacts:
+            - type: repository-file
+              id: https://copr.fedorainfracloud.org/coprs/g/yggdrasil/latest/repo/centos-stream-$releasever/group_yggdrasil-latest-centos-stream-$releasever.repo
+
+  - job: tests
+    trigger: pull_request
+    identifier: "unit/rhel"
+    targets:
+      rhel-8-x86_64:
+        distros:
+          - RHEL-8-Released
+      rhel-9-x86_64:
+        distros:
+          - RHEL-9.7.0-Nightly
+    labels:
+      - integration_test
+    tf_extra_params:
+      environments:
+        - artifacts:
+            - type: repository-file
+              id: https://copr.fedorainfracloud.org/coprs/g/yggdrasil/latest/repo/rhel-$releasever/group_yggdrasil-latest-rhel-$releasever.repo
+          settings:
+            provisioning:
+              tags:
+                BusinessUnit: sst_csi_client_tools
+    use_internal_tf: true
+
