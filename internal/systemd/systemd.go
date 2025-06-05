@@ -9,7 +9,6 @@ import (
 	"time"
 
 	systemd "github.com/coreos/go-systemd/v22/dbus"
-	"github.com/subpop/go-log"
 )
 
 type ConnectionType int
@@ -165,8 +164,6 @@ func (c *Conn) waitForState(unit string, wantState string, timeout time.Duration
 			}
 			if state == wantState {
 				return nil
-			} else {
-				log.Tracef("got unit state %v", state)
 			}
 		}
 	}

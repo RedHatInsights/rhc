@@ -3,10 +3,10 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"time"
 
-	"github.com/subpop/go-log"
 	"github.com/urfave/cli/v2"
 )
 
@@ -74,7 +74,7 @@ func disconnectService(disconnectResult *DisconnectResult, errorMessages *map[st
 	if err != nil {
 		errMsg := fmt.Sprintf("Cannot deactivate %s service: %v", ServiceName, err)
 		(*errorMessages)[ServiceName] = LogMessage{
-			level:   log.LevelError,
+			level:   slog.LevelError,
 			message: fmt.Errorf("%v", errMsg)}
 		disconnectResult.YggdrasilStopped = false
 		disconnectResult.YggdrasilStoppedError = errMsg
@@ -103,7 +103,7 @@ func disconnectInsightsClient(disconnectResult *DisconnectResult, errorMessages 
 	if err != nil {
 		errMsg := fmt.Sprintf("Cannot disconnect from Red Hat Insights: %v", err)
 		(*errorMessages)["insights"] = LogMessage{
-			level:   log.LevelError,
+			level:   slog.LevelError,
 			message: fmt.Errorf("%v", errMsg)}
 		disconnectResult.InsightsDisconnected = false
 		disconnectResult.InsightsDisconnectedError = errMsg
@@ -136,7 +136,7 @@ func disconnectRHSM(disconnectResult *DisconnectResult, errorMessages *map[strin
 	if err != nil {
 		errMsg := fmt.Sprintf("Cannot disconnect from Red Hat Subscription Management: %v", err)
 		(*errorMessages)["rhsm"] = LogMessage{
-			level:   log.LevelError,
+			level:   slog.LevelError,
 			message: fmt.Errorf("%v", errMsg)}
 
 		disconnectResult.RHSMDisconnected = false
