@@ -3,6 +3,8 @@ This Python module contains integration tests for rhc. It uses pytest-client-too
 More information about this module could be found: https://github.com/RedHatInsights/pytest-client-tools/
 """
 
+import os
+
 import pytest
 import json
 from pytest_client_tools import util
@@ -82,9 +84,12 @@ def test_status_disconnected(rhc):
     status_result = rhc.run("status", check=False)
     assert status_result.returncode != 0
     assert "Not connected to Red Hat Subscription Management" in status_result.stdout
-    assert "Not connected to Red Hat Insights" in status_result.stdout
+    if os.path.exists("/etc/insights-client/.unregistered"):
+        assert "Not connected to Red Hat Insights" in status_result.stdout
+    else:
+        assert "Cannot detect Red Hat Insights status" in status_result.stdout
     if pytest.service_name == "rhcd":
-        assert "The Remote Host Configuration daemon is active" in status_result.stdout
+        assert "The Remote Host Configuration daemon is inactive" in status_result.stdout
     else:
         assert "The yggdrasil service is inactive" in status_result.stdout
 
