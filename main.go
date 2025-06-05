@@ -2,11 +2,12 @@ package main
 
 import (
 	"fmt"
-	"github.com/subpop/go-log"
-	"github.com/urfave/cli/v2"
-	"github.com/urfave/cli/v2/altsrc"
+	"log/slog"
 	"os"
 	"strings"
+
+	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v2/altsrc"
 )
 
 // mainAction is triggered in the case, when no sub-command is specified
@@ -43,16 +44,16 @@ func beforeAction(c *cli.Context) error {
 	}
 
 	config = Conf{
-		LogLevel: c.String(cliLogLevel),
 		CertFile: c.String(cliCertFile),
 		KeyFile:  c.String(cliKeyFile),
 	}
 
-	level, err := log.ParseLevel(config.LogLevel)
-	if err != nil {
-		return cli.Exit(err, 1)
+	logLevelStr := c.String(cliLogLevel)
+	if err := config.LogLevel.UnmarshalText([]byte(logLevelStr)); err != nil {
+		return cli.Exit(fmt.Errorf("invalid log level: '%s'", logLevelStr), 1)
 	}
-	log.SetLevel(level)
+
+	slog.SetLogLoggerLevel(config.LogLevel)
 
 	// When environment variable NO_COLOR or --no-color CLI option is set, then do not display colors
 	// and animations too. The NO_COLOR environment variable have to have value "1" or "true",
@@ -62,7 +63,7 @@ func beforeAction(c *cli.Context) error {
 	if !isTerminal(os.Stdout.Fd()) {
 		err := c.Set("no-color", "true")
 		if err != nil {
-			log.Debug("Unable to set no-color flag to \"true\"")
+			slog.Debug("Unable to set no-color flag to \"true\"")
 		}
 	}
 
@@ -86,9 +87,6 @@ func main() {
 		"\t" + app.Name + " disconnect\n\n" +
 		"Run '" + app.Name + " command --help' for more details."
 
-	log.SetFlags(0)
-	log.SetPrefix("")
-
 	var featureIdSlice []string
 	for _, featureID := range KnownFeatures {
 		featureIdSlice = append(featureIdSlice, featureID.ID)
@@ -97,7 +95,8 @@ func main() {
 
 	defaultConfigFilePath, err := ConfigPath()
 	if err != nil {
-		log.Fatal(err)
+		slog.Error(err.Error())
+		os.Exit(1)
 	}
 
 	app.Flags = []cli.Flag{
@@ -236,6 +235,6 @@ func main() {
 	app.Before = beforeAction
 
 	if err := app.Run(os.Args); err != nil {
-		log.Error(err)
+		slog.Error(err.Error())
 	}
 }
