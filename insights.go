@@ -1,10 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"errors"
-	"io/fs"
-	"os"
+	"fmt"
 	"os/exec"
+	"strings"
 )
 
 func registerInsights() error {
@@ -24,32 +25,29 @@ func unregisterInsights() error {
 // returned, otherwise `false` is returned, and `error` is filled with
 // an error value.
 func insightsIsRegistered() (bool, error) {
-	// While `insights-client --status` properly checks for registration status by
-	// asking Inventory, its two modes (legacy v. non-legacy API) behave
-	// differently (they return different texts with different exit codes) and
-	// we can't rely on the output or exit codes.
-	// The `.registered` file is always present on a registered system.
-	err := exec.Command("/usr/bin/insights-client", "--status").Run()
+	var errBuffer bytes.Buffer
+	cmd := exec.Command("/usr/bin/insights-client", "--status")
+	cmd.Stderr = &errBuffer
+
+	err := cmd.Run()
+
 	if err != nil {
+		// When the error is ExitError, then we know that insights-client only returned
+		// some error code not equal to zero. We do not care about error number.
 		var exitError *exec.ExitError
 		if errors.As(err, &exitError) {
-			// If .unregistered exists, insights-client is confident
-			// it is not registered. We can suppress the error,
-			// we don't care why it returned non-zero exit code.
-			_, err := os.Stat("/etc/insights-client/.unregistered")
-			if err == nil {
+			// When stderr is not empty, then we should return this as error
+			// to be able to print this error in rhc output
+			stdErr := errBuffer.String()
+			if len(stdErr) == 0 {
 				return false, nil
+			} else {
+				return false, fmt.Errorf("%s", strings.TrimSpace(stdErr))
 			}
+		} else {
+			return false, err
 		}
-		return false, err
 	}
 
-	_, err = os.Stat("/etc/insights-client/.registered")
-	if errors.Is(err, fs.ErrNotExist) {
-		return false, nil
-	}
-	if err != nil {
-		return false, err
-	}
-	return true, nil
+	return cmd.ProcessState.Success(), err
 }
