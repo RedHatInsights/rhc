@@ -4,14 +4,15 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	"github.com/briandowns/spinner"
-	"github.com/subpop/go-log"
-	"github.com/urfave/cli/v2"
-	"golang.org/x/term"
+	"log/slog"
 	"os"
 	"strings"
 	"text/tabwriter"
 	"time"
+
+	"github.com/briandowns/spinner"
+	"github.com/urfave/cli/v2"
+	"golang.org/x/term"
 
 	"github.com/godbus/dbus/v5"
 )
@@ -125,7 +126,11 @@ func registerUsernamePassword(username, password, organization string, environme
 	defer func() {
 		err = privConn.Close()
 		if err != nil {
-			log.Errorf("unable to close connection to private dbus socket %v: %v", privateDbusSocketURI, err)
+			slog.Error(
+				"unable to close connection to private dbus socket",
+				"socket", privateDbusSocketURI,
+				"err", err,
+			)
 		}
 	}()
 
@@ -231,7 +236,11 @@ func registerActivationKey(orgID string, activationKeys []string, environments [
 	defer func() {
 		err = privConn.Close()
 		if err != nil {
-			log.Errorf("unable to close connection to private dbus socket %v: %v", privateDbusSocketURI, err)
+			slog.Error(
+				"unable to close connection to private dbus socket",
+				"socket", privateDbusSocketURI,
+				"err", err,
+			)
 		}
 	}()
 
