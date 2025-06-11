@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
+	"log/slog"
 	"strings"
 
-	"github.com/subpop/go-log"
 	"github.com/urfave/cli/v2"
 )
 
@@ -57,11 +57,11 @@ var ContentFeature = RhcFeature{
 	Enabled:     func() bool { return true }(),
 	Description: "Get access to RHEL content",
 	EnableFunc: func(ctx *cli.Context) error {
-		log.Debug("enabling 'content' feature not implemented")
+		slog.Debug("enabling 'content' feature not implemented")
 		return nil
 	},
 	DisableFunc: func(ctx *cli.Context) error {
-		log.Debug("disabling 'content' feature not implemented")
+		slog.Debug("disabling 'content' feature not implemented")
 		return nil
 	},
 }
@@ -73,11 +73,11 @@ var AnalyticsFeature = RhcFeature{
 	Enabled:     func() bool { return true }(),
 	Description: "Enable data collection for Red Hat Insights",
 	EnableFunc: func(ctx *cli.Context) error {
-		log.Debug("enabling 'analytics' feature not implemented")
+		slog.Debug("enabling 'analytics' feature not implemented")
 		return nil
 	},
 	DisableFunc: func(ctx *cli.Context) error {
-		log.Debug("disabling 'analytics' feature not implemented")
+		slog.Debug("disabling 'analytics' feature not implemented")
 		return nil
 	},
 }
@@ -90,11 +90,11 @@ var ManagementFeature = RhcFeature{
 	Enabled:     func() bool { return true }(),
 	Description: "Remote management",
 	EnableFunc: func(ctx *cli.Context) error {
-		log.Debug("enabling 'management' feature not implemented")
+		slog.Debug("enabling 'management' feature not implemented")
 		return nil
 	},
 	DisableFunc: func(ctx *cli.Context) error {
-		log.Debug("disabling 'management' feature not implemented")
+		slog.Debug("disabling 'management' feature not implemented")
 		return nil
 	},
 }

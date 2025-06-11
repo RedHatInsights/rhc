@@ -1,5 +1,7 @@
 package main
 
+import "log/slog"
+
 const (
 	cliLogLevel  = "log-level"
 	cliCertFile  = "cert-file"
@@ -10,7 +12,7 @@ const (
 type Conf struct {
 	CertFile string
 	KeyFile  string
-	LogLevel string
+	LogLevel slog.Level
 	CADir    string
 }
 
