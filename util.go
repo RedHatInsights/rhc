@@ -3,11 +3,10 @@ package main
 import (
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/subpop/go-log"
 
 	"github.com/urfave/cli/v2"
 	"golang.org/x/sys/unix"
@@ -70,9 +69,9 @@ func ConfigPath() (string, error) {
 
 // hasPriorityErrors checks if the errorMessage map has any error
 // with a higher priority than the logLevel configure.
-func hasPriorityErrors(errorMessages map[string]LogMessage, level log.Level) bool {
+func hasPriorityErrors(errorMessages map[string]LogMessage, level slog.Level) bool {
 	for _, logMsg := range errorMessages {
-		if logMsg.level <= level {
+		if logMsg.level >= level {
 			return true
 		}
 	}

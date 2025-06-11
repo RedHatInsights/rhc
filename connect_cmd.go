@@ -3,11 +3,11 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"strings"
 	"time"
 
-	"github.com/subpop/go-log"
 	"github.com/urfave/cli/v2"
 )
 
@@ -220,7 +220,7 @@ func connectAction(ctx *cli.Context) error {
 	if err != nil {
 		connectResult.RHSMConnected = false
 		errorMessages["rhsm"] = LogMessage{
-			level: log.LevelError,
+			level: slog.LevelError,
 			message: fmt.Errorf("cannot connect to Red Hat Subscription Management: %w",
 				err)}
 		if uiSettings.isMachineReadable {
@@ -262,7 +262,7 @@ func connectAction(ctx *cli.Context) error {
 	/* 2. Register insights-client */
 	if AnalyticsFeature.Enabled {
 		if errors, exist := errorMessages["rhsm"]; exist {
-			if errors.level == log.LevelError {
+			if errors.level == slog.LevelError {
 				interactivePrintf(
 					"%s[%v] Skipping connection to Red Hat Insights\n",
 					mediumIndent,
@@ -275,7 +275,7 @@ func connectAction(ctx *cli.Context) error {
 			if err != nil {
 				connectResult.Features.Analytics.Successful = false
 				errorMessages["insights"] = LogMessage{
-					level:   log.LevelError,
+					level:   slog.LevelError,
 					message: fmt.Errorf("cannot connect to Red Hat Insights: %w", err)}
 				if uiSettings.isMachineReadable {
 					connectResult.Features.Analytics.Error = errorMessages["insights"].message.Error()
@@ -305,7 +305,7 @@ func connectAction(ctx *cli.Context) error {
 
 	if ManagementFeature.Enabled {
 		/* 3. Start yggdrasil (rhcd) service */
-		if rhsmErrMsg, exist := errorMessages["rhsm"]; exist && rhsmErrMsg.level == log.LevelError {
+		if rhsmErrMsg, exist := errorMessages["rhsm"]; exist && rhsmErrMsg.level == slog.LevelError {
 			connectResult.Features.RemoteManagement.Successful = false
 			interactivePrintf(
 				"%s[%v] Skipping activation of %v service\n",
@@ -320,7 +320,7 @@ func connectAction(ctx *cli.Context) error {
 			if err != nil {
 				connectResult.Features.RemoteManagement.Successful = false
 				errorMessages[ServiceName] = LogMessage{
-					level: log.LevelError,
+					level: slog.LevelError,
 					message: fmt.Errorf("cannot activate %s service: %w",
 						ServiceName, err)}
 				if uiSettings.isMachineReadable {

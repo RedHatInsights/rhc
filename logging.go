@@ -1,8 +1,10 @@
 package main
 
-import "github.com/subpop/go-log"
+import (
+	"log/slog"
+)
 
 type LogMessage struct {
-	level   log.Level
+	level   slog.Level
 	message error
 }

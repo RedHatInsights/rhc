@@ -2,12 +2,12 @@ package main
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"text/tabwriter"
 	"time"
 
 	"github.com/briandowns/spinner"
-	"github.com/subpop/go-log"
 	"github.com/urfave/cli/v2"
 )
 
@@ -87,7 +87,7 @@ func showProgress(
 
 // showTimeDuration shows table with duration of each sub-action
 func showTimeDuration(durations map[string]time.Duration) {
-	if log.CurrentLevel() >= log.LevelDebug {
+	if config.LogLevel <= slog.LevelDebug {
 		fmt.Println()
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 		_, _ = fmt.Fprintln(w, "STEP\tDURATION\t")
@@ -100,19 +100,19 @@ func showTimeDuration(durations map[string]time.Duration) {
 
 // showErrorMessages shows table with all error messages gathered during action
 func showErrorMessages(action string, errorMessages map[string]LogMessage) error {
-	if hasPriorityErrors(errorMessages, log.CurrentLevel()) {
+	if hasPriorityErrors(errorMessages, config.LogLevel) {
 		if !uiSettings.isMachineReadable {
 			fmt.Println()
 			fmt.Printf("The following errors were encountered during %s:\n\n", action)
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 			_, _ = fmt.Fprintln(w, "TYPE\tSTEP\tERROR\t")
 			for step, logMsg := range errorMessages {
-				if logMsg.level <= log.CurrentLevel() {
+				if logMsg.level >= config.LogLevel {
 					_, _ = fmt.Fprintf(w, "%v\t%v\t%v\n", logMsg.level, step, logMsg.message)
 				}
 			}
 			_ = w.Flush()
-			if hasPriorityErrors(errorMessages, log.LevelError) {
+			if hasPriorityErrors(errorMessages, slog.LevelError) {
 				return cli.Exit("", 1)
 			}
 		}
