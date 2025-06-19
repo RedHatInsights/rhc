@@ -25,8 +25,8 @@ def test_rhc_disconnect(external_candlepin, rhc, test_config):
     """
     # Connect first to perform disconnect operation
     rhc.connect(
-        username=test_config.get("candlepin.username"),
-        password=test_config.get("candlepin.password"),
+        activationkey=test_config.get("candlepin.activation_keys")[0],
+        org=test_config.get("candlepin.org"),
     )
     assert rhc.is_registered
     assert rhcd_service_is_active()
