@@ -31,6 +31,12 @@ func mainAction(c *cli.Context) error {
 
 // beforeAction is triggered before other actions are triggered
 func beforeAction(c *cli.Context) error {
+	// check if --log-level was set via command line
+	var logLevelSrc string
+	if c.IsSet(cliLogLevel) {
+		logLevelSrc = "command line"
+	}
+
 	/* Load the configuration values from the config file specified*/
 	filePath := c.String("config")
 	if filePath != "" {
@@ -43,6 +49,11 @@ func beforeAction(c *cli.Context) error {
 		}
 	}
 
+	// check if log-level was set via config file (command line has precedence)
+	if logLevelSrc == "" && c.IsSet(cliLogLevel) {
+		logLevelSrc = fmt.Sprintf("config file: '%s'", c.String("config"))
+	}
+
 	config = Conf{
 		CertFile: c.String(cliCertFile),
 		KeyFile:  c.String(cliKeyFile),
@@ -50,7 +61,8 @@ func beforeAction(c *cli.Context) error {
 
 	logLevelStr := c.String(cliLogLevel)
 	if err := config.LogLevel.UnmarshalText([]byte(logLevelStr)); err != nil {
-		slog.Error(fmt.Sprintf("invalid log level: '%s'", logLevelStr))
+		slog.Error(fmt.Sprintf("invalid log level '%s' set via %s", logLevelStr, logLevelSrc))
+		config.LogLevel = slog.LevelInfo
 	}
 
 	slog.SetLogLoggerLevel(config.LogLevel)
