@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/godbus/dbus/v5"
 	"github.com/urfave/cli/v2"
 	"os"
 	"time"
@@ -26,13 +27,77 @@ func rhsmStatus(systemStatus *SystemStatus) error {
 		if uiSettings.isMachineReadable {
 			systemStatus.RHSMConnected = false
 		} else {
-			fmt.Printf("%v Not connected to Red Hat Subscription Management\n", uiSettings.iconInfo)
+			interactivePrintf(
+				"%s[ ] Not connected to Red Hat Subscription Management\n",
+				smallIndent,
+			)
 		}
 	} else {
 		if uiSettings.isMachineReadable {
 			systemStatus.RHSMConnected = true
 		} else {
-			fmt.Printf("%v Connected to Red Hat Subscription Management\n", uiSettings.iconOK)
+			interactivePrintf(
+				"%s[%v] Connected to Red Hat Subscription Management\n",
+				smallIndent,
+				uiSettings.iconOK,
+			)
+		}
+	}
+	return nil
+}
+
+// isContentEnabled tries to read the configuration file rhsm.conf using D-Bus API
+// and get the manage_repos option from the section [rhsm]. If the option is equal
+// to "1", then content is managed by subscription-manager/RHSM
+func isContentEnabled(systemStatus *SystemStatus) error {
+	conn, err := dbus.SystemBus()
+	if err != nil {
+		return fmt.Errorf("cannot connect to system D-Bus: %w", err)
+	}
+
+	locale := getLocale()
+
+	config := conn.Object("com.redhat.RHSM1", "/com/redhat/RHSM1/Config")
+
+	var contentEnabled string
+	if err := config.Call(
+		"com.redhat.RHSM1.Config.Get",
+		0,
+		"rhsm.manage_repos",
+		locale).Store(&contentEnabled); err != nil {
+		return unpackRHSMError(err)
+	}
+
+	uuid, err := getConsumerUUID()
+	if err != nil {
+		return fmt.Errorf("unable to get consumer UUID: %s", err)
+	}
+
+	if contentEnabled == "1" && uuid != "" {
+		if uiSettings.isMachineReadable {
+			systemStatus.ContentEnabled = true
+		} else {
+			interactivePrintf(
+				"%s[%v] Content ... Red Hat repository file generated\n",
+				mediumIndent,
+				uiSettings.iconOK,
+			)
+		}
+	} else {
+		if uiSettings.isMachineReadable {
+			systemStatus.ContentEnabled = false
+		} else {
+			if uuid != "" {
+				interactivePrintf(
+					"%s[ ] Content ... Generating of Red Hat repository file disabled in rhsm.conf\n",
+					mediumIndent,
+				)
+			} else {
+				interactivePrintf(
+					"%s[ ] Content ... Red Hat repository file not generated\n",
+					mediumIndent,
+				)
+			}
 		}
 	}
 	return nil
@@ -43,7 +108,8 @@ func insightStatus(systemStatus *SystemStatus) {
 	var s *spinner.Spinner
 	if uiSettings.isRich {
 		s = spinner.New(spinner.CharSets[9], 100*time.Millisecond)
-		s.Suffix = " Checking Red Hat Insights..."
+		s.Prefix = mediumIndent + "["
+		s.Suffix = "] Checking Red Hat Insights..."
 		s.Start()
 	}
 	isRegistered, err := insightsIsRegistered()
@@ -54,7 +120,11 @@ func insightStatus(systemStatus *SystemStatus) {
 		if uiSettings.isMachineReadable {
 			systemStatus.InsightsConnected = true
 		} else {
-			fmt.Print(uiSettings.iconOK + " Connected to Red Hat Insights\n")
+			interactivePrintf(
+				"%s[%v] Analytics ... Connected to Red Hat Insights\n",
+				mediumIndent,
+				uiSettings.iconOK,
+			)
 		}
 	} else {
 		systemStatus.returnCode += 1
@@ -62,14 +132,22 @@ func insightStatus(systemStatus *SystemStatus) {
 			if uiSettings.isMachineReadable {
 				systemStatus.InsightsConnected = false
 			} else {
-				fmt.Print(uiSettings.iconInfo + " Not connected to Red Hat Insights\n")
+				interactivePrintf(
+					"%s[ ] Analytics ... Not connected to Red Hat Insights\n",
+					mediumIndent,
+				)
 			}
 		} else {
 			if uiSettings.isMachineReadable {
 				systemStatus.InsightsConnected = false
 				systemStatus.InsightsError = err.Error()
 			} else {
-				fmt.Printf(uiSettings.iconError+" Cannot detect Red Hat Insights status: %v\n", err)
+				interactivePrintf(
+					"%s[%v] Analytics ... Cannot detect Red Hat Insights status: %v\n",
+					mediumIndent,
+					uiSettings.iconError,
+					err,
+				)
 			}
 		}
 	}
@@ -92,19 +170,29 @@ func serviceStatus(systemStatus *SystemStatus) error {
 		systemStatus.YggdrasilError = err.Error()
 		return fmt.Errorf("unable to get properties of %s: %s", unitName, err)
 	}
+
 	activeState := properties["ActiveState"]
 	if activeState.(string) == "active" {
 		if uiSettings.isMachineReadable {
 			systemStatus.YggdrasilRunning = true
 		} else {
-			fmt.Printf(uiSettings.iconOK+" The %v service is active\n", ServiceName)
+			interactivePrintf(
+				"%s[%v] Remote Management ... The %v service is active\n",
+				mediumIndent,
+				uiSettings.iconOK,
+				ServiceName,
+			)
 		}
 	} else {
 		systemStatus.returnCode += 1
 		if uiSettings.isMachineReadable {
 			systemStatus.YggdrasilRunning = false
 		} else {
-			fmt.Printf(uiSettings.iconInfo+" The %v service is inactive\n", ServiceName)
+			interactivePrintf(
+				"%s[ ] Remote Management ... The %v service is inactive\n",
+				mediumIndent,
+				ServiceName,
+			)
 		}
 	}
 	return nil
@@ -118,6 +206,8 @@ type SystemStatus struct {
 	HostnameError     string `json:"hostname_error,omitempty"`
 	RHSMConnected     bool   `json:"rhsm_connected"`
 	RHSMError         string `json:"rhsm_error,omitempty"`
+	ContentEnabled    bool   `json:"content_enabled"`
+	ContentError      string `json:"content_error,omitempty"`
 	InsightsConnected bool   `json:"insights_connected"`
 	InsightsError     string `json:"insights_error,omitempty"`
 	YggdrasilRunning  bool   `json:"yggdrasil_running"`
@@ -206,7 +296,13 @@ func statusAction(ctx *cli.Context) (err error) {
 		return cli.Exit(err, 1)
 	}
 
-	/* 2. Get status of insights-client */
+	/* 2. Is content enabled */
+	err = isContentEnabled(&systemStatus)
+	if err != nil {
+		return cli.Exit(err, 1)
+	}
+
+	/* 3. Get status of insights-client */
 	insightStatus(&systemStatus)
 
 	/* 3. Get status of yggdrasil (rhcd) service */
