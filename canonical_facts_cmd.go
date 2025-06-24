@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+
 	"github.com/urfave/cli/v2"
 )
 
@@ -12,7 +13,7 @@ func canonicalFactAction(_ *cli.Context) error {
 	// NOTE: CLI context is not useful for anything
 	facts, err := GetCanonicalFacts()
 	if err != nil {
-		return cli.Exit(err, 1)
+		return cli.Exit(fmt.Errorf("cannot generate canonical facts: %v", err), 1)
 	}
 	data, err := json.MarshalIndent(facts, "", "   ")
 	if err != nil {
