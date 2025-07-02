@@ -240,6 +240,109 @@ func main() {
 			Before:      beforeStatusAction,
 			Action:      statusAction,
 		},
+		{
+			Name:        "collector",
+			Usage:       "Collect data for analysis",
+			UsageText:   fmt.Sprintf("%v collector", app.Name),
+			Description: "Manage data collectors. System data collected by collectors are typically send for analysis to " + Provider,
+			Subcommands: []*cli.Command{
+				{
+					Name: "run",
+					Flags: []cli.Flag{
+						&cli.StringFlag{
+							Name:    "format",
+							Usage:   "prints status in machine-readable format (supported formats: \"json\")",
+							Aliases: []string{"f"},
+						},
+						&cli.BoolFlag{
+							Name:    "keep",
+							Usage:   "do not delete collected data",
+							Aliases: []string{"k"},
+						},
+						&cli.BoolFlag{
+							Name:    "no-upload",
+							Usage:   "do not upload collected data",
+							Aliases: []string{"n"},
+						},
+					},
+					Usage:       "Execute specific collector",
+					UsageText:   fmt.Sprintf("%v collector run COLLECTOR", app.Name),
+					Description: "Execute specific collector",
+					Before:      beforeCollectorRunAction,
+					Action:      collectorRunAction,
+				},
+				{
+					Name: "info",
+					Flags: []cli.Flag{
+						&cli.StringFlag{
+							Name:    "format",
+							Usage:   "prints status in machine-readable format (supported formats: \"json\")",
+							Aliases: []string{"f"},
+						},
+					},
+					Usage:       "Prints information about specific collector",
+					UsageText:   fmt.Sprintf("%v collector info COLLECTOR", app.Name),
+					Description: "Prints information about specific collector",
+					Before:      beforeCollectorInfoAction,
+					Action:      collectorInfoAction,
+				},
+				{
+					Name: "list",
+					Flags: []cli.Flag{
+						&cli.StringFlag{
+							Name:    "format",
+							Usage:   "prints status in machine-readable format (supported formats: \"json\")",
+							Aliases: []string{"f"},
+						},
+					},
+					Usage:       "List available collectors",
+					UsageText:   fmt.Sprintf("%v collector list", app.Name),
+					Description: "List all collectors installed on the system",
+					Before:      beforeCollectorListAction,
+					Action:      collectorListAction,
+				},
+				{
+					Name: "timers",
+					Flags: []cli.Flag{
+						&cli.StringFlag{
+							Name:    "format",
+							Usage:   "prints status in machine-readable format (supported formats: \"json\")",
+							Aliases: []string{"f"},
+						},
+					},
+					Usage:       "List collector timers",
+					UsageText:   fmt.Sprintf("%v collector timers", app.Name),
+					Description: "List collector timers install on the system",
+					Before:      beforeCollectorTimersAction,
+					Action:      collectorTimersAction,
+				},
+				{
+					Name: "enable",
+					Flags: []cli.Flag{
+						&cli.BoolFlag{
+							Name:    "now",
+							Usage:   "Enable collector and trigger immediate collection",
+							Aliases: []string{"n"},
+						},
+					},
+					Usage:       "Enable collector",
+					UsageText:   fmt.Sprintf("%v collector enable COLLECTOR", app.Name),
+					Description: "Enable given collector",
+					Before:      beforeCollectorEnableAction,
+					Action:      collectorEnableAction,
+				},
+				{
+					Name:        "disable",
+					Usage:       "Disable collector",
+					UsageText:   fmt.Sprintf("%v collector disable COLLECTOR", app.Name),
+					Description: "Disable given collector",
+					Before:      beforeCollectorDisableAction,
+					Action:      collectorDisableAction,
+				},
+			},
+			Before: nil,
+			Action: nil,
+		},
 	}
 	app.EnableBashCompletion = true
 	app.BashComplete = BashComplete
