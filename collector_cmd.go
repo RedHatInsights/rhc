@@ -12,39 +12,6 @@ import (
 	"text/tabwriter"
 )
 
-// Run
-
-func beforeCollectorRunAction(ctx *cli.Context) error {
-	return checkForUnknownArgs(ctx)
-}
-
-func collectorRunAction(ctx *cli.Context) (err error) {
-
-	return nil
-}
-
-// Info
-
-func beforeCollectorInfoAction(ctx *cli.Context) error {
-	return checkForUnknownArgs(ctx)
-}
-
-func collectorInfoAction(ctx *cli.Context) (err error) {
-
-	return nil
-}
-
-// List
-
-func beforeCollectorListAction(ctx *cli.Context) error {
-	err := setupFormatOption(ctx)
-	if err != nil {
-		return err
-	}
-
-	return checkForUnknownArgs(ctx)
-}
-
 const (
 	collectorDirName = "/usr/lib/rhc/collector.d"
 )
@@ -74,6 +41,86 @@ func readCollectorConfig(filePath string) (*CollectorInfo, error) {
 		return nil, err
 	}
 	return &collectorInfo, nil
+}
+
+// Run
+
+func beforeCollectorRunAction(ctx *cli.Context) error {
+	return checkForUnknownArgs(ctx)
+}
+
+func collectorRunAction(ctx *cli.Context) (err error) {
+
+	return nil
+}
+
+// Info
+
+func beforeCollectorInfoAction(ctx *cli.Context) error {
+	err := setupFormatOption(ctx)
+	if err != nil {
+		return err
+	}
+
+	if ctx.Args().Len() != 1 {
+		return fmt.Errorf("error: expected 1 argument of collector name, got %d", ctx.Args().Len())
+	}
+	return nil
+}
+
+func collectorInfoAction(ctx *cli.Context) (err error) {
+	const notDefinedValue = "-"
+	// TODO: Get this path from systemd
+	const systemdDirectory = "/usr/lib/systemd/system/"
+	collectorId := ctx.Args().First()
+	fileName := collectorId + ".toml"
+	filePath := filepath.Join(collectorDirName, fileName)
+	collectorConfig, err := readCollectorConfig(filePath)
+	collectorConfig.Id = collectorId
+	if err != nil {
+		return cli.Exit(fmt.Sprintf("failed to read TOML file %s: %v", fileName, err), 1)
+	}
+
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	if !uiSettings.isMachineReadable {
+		_, _ = fmt.Fprintf(w, "Name:\t%s\n", collectorConfig.Info.Name)
+		if collectorConfig.Info.Feature != "" {
+			_, _ = fmt.Fprintf(w, "Feature:\t%s\n\n", collectorConfig.Info.Feature)
+		} else {
+			_, _ = fmt.Fprintf(w, "Feature:\t%s\n\n", notDefinedValue)
+		}
+
+		// TODO: Get last run from systemd
+		_, _ = fmt.Fprintf(w, "Last run:\t%s\n", notDefinedValue)
+		// TODO: Get next run from systemd
+		_, _ = fmt.Fprintf(w, "Next run:\t%s\n\n", notDefinedValue)
+
+		_, _ = fmt.Fprintf(w, "Config:\t%s\n", filePath)
+		serviceFilePath := filepath.Join(systemdDirectory, collectorConfig.Systemd.Service)
+		_, _ = fmt.Fprintf(w, "Service:\t%s\n", serviceFilePath)
+		timerFilePath := filepath.Join(systemdDirectory, collectorConfig.Systemd.Timer)
+		_, _ = fmt.Fprintf(w, "Timer:\t%s\n", timerFilePath)
+		_ = w.Flush()
+	} else {
+		// TODO: implement JSON output containing all info (version, last run, next run, etc.)
+		data, err := json.MarshalIndent(collectorConfig, "", "    ")
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(data))
+	}
+	return nil
+}
+
+// List
+
+func beforeCollectorListAction(ctx *cli.Context) error {
+	err := setupFormatOption(ctx)
+	if err != nil {
+		return err
+	}
+
+	return checkForUnknownArgs(ctx)
 }
 
 // collectorListAction tries to display all installed rhc collectors
