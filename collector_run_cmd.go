@@ -12,6 +12,10 @@ import (
 	"path/filepath"
 )
 
+const (
+	bashFilePath = "/bin/bash"
+)
+
 type CollectorOutput struct {
 	CollectionDirectory string `json:"collection_directory"`
 	CollectorError      string `json:"collector_error,omitempty"`
@@ -58,13 +62,15 @@ func collectData(args ...string) (*string, error) {
 	var outBuffer bytes.Buffer
 	collectorCommand := args[0]
 	tempDir := args[1]
-	cmd := exec.Command(collectorCommand, args[2:]...)
+	arguments := []string{"-c", collectorCommand}
+	cmd := exec.Command(bashFilePath, arguments...)
 	cmd.Dir = tempDir
 	cmd.Stdout = &outBuffer
 	err := cmd.Run()
 
 	if err != nil {
-		return nil, cli.Exit(fmt.Sprintf("failed to run collector '%s': %v", collectorCommand, err), 1)
+		return nil, fmt.Errorf("failed to run collector '%s -c %s': %v",
+			bashFilePath, collectorCommand, err)
 	}
 
 	stdOut := outBuffer.String()
@@ -77,13 +83,14 @@ func archiveData(args ...string) (*string, error) {
 	var outBuffer bytes.Buffer
 	archiverCommand := args[0]
 	tempDir := args[1]
-	cmd := exec.Command(archiverCommand, args[2:]...)
+	arguments := []string{"-c", archiverCommand + " " + args[2]}
+	cmd := exec.Command(bashFilePath, arguments...)
 	cmd.Dir = tempDir
 	cmd.Stdout = &outBuffer
 	err := cmd.Run()
 
 	if err != nil {
-		return nil, cli.Exit(fmt.Sprintf("failed to run archiver '%s': %v", archiverCommand, err), 1)
+		return nil, fmt.Errorf("failed to run archiver '%s': %v", archiverCommand, err)
 	}
 
 	stdOut := outBuffer.String()
@@ -95,14 +102,14 @@ func uploadData(args ...string) (*string, error) {
 	var outBuffer bytes.Buffer
 	uploaderCommand := args[0]
 	tempDir := args[1]
-	archivePath := args[2]
-	cmd := exec.Command(uploaderCommand, archivePath)
+	arguments := []string{"-c", uploaderCommand + " " + args[2]}
+	cmd := exec.Command(bashFilePath, arguments...)
 	cmd.Dir = tempDir
 	cmd.Stdout = &outBuffer
 	err := cmd.Run()
 
 	if err != nil {
-		return nil, cli.Exit(fmt.Sprintf("failed to run uploader '%s': %v", uploaderCommand, err), 1)
+		return nil, fmt.Errorf("failed to run uploader '%s': %v", uploaderCommand, err)
 	}
 
 	stdOut := outBuffer.String()

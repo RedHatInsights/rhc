@@ -31,11 +31,8 @@ func runVersionCommand(collectorConfig *CollectorInfo) (*string, error) {
 	if collectorConfig.Exec.VersionCommand == "" {
 		return nil, fmt.Errorf("no version command specified in %s", collectorConfig.configFilePath)
 	}
-	command := strings.Fields(collectorConfig.Exec.VersionCommand)
-	if len(command) == 0 {
-		return nil, fmt.Errorf("empty version command specified in %s", collectorConfig.configFilePath)
-	}
-	cmd := exec.Command(command[0], command[1:]...)
+	arguments := []string{"-c", collectorConfig.Exec.VersionCommand}
+	cmd := exec.Command(bashFilePath, arguments...)
 	cmd.Stdout = &outBuffer
 	err := cmd.Run()
 
