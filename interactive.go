@@ -85,6 +85,27 @@ func showProgress(
 	return function()
 }
 
+// showProgress calls function and, when it is possible display spinner with
+// some progress message. The function returns pointer to string and error.
+// Both returned values could be nil
+func showProgressArgs(
+	progressMessage string,
+	function func(args ...string) (*string, error),
+	prefixSpaces string,
+	args ...string,
+) (*string, error) {
+	var s *spinner.Spinner
+	if uiSettings.isRich {
+		s = spinner.New(spinner.CharSets[9], 100*time.Millisecond)
+		s.Prefix = prefixSpaces + "["
+		s.Suffix = "]" + progressMessage
+		s.Start()
+		// Stop spinner after running function
+		defer func() { s.Stop() }()
+	}
+	return function(args...)
+}
+
 // showTimeDuration shows table with duration of each sub-action
 func showTimeDuration(durations map[string]time.Duration) {
 	if config.LogLevel <= slog.LevelDebug {
