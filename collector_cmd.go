@@ -21,8 +21,7 @@ type CollectorInfo struct {
 			Command string `json:"command" toml:"command"`
 		}
 		Uploader struct {
-			Command     string `json:"command" toml:"command"`
-			ContentType string `json:"content_type" toml:"content_type"`
+			Command string `json:"command" toml:"command"`
 		}
 	} `json:"exec" toml:"exec"`
 	Systemd struct {
