@@ -38,6 +38,7 @@ func readCollectorConfig(filePath string) (*CollectorInfo, error) {
 	if err != nil {
 		return nil, err
 	}
+	collectorInfo.configFilePath = filePath
 	return &collectorInfo, nil
 }
 
@@ -129,7 +130,6 @@ func collectorRunAction(ctx *cli.Context) (err error) {
 	if err != nil {
 		return cli.Exit(fmt.Sprintf("failed to read collector configuration file %s: %v", fileName, err), 1)
 	}
-	collectorConfig.configFilePath = collectorConfigfilePath
 
 	// Create a temporary directory, where collector will collect data
 	tempDir, err := os.MkdirTemp("/tmp", fmt.Sprintf("rhc-collector-%s-*", collectorId))
