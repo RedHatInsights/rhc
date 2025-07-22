@@ -340,8 +340,8 @@ func main() {
 					Action:      collectorDisableAction,
 				},
 			},
-			Before: nil,
-			Action: nil,
+			Before: beforeCollectorAction,
+			Action: collectorAction,
 		},
 	}
 	app.EnableBashCompletion = true

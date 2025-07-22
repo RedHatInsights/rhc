@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/BurntSushi/toml"
 	"github.com/urfave/cli/v2"
 	"log/slog"
 	"os"
@@ -30,19 +29,6 @@ type UploaderOutput struct {
 	Target        string `json:"target"`
 	UploaderError string `json:"uploader_error,omitempty"`
 }
-
-// readCollectorConfig tries to read collector information from the configuration .toml file
-func readCollectorConfig(filePath string) (*CollectorInfo, error) {
-	var collectorInfo CollectorInfo
-	_, err := toml.DecodeFile(filePath, &collectorInfo)
-	if err != nil {
-		return nil, err
-	}
-	collectorInfo.configFilePath = filePath
-	return &collectorInfo, nil
-}
-
-// Run
 
 // beforeCollectorRunAction validates the collector name argument and ensures format option setup via setupFormatOption.
 // Returns an error if validation or setup fails.
@@ -136,7 +122,7 @@ func collectorRunAction(ctx *cli.Context) (err error) {
 	if err != nil {
 		return cli.Exit(fmt.Sprintf("failed to create temporary directory: %v", err), 1)
 	}
-	// If --keep is not used, then delete temporary directory at the end
+	// If --keep is not used, then delete the temporary directory at the end
 	if !keepArtifacts {
 		defer func() {
 			err := os.RemoveAll(tempDir)
@@ -284,6 +270,13 @@ func runCollector(collectorConfig *CollectorInfo, workingDir string) (*string, e
 	}
 
 	interactivePrintf("%v[%s] Collected data to %s\n", mediumIndent, uiSettings.iconOK, workingDir)
+
+	err = writeTimeStampOfLastRun(collectorConfig)
+	if err != nil {
+		msg := fmt.Sprintf("failed to write last run timestamp: %v", err)
+		slog.Error(msg)
+		return nil, fmt.Errorf(msg)
+	}
 
 	return &collectorOutput.CollectionDirectory, nil
 }

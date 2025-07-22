@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"text/tabwriter"
+	"time"
 )
 
 func beforeCollectorInfoAction(ctx *cli.Context) error {
@@ -47,7 +48,7 @@ func runVersionCommand(collectorConfig *CollectorInfo) (*string, error) {
 }
 
 func collectorInfoAction(ctx *cli.Context) (err error) {
-	const notDefinedValue = "-"
+
 	// TODO: Get this path from systemd
 	const systemdDirectory = "/usr/lib/systemd/system/"
 
@@ -80,10 +81,31 @@ func collectorInfoAction(ctx *cli.Context) (err error) {
 			_, _ = fmt.Fprintf(w, "Feature:\t%s\n\n", notDefinedValue)
 		}
 
-		// TODO: Get the last run from systemd
-		_, _ = fmt.Fprintf(w, "Last run:\t%s\n", notDefinedValue)
-		// TODO: Get the next run from systemd
-		_, _ = fmt.Fprintf(w, "Next run:\t%s\n\n", notDefinedValue)
+		// Try to get last run from the cache file
+		lastTime, err := readLastRun(collectorConfig)
+		if err != nil {
+			_, _ = fmt.Fprintf(w, "Last run:\t%s\n", notDefinedValue)
+		} else {
+			lastRunStr := lastTime.Format("Mon 2006-01-02 15:04 MST")
+			_, _ = fmt.Fprintf(w, "Last run:\t%s\n", lastRunStr)
+		}
+
+		// Try to get the next run from the systemd D-Bus API
+		nextTime, err := getCollectorTimerNextTime(collectorConfig)
+		if err != nil {
+			_, _ = fmt.Fprintf(w, "Next run:\t%s\n\n", notDefinedValue)
+		} else {
+			zeroTime := time.Unix(0, 0)
+			if *nextTime == zeroTime {
+				_, _ = fmt.Fprintf(w, "Next run:\t%s\n\n", notDefinedValue)
+			} else {
+				nowTime := time.Now()
+				delay := nextTime.Sub(nowTime)
+				nextTimeStr := nextTime.Format("Mon 2006-01-02 15:04 MST")
+				_, _ = fmt.Fprintf(w, "Next run:\t%s (in %s)\n\n",
+					nextTimeStr, delay.Round(time.Second).String())
+			}
+		}
 
 		_, _ = fmt.Fprintf(w, "Config:\t%s\n", filePath)
 		serviceFilePath := filepath.Join(systemdDirectory, collectorConfig.Systemd.Service)
