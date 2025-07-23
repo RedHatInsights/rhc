@@ -4,6 +4,17 @@ It uses pytest-client-tools Python module.More information about this
 module could be found: https://github.com/RedHatInsights/pytest-client-tools/
 """
 
+"""
+:component: rhc
+:requirement: RHSS-291300
+:polarion-project-id: RHELSS
+:polarion-include-skipped: false
+:polarion-lookup-method: id
+:poolteam: rhel-sst-csi-client-tools
+:caseautomation: Automated
+:upstream: Yes
+"""
+
 import contextlib
 import time
 import logging
@@ -31,12 +42,34 @@ logger = logging.getLogger(__name__)
 )
 def test_connect(external_candlepin, rhc, test_config, auth, output_format):
     """
-     Test if RHC can connect to CRC using basic auth and activation key,
-     Also verify that yggdrasil/rhcd service is in active state afterward.
-     Two variants of output format is considered.
-       * Default text output
-       * Machine readable output (JSON document)
+    :id: e74695bf-384c-4d9f-aeb4-2348027052dc
+    :title: Verify successful RHC connection using basic auth and activation key
+    :description:
+        This test verifies that RHC can successfully connect to CRC using either
+        basic authentication or an activation key. It also checks that the
+        yggdrasil/rhcd service is in active state after a successful
+        connection. The test covers both default text output and machine-readable
+        JSON output formats.
+    :tags: Tier 1
+    :steps:
+        1.  Ensure the system is disconnected from RHC.
+        2.  Prepare arguments for the 'rhc connect' command, including authentication
+            method and output format.
+        3.  Run the 'rhc connect' command.
+        4.  Verify that RHC reports being registered.
+        5.  Verify that the yggdrasil or rhcd service is active.
+        6.  Verify the command output based on the specified format (text or JSON).
+    :expectedresults:
+        1.  The system is successfully disconnected (if previously connected).
+        2.  Command arguments are correctly prepared.
+        3.  The 'rhc connect' command executes without error.
+        4.  RHC indicates the system is registered.
+        5.  The yggdrasil/rhcd service is in an active state.
+        6.  For text output, specific success messages indicating connection
+            to Subscription Management and Insights are present in stdout.
+            For JSON output, no specific assertions are made due to a known issue (CCT-1191).
      """
+
     # rhc+satellite does not support basic auth for now
     # refer: https://issues.redhat.com/browse/RHEL-53436
     if "satellite" in test_config.environment and auth == "basic":
@@ -135,7 +168,32 @@ def test_connect(external_candlepin, rhc, test_config, auth, output_format):
 def test_connect_wrong_parameters(
     external_candlepin, rhc, test_config, credentials, return_code
 ):
-    """Test if RHC handles invalid credentials properly"""
+    """
+    :id: 9631c021-72a1-4030-90d7-8d14bd3d1304
+    :title: Verify RHC connect handles invalid parameters and credentials properly
+    :description:
+        This test verifies that the 'rhc connect' command correctly handles various
+        scenarios involving invalid credentials (wrong username/password or
+        organization/activation key) and invalid parameter combinations (e.g.,
+        using both username and activation key). It checks that the command fails
+        and the yggdrasil/rhcd service does not become active.
+    :tags:
+    :steps:
+        1.  Ensure the system is disconnected from RHC.
+        2.  Prepare arguments for the 'rhc connect' command using invalid
+            credentials or parameters.
+        3.  Run the 'rhc connect' command, expecting it to fail.
+        4.  Verify the command's return code.
+        5.  Verify that the yggdrasil/rhcd service is not active.
+    :expectedresults:
+        1.  The system is successfully disconnected (if previously connected).
+        2.  Command arguments are correctly prepared with invalid data.
+        3.  The 'rhc connect' command fails.
+        4.  The command's return code matches the expected non-zero value
+            (or a specific code if provided).
+        5.  The yggdrasil/rhcd service is not in an active state.
+    """
+
     # An attempt to bring system in disconnected state in case it is not.
     with contextlib.suppress(Exception):
         rhc.disconnect()
@@ -157,13 +215,32 @@ def test_rhc_worker_playbook_install_after_rhc_connect(
     external_candlepin, rhc, test_config, auth
 ):
     """
-    Test that rhc-worker-playbook is installed after rhc-connect,
-    Also log the total time taken to install the package
-        test_steps:
-            1- run 'rhc connect'
-            2- monitor yggdrasil/rhcd logs to see when package-manager-worker installs 'rhc-worker-playbook'
-            3- validate rhc-worker-playbook is installed
+    :id: a86b4dea-77c4-4c5e-8412-a7eb0f1342ab
+    :title: Verify rhc-worker-playbook is installed after RHC connection
+    :description:
+        This test verifies that the 'rhc-worker-playbook' package is automatically
+        installed after successfully connecting RHC, regardless of whether basic
+        authentication or an activation key is used. It monitors service logs to
+        confirm the installation process and logs the time taken.
+    :tags:
+    :steps:
+        1.  Remove the 'rhc-worker-playbook' package if it is installed.
+        2.  Ensure the system is disconnected from RHC.
+        3.  Run the 'rhc connect' command using the specified authentication method.
+        4.  Monitor yggdrasil/rhcd service logs for the message indicating successful 
+            registration/installation of 'rhc-worker-playbook'.
+        5.  Verify that the 'rhc-worker-playbook' package is installed.
+        6.  Calculate and log the total time taken for the service to start
+            and the package to be installed.
+    :expectedresults:
+        1.  The 'rhc-worker-playbook' package is successfully removed.
+        2.  The system is successfully disconnected (if previously connected).
+        3.  The 'rhc connect' command executes successfully, and RHC reports being registered.
+        4.  The log message "Registered rhc-worker-playbook" is found in the yggdrasil/rhcd logs.
+        5.  The 'rhc-worker-playbook' package is installed.
+        6.  The total installation time is logged.
     """
+
     with contextlib.suppress(Exception):
         sh.yum("remove", "rhc-worker-playbook", "-y")
 
