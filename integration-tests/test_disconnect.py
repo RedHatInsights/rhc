@@ -4,6 +4,17 @@ It uses pytest-client-tools Python module. More information about
 this module could be found: https://github.com/RedHatInsights/pytest-client-tools/
 """
 
+"""
+:component: rhc
+:requirement: RHSS-291300
+:polarion-project-id: RHELSS
+:polarion-include-skipped: false
+:polarion-lookup-method: id
+:poolteam: rhel-sst-csi-client-tools
+:caseautomation: Automated
+:upstream: Yes
+"""
+
 import pytest
 
 from utils import yggdrasil_service_is_active
@@ -11,18 +22,32 @@ from utils import yggdrasil_service_is_active
 
 @pytest.mark.tier1
 def test_rhc_disconnect(external_candlepin, rhc, test_config):
-    """Verify that RHC disconnect command disconnects host from server
-    and deactivates yggdrasil service.
-    test_steps:
-        1- run rhc connect
-        2- run rhc disconnect
-    expected_output:
-        1- Assert exit code 0
-        2- Validate that these string are present in the stdout:
-            "Deactivated the yggdrasil service",
-            "Disconnected from Red Hat Insights",
-            "Disconnected from Red Hat Subscription Management"
     """
+    :id: 3eb1c32c-fff4-40ae-a659-8b2872d409bf
+    :title: Verify that RHC disconnect command disconnects host from server
+        and deactivates yggdrasil service
+    :description:
+        Tests the 'rhc disconnect' command to ensure it unregisters the system
+        and stops the associated service.
+    :tags: Tier 1
+    :steps:
+        1.  Connect the system using rhc connect.
+        2.  Verify the system is registered and the service is active.
+        3.  Run the rhc disconnect command.
+        4.  Verify the command exit code.
+        5.  Verify the system is no longer registered and the service is inactive.
+        6.  Verify specific output strings in stdout.
+    :expectedresults:
+        1.  System connects successfully and is registered.
+        2.  The system is registered and the yggdrasil/rhcd service is active.
+        3.  The command executes.
+        4.  The exit code is 0.
+        5.  The system is unregistered and the yggdrasil/rhcd service is inactive.
+        6.  Stdout contains "Deactivated the yggdrasil service" or "Deactivated
+            the Remote Host Configuration daemon", "Disconnected from Red Hat Insights",
+            and "Disconnected from Red Hat Subscription Management".
+    """
+
     # Connect first to perform disconnect operation
     rhc.connect(
         username=test_config.get("candlepin.username"),
@@ -51,18 +76,30 @@ def test_rhc_disconnect(external_candlepin, rhc, test_config):
     reason="Test cannot be run due to unresolved issue https://issues.redhat.com/browse/CCT-525"
 )
 def test_disconnect_when_already_disconnected(rhc):
-    """Test RHC disconnect command when the host is already
-    disconnected from CRC
-    test_steps:
-      # rhc disconnect
-    expected_output:
-      1. validate that these string are present in the stdout:
-            "Deactivated the yggdrasil/rhcd service",
-            "Cannot disconnect from Red Hat Subscription Management",
-            "insights  cannot disconnect from Red Hat Insights",
-            "rhsm      cannot disconnect from Red Hat Subscription Management: "
-            "warning: the system is already unregistered",
     """
+    :id: 99e6e998-691c-4800-9a81-45c668e6968b
+    :title: Test RHC disconnect command when the host is already disconnected
+    :description:
+        Tests the behavior of the 'rhc disconnect' command when executed on a system
+        that is already disconnected.
+    :tags: Tier 1
+    :steps:
+        1.  Ensure the system is disconnected by running rhc disconnect once (allowing failure).
+        2.  Run the 'rhc disconnect' command again on the already disconnected system.
+        3.  Verify the command exit code.
+        4.  Verify the system remains unregistered.
+        5.  Verify specific error/warning messages are present in stdout/stderr.
+    :expectedresults:
+        1.  The disconnect command attempts to run.
+        2.  The command executes.
+        3.  The exit code is non-zero (specifically 1).
+        4.  The system is unregistered.
+        5.  Stdout contains "Deactivated the yggdrasil/rhcd service",
+            "Cannot disconnect from Red Hat Insights",
+            "Cannot disconnect from Red Hat Subscription Management",
+            and "warning: the system is already unregistered".
+    """
+
     # one attempt to disconnect to ensure system is already disconnected
     rhc.run("disconnect", check=False)
     # second attempt to disconnect already disconnected system
