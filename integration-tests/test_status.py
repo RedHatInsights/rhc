@@ -3,6 +3,17 @@ This Python module contains integration tests for rhc. It uses pytest-client-too
 More information about this module could be found: https://github.com/RedHatInsights/pytest-client-tools/
 """
 
+"""
+:component: rhc
+:requirement: RHSS-291300
+:polarion-project-id: RHELSS
+:polarion-include-skipped: false
+:polarion-lookup-method: id
+:poolteam: rhel-sst-csi-client-tools
+:caseautomation: Automated
+:upstream: Yes
+"""
+
 import pytest
 import json
 from pytest_client_tools import util
@@ -11,16 +22,30 @@ from utils import yggdrasil_service_is_active
 
 @pytest.mark.tier1
 def test_status_connected(external_candlepin, rhc, test_config):
-    """Test RHC Status command when the host is connected.
-    test_steps:
-        1- rhc connect
-        2- rhc status
-    expected_output:
-        1- Validate following strings in status command output
-            "Connected to Red Hat Subscription Management"
-            "Connected to Red Hat Insights"
-            "The yggdrasil/rhcd service is active"
     """
+    :id: b352465d-d1ae-424b-b741-cef7451a2a18
+    :title: Verify RHC status command output when the host is connected
+    :description:
+        Test the output of the 'rhc status' command when the host is connected
+        to Subscription Management and Red Hat Insights.
+    :tags: Tier 1
+    :steps:
+        1.  Connect RHC to Subscription Management using credentials.
+        2.  Ensure the yggdrasil/rhcd service is active.
+        3.  Run the 'rhc status' command.
+        4.  Verify the command exit code.
+        5.  Verify specific strings are present in the standard output
+            indicating connectivity and service status.
+    :expectedresults:
+        1.  RHC connects successfully.
+        2.  The service is active.
+        3.  The 'rhc status' command executes successfully.
+        4.  The exit code is 0.
+        5.  The output contains "Connected to Red Hat Subscription Management",
+            "Connected to Red Hat Insights", and the correct service status string
+            ("The yggdrasil/rhcd service is active" or "The Remote Host Configuration daemon is active").
+    """
+
     rhc.connect(
         username=test_config.get("candlepin.username"),
         password=test_config.get("candlepin.password"),
@@ -39,14 +64,29 @@ def test_status_connected(external_candlepin, rhc, test_config):
 
 def test_status_connected_format_json(external_candlepin, rhc, test_config):
     """
-    Test 'rhc status --format json' command, when host is connected
-    test_steps:
-        1 - rhc connect
-        2 - rhc status
-    expected_output:
-        1 - Validate that output is valid JSON document
-        2 - Validate that JSON document contains expected data
+    :id: 6807fc50-156c-41a0-bc58-8f408e417a70
+    :title: Verify RHC status command output in JSON format when the host is connected
+    :description:
+        Test the output of the 'rhc status --format json' command when the host is
+        connected to Subscription Management and Insights, verifying the output
+        is valid JSON and contains expected data.
+    :tags:
+    :steps:
+        1.  Connect RHC to Subscription Management using credentials.
+        2.  Run the 'rhc status --format json' command.
+        3.  Check the exit code of the status command.
+        4.  Parse the JSON output.
+        5.  Verify the presence and data types of specific keys.
+    :expectedresults:
+        1.  RHC connects successfully.
+        2.  The 'rhc status --format json' command executes successfully.
+        3.  The exit code is 0.
+        4.  The output is a valid JSON document.
+        5.  The JSON contains 'hostname', 'rhsm_connected' (true), 'content_enabled' (true),
+            'insights_connected' (true), and 'rhcd_running' or 'yggdrasil_running' (true)
+            with correct boolean types.
     """
+
     rhc.connect(
         username=test_config.get("candlepin.username"),
         password=test_config.get("candlepin.password"),
@@ -76,14 +116,29 @@ def test_status_connected_format_json(external_candlepin, rhc, test_config):
 
 def test_status_disconnected_format_json(external_candlepin, rhc, test_config):
     """
-    Test 'rhc status --format json' command, when host is disconnected
-    test_steps:
-        1 - rhc disconnect
-        2 - rhc status
-    expected_output:
-        1 - Validate that output is valid JSON document
-        2 - Validate that JSON document contains expected data
+    :id: 4ba5fcb5-3cc3-456c-8873-f03abd7c9451
+    :title: Verify RHC status command output in JSON format when the host is disconnected
+    :description:
+        This test verifies the output of the 'rhc status --format json' command
+        when the host is disconnected, ensuring the output is valid JSON
+        and reflects the disconnected state.
+    :tags:
+    :steps:
+        1.  Disconnect the system using 'rhc disconnect'.
+        2.  Run the 'rhc status --format json' command.
+        3.  Check the exit code of the command.
+        4.  Parse the JSON output.
+        5.  Verify the presence and data types of specific keys.
+    :expectedresults:
+        1.  RHC disconnects successfully.
+        2.  The 'rhc status --format json' command executes successfully.
+        3.  The exit code is 0.
+        4.  The output is a valid JSON document.
+        5.  The JSON contains 'hostname', 'rhsm_connected' (false), 'content_enabled' (false),
+            'insights_connected' (false), and 'rhcd_running' or 'yggdrasil_running' (false)
+            with correct boolean types.
     """
+
     rhc.run("disconnect", check=False)
     status_result = rhc.run("status", "--format", "json", check=False)
     assert status_result.returncode != 0
@@ -110,17 +165,29 @@ def test_status_disconnected_format_json(external_candlepin, rhc, test_config):
 
 @pytest.mark.tier1
 def test_status_disconnected(rhc):
-    """Test RHC Status command when the host is disconnected.
-    Ref: https://issues.redhat.com/browse/CCT-525
-    test_steps:
-        1- rhc disconnect
-        2- rhc status
-    expected_output:
-        1- Validate following strings in status command output
-            "Not connected to Red Hat Subscription Management"
-            "Not connected to Red Hat Insights"
-            "The yggdrasil/rhc service is inactive"
     """
+    :id: b2587673-4d9e-4b18-bebd-dfe4b8874622
+    :title: Verify RHC status command output when the host is disconnected
+    :description:
+        This test verifies the output of the 'rhc status' command when the host
+        is disconnected from Red Hat Subscription Management and Red Hat Insights,
+        and the yggdrasil/rhcd service is inactive.
+    :reference: https://issues.redhat.com/browse/CCT-525
+    :tags: Tier 1
+    :steps:
+        1.  Disconnect the system using 'rhc disconnect'.
+        2.  Run the 'rhc status' command.
+        3.  Verify the command exit code.
+        4.  Verify specific output strings in stdout.
+    :expectedresults:
+        1.  RHC disconnects successfully.
+        2.  The command executes.
+        3.  The exit code is 0.
+        4.  The status command output contains "Not connected to Red Hat Subscription Management",
+            "Red Hat repository file not generated", "Not connected to Red Hat Insights",
+            and a message indicating that the yggdrasil/rhcd service is inactive.
+    """
+
     # 'rhc disconnect' to ensure system is already disconnected
     rhc.run("disconnect", check=False)
     status_result = rhc.run("status", check=False)
@@ -140,14 +207,24 @@ def test_status_disconnected(rhc):
 )
 def test_rhcd_service_restart(external_candlepin, rhc, test_config):
     """
-    Test rhcd service can be restarted on connected and  not on disconnected system.
-    test_steps:
-        1- disconnect the system
-        2- restart rhcd service via systemctl
-        3- run rhc connect
-        4- restart rhcd service via systemctl
-    expected_results:
-        1- rhcd  should be restarted successfully on connected system
+    :id: 92dbb5e7-c16c-4f5f-9c33-84e9e1269dde
+    :title: Verify rhcd service restart functionality
+    :description:
+        This test verifies that the rhcd service can be successfully restarted
+        when the system is connected and that its status is correctly reflected
+        after restart. This test is specifically for the 'rhcd' service and skips
+        if the service name is not 'rhcd'.
+    :tags:
+    :steps:
+        1. Disconnect the system using 'rhc disconnect' to ensure a clean state.
+        2. Restart the rhcd service using 'systemctl restart rhcd'.
+        3. Connect the system using 'rhc connect'.
+        4. Restart the rhcd service again using 'systemctl restart rhcd'.
+    :expectedresults:
+        1. RHC disconnects successfully.
+        2. The rhcd service restarts successfully, and it's inactive.
+        3. The system connects successfully and is registered.
+        4. The rhcd service restarts successfully, and it's active.
     """
 
     # 'rhc disconnect' to ensure system is already disconnected
