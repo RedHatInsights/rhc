@@ -53,19 +53,16 @@ def test_connect(external_candlepin, rhc, test_config, auth, output_format):
     :tags: Tier 1
     :steps:
         1.  Ensure the system is disconnected from RHC.
-        2.  Prepare arguments for the 'rhc connect' command, including authentication
-            method and output format.
-        3.  Run the 'rhc connect' command.
-        4.  Verify that RHC reports being registered.
-        5.  Verify that the yggdrasil or rhcd service is active.
-        6.  Verify the command output based on the specified format (text or JSON).
+        2.  Run the 'rhc connect' command using the given authentication method and output format.
+        3.  Verify that RHC reports being registered.
+        4.  Verify that the yggdrasil or rhcd service is active.
+        5.  Verify the command output based on the specified format (text or JSON).
     :expectedresults:
         1.  The system is successfully disconnected (if previously connected).
-        2.  Command arguments are correctly prepared.
-        3.  The 'rhc connect' command executes without error.
-        4.  RHC indicates the system is registered.
-        5.  The yggdrasil/rhcd service is in an active state.
-        6.  For text output, specific success messages indicating connection
+        2.  The 'rhc connect' command executes without error.
+        3.  RHC indicates the system is registered.
+        4.  The yggdrasil/rhcd service is in an active state.
+        5.  For text output, specific success messages indicating connection
             to Subscription Management and Insights are present in stdout.
             For JSON output, no specific assertions are made due to a known issue (CCT-1191).
      """
@@ -180,18 +177,16 @@ def test_connect_wrong_parameters(
     :tags:
     :steps:
         1.  Ensure the system is disconnected from RHC.
-        2.  Prepare arguments for the 'rhc connect' command using invalid
-            credentials or parameters.
-        3.  Run the 'rhc connect' command, expecting it to fail.
-        4.  Verify the command's return code.
-        5.  Verify that the yggdrasil/rhcd service is not active.
+        2.  Run the 'rhc connect' command using invalid credentials or parameters,
+            expecting it to fail.
+        3.  Verify the command's return code.
+        4.  Verify that the yggdrasil/rhcd service is not active.
     :expectedresults:
         1.  The system is successfully disconnected (if previously connected).
-        2.  Command arguments are correctly prepared with invalid data.
-        3.  The 'rhc connect' command fails.
-        4.  The command's return code matches the expected non-zero value
+        2.  The 'rhc connect' command fails.
+        3.  The command's return code matches the expected non-zero value
             (or a specific code if provided).
-        5.  The yggdrasil/rhcd service is not in an active state.
+        4.  The yggdrasil/rhcd service is not in an active state.
     """
 
     # An attempt to bring system in disconnected state in case it is not.
