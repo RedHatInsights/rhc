@@ -30,6 +30,7 @@ def test_rhc_client_connect_e2e(rhc, test_config, auth, external_inventory, subm
     """
     :id: bbac96bd-a551-423c-b00b-1e62a743d4ed
     :title: Test RHC client connect end-to-end with basic auth and activation key
+    :parametrized: yes
     :description:
         This test verifies the end-to-end functionality of the RHC client connect command
         using both basic authentication and an activation key. It checks if the client
