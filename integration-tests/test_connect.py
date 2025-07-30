@@ -63,8 +63,10 @@ def test_connect(external_candlepin, rhc, test_config, auth, output_format):
         2.  The 'rhc connect' command executes without error.
         3.  RHC indicates the system is registered.
         4.  The yggdrasil/rhcd service is in an active state.
-        5.  For text output, specific success messages indicating connection
-            to Subscription Management and Insights are present in stdout.
+        5.  For text output, stdout contains "Connected to Red Hat Insights",
+            "Connected to Red Hat Subscription Management",
+            "Activated the yggdrasil service" or "Activated the Remote Host Configuration daemon"
+            and "Successfully connected to Red Hat!".
             For JSON output, no specific assertions are made due to a known issue (CCT-1191).
      """
 
@@ -225,18 +227,12 @@ def test_rhc_worker_playbook_install_after_rhc_connect(
         1.  Remove the 'rhc-worker-playbook' package if it is installed.
         2.  Ensure the system is disconnected from RHC.
         3.  Run the 'rhc connect' command using the specified authentication method.
-        4.  Monitor yggdrasil/rhcd service logs for the message indicating successful 
-            registration/installation of 'rhc-worker-playbook'.
-        5.  Verify that the 'rhc-worker-playbook' package is installed.
-        6.  Calculate and log the total time taken for the service to start
-            and the package to be installed.
+        4.  Verify that the 'rhc-worker-playbook' package is installed.
     :expectedresults:
         1.  The 'rhc-worker-playbook' package is successfully removed.
         2.  The system is successfully disconnected (if previously connected).
         3.  The 'rhc connect' command executes successfully, and RHC reports being registered.
-        4.  The log message "Registered rhc-worker-playbook" is found in the yggdrasil/rhcd logs.
-        5.  The 'rhc-worker-playbook' package is installed.
-        6.  The total installation time is logged.
+        4.  The 'rhc-worker-playbook' package is installed.
     """
 
     with contextlib.suppress(Exception):

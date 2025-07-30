@@ -25,17 +25,17 @@ def test_rhc_disconnect(external_candlepin, rhc, test_config):
     """
     :id: 3eb1c32c-fff4-40ae-a659-8b2872d409bf
     :title: Verify that RHC disconnect command disconnects host from server
-        and deactivates yggdrasil service
+        and deactivates yggdrasil/rhcd service
     :description:
         Tests the 'rhc disconnect' command to ensure it unregisters the system
         and stops the associated service.
     :tags: Tier 1
     :steps:
         1.  Connect the system using rhc connect.
-        2.  Verify the system is registered and the service is active.
+        2.  Verify the system is registered and the yggdrasil/rhcd service is active.
         3.  Run the rhc disconnect command.
         4.  Verify the command exit code.
-        5.  Verify the system is no longer registered and the service is inactive.
+        5.  Verify the system is no longer registered and the yggdrasil/rhcd service is inactive.
         6.  Verify specific output strings in stdout.
     :expectedresults:
         1.  System connects successfully and is registered.
