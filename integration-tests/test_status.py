@@ -30,20 +30,20 @@ def test_status_connected(external_candlepin, rhc, test_config):
         to Subscription Management and Red Hat Insights.
     :tags: Tier 1
     :steps:
-        1.  Connect RHC to Subscription Management using credentials.
+        1.  Connect the system using 'rhc connect'.
         2.  Ensure the yggdrasil/rhcd service is active.
         3.  Run the 'rhc status' command.
         4.  Verify the command exit code.
         5.  Verify specific strings are present in the standard output
-            indicating connectivity and service status.
+            indicating connectivity and yggdrasil/rhcd service status.
     :expectedresults:
         1.  RHC connects successfully.
-        2.  The service is active.
+        2.  The yggdrasil/rhcd service is active.
         3.  The 'rhc status' command executes successfully.
         4.  The exit code is 0.
         5.  The output contains "Connected to Red Hat Subscription Management",
-            "Connected to Red Hat Insights", and the correct service status string
-            ("The yggdrasil/rhcd service is active" or "The Remote Host Configuration daemon is active").
+            "Connected to Red Hat Insights", "Red Hat repository file generated",
+            and "The yggdrasil service is active" or "The Remote Host Configuration daemon is active".
     """
 
     rhc.connect(
@@ -72,7 +72,7 @@ def test_status_connected_format_json(external_candlepin, rhc, test_config):
         is valid JSON and contains expected data.
     :tags:
     :steps:
-        1.  Connect RHC to Subscription Management using credentials.
+        1.  Connect the system using 'rhc connect'.
         2.  Run the 'rhc status --format json' command.
         3.  Check the exit code of the status command.
         4.  Parse the JSON output.
