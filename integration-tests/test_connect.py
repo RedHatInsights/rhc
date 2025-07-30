@@ -44,6 +44,7 @@ def test_connect(external_candlepin, rhc, test_config, auth, output_format):
     """
     :id: e74695bf-384c-4d9f-aeb4-2348027052dc
     :title: Verify successful RHC connection using basic auth and activation key
+    :parametrized: yes
     :description:
         This test verifies that RHC can successfully connect to CRC using either
         basic authentication or an activation key. It also checks that the
@@ -168,6 +169,7 @@ def test_connect_wrong_parameters(
     """
     :id: 9631c021-72a1-4030-90d7-8d14bd3d1304
     :title: Verify RHC connect handles invalid parameters and credentials properly
+    :parametrized: yes
     :description:
         This test verifies that the 'rhc connect' command correctly handles various
         scenarios involving invalid credentials (wrong username/password or
@@ -212,6 +214,7 @@ def test_rhc_worker_playbook_install_after_rhc_connect(
     """
     :id: a86b4dea-77c4-4c5e-8412-a7eb0f1342ab
     :title: Verify rhc-worker-playbook is installed after RHC connection
+    :parametrized: yes
     :description:
         This test verifies that the 'rhc-worker-playbook' package is automatically
         installed after successfully connecting RHC, regardless of whether basic

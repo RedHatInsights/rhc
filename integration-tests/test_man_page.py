@@ -64,6 +64,7 @@ def test_man_page_commands(command):
     """
     :id: 7ca5732c-9e08-42b5-bf33-169774c914a7
     :title: Verify rhc man page lists commands
+    :parametrized: yes
     :description:
         This test checks that the `rhc` man page lists common commands
         like 'connect', 'disconnect', 'status', and 'help'.
@@ -95,6 +96,7 @@ def test_man_page_connect_options(options):
     """
     :id: 762c075e-2e76-4111-b138-1d5b41e08b53
     :title: Verify rhc man page lists connect command options
+    :parametrized: yes
     :description:
         This test checks that the `rhc` man page lists the expected options for the `connect` command.
     :tags:
@@ -121,6 +123,7 @@ def test_man_page_feature_ids(feature_id):
     """
     :id: 9f8a4022-4a61-4439-b0ff-88a3a488f129
     :title: Verify rhc man page lists feature IDs
+    :parametrized: yes
     :description:
         This test checks that the `rhc` man page lists common feature IDs
         like 'content', 'analytics', and 'remote-management'.
