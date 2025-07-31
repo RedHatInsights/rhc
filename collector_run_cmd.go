@@ -87,12 +87,36 @@ func collectorRunAction(ctx *cli.Context) (err error) {
 	// Run collector
 	collectionDirectory, err := runCollector(collectorConfig, workingDir)
 	if err != nil {
+		interactivePrintf(
+			"%v[%s] Failed to collect data in directory %s\n",
+			mediumIndent,
+			uiSettings.iconError,
+			workingDir,
+		)
+		interactivePrintf(
+			"%v[ ] Skipping creating the archive\n",
+			mediumIndent,
+		)
+		interactivePrintf(
+			"%v[ ] Skipping uploading the archive\n",
+			mediumIndent,
+		)
 		return fmt.Errorf("failed to run collector '%s': %v", collectorId, err)
 	}
 
 	// Archive & compress collected data
 	archiveFilePath, err := archiveCollectedData(collectorConfig, &tempDir, collectionDirectory)
 	if err != nil {
+		interactivePrintf(
+			"%v[%s] Failed to create archive from %s\n",
+			mediumIndent,
+			uiSettings.iconError,
+			*collectionDirectory,
+		)
+		interactivePrintf(
+			"%v[ ] Skipping uploading the archive\n",
+			mediumIndent,
+		)
 		return fmt.Errorf("failed to run archiver: %s", err)
 	}
 
@@ -100,11 +124,10 @@ func collectorRunAction(ctx *cli.Context) (err error) {
 	_, err = uploadArchivedData(collectorConfig, &tempDir, archiveFilePath)
 	if err != nil {
 		interactivePrintf(
-			"%v[%s] Failed to upload archive %s ... %s\n",
+			"%v[%s] Failed to upload archive %s\n",
 			mediumIndent,
 			uiSettings.iconError,
 			*archiveFilePath,
-			err,
 		)
 		return fmt.Errorf("failed to run uploader: %s", err)
 	}
@@ -117,33 +140,25 @@ func runCollector(collectorConfig *CollectorInfo, workingDir string) (*string, e
 
 	collectorCommand := collectorConfig.Exec.Collector.Command
 	if collectorCommand == "" {
-		msg := fmt.Sprintf("collector command is not set in %s", collectorConfig.configFilePath)
-		slog.Error(msg)
-		return nil, fmt.Errorf(msg)
+		return nil, fmt.Errorf("collector command is not set in %s", collectorConfig.configFilePath)
 	}
 
 	data, err := showProgressArgs(" Collecting data...", collectData, mediumIndent, collectorCommand, workingDir)
 	if err != nil {
-		msg := fmt.Sprintf("failed to collect data: %v", err)
-		slog.Error(msg)
-		return nil, fmt.Errorf(msg)
+		return nil, fmt.Errorf("failed to collect data: %v", err)
 	}
 
 	var collectorOutput CollectorOutput
 	err = json.Unmarshal([]byte(*data), &collectorOutput)
 	if err != nil {
-		msg := fmt.Sprintf("failed to parse collector output: %v", err)
-		slog.Error(msg)
-		return nil, fmt.Errorf(msg)
+		return nil, fmt.Errorf("failed to parse collector output: %v", err)
 	}
 
 	interactivePrintf("%v[%s] Collected data to %s\n", mediumIndent, uiSettings.iconOK, workingDir)
 
 	err = writeTimeStampOfLastRun(collectorConfig)
 	if err != nil {
-		msg := fmt.Sprintf("failed to write last run timestamp: %v", err)
-		slog.Error(msg)
-		return nil, fmt.Errorf(msg)
+		return nil, fmt.Errorf("failed to write last run timestamp: %v", err)
 	}
 
 	return &collectorOutput.CollectionDirectory, nil
@@ -189,9 +204,7 @@ func uploadArchivedData(collectorConfig *CollectorInfo, tempDir *string, archive
 func archiveCollectedData(collectorConfig *CollectorInfo, tempDir *string, collectionDir *string) (*string, error) {
 	archiverCommand := collectorConfig.Exec.Archiver.Command
 	if archiverCommand == "" {
-		msg := fmt.Sprintf("archiver command is not set in %s", collectorConfig.configFilePath)
-		slog.Error(msg)
-		return nil, fmt.Errorf(msg)
+		return nil, fmt.Errorf("archiver command is not set in %s", collectorConfig.configFilePath)
 	}
 
 	data, err := showProgressArgs(
@@ -203,17 +216,13 @@ func archiveCollectedData(collectorConfig *CollectorInfo, tempDir *string, colle
 		*collectionDir,
 	)
 	if err != nil {
-		msg := fmt.Sprintf("failed to archive collected data: %v", err)
-		slog.Error(msg)
-		return nil, fmt.Errorf(msg)
+		return nil, fmt.Errorf("failed to archive collected data: %v", err)
 	}
 
 	var archiverOutput ArchiverOutput
 	err = json.Unmarshal([]byte(*data), &archiverOutput)
 	if err != nil {
-		msg := fmt.Sprintf("failed to parse arhiver output: %v", err)
-		slog.Error(msg)
-		return nil, fmt.Errorf(msg)
+		return nil, fmt.Errorf("failed to parse arhiver output: %v", err)
 	}
 
 	interactivePrintf(
