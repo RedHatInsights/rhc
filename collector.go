@@ -242,7 +242,6 @@ func changeCurrentUser(collectorConfig *CollectorInfo) error {
 
 	// When the user is defined in the collector config, then try to switch to this user and rhc-collector group
 	if collectorConfig.Exec.User != "" && currentUser.Username != collectorConfig.Exec.User {
-		slog.Debug(fmt.Sprintf("current user %s != collector user %s", currentUser.Name, collectorConfig.Exec.User))
 		// Try to get user rhc-collector group
 		collectorUser, err := user.Lookup(collectorConfig.Exec.User)
 		if err != nil {
@@ -278,61 +277,86 @@ func changeCurrentUser(collectorConfig *CollectorInfo) error {
 	return nil
 }
 
+// writeCommandOutputsToFiles tries to write command outputs to files
+func writeCommandOutputsToFiles(cmd *string, stdoutFilePath string, stderrFilePath string, stdout *string, stderr *string) {
+	err := os.WriteFile(stdoutFilePath, []byte(*stdout), 0600)
+	if err != nil {
+		slog.Warn(fmt.Sprintf("failed to write %s stdout to %s: %v", *cmd, stdoutFilePath, err))
+	}
+	err = os.WriteFile(stderrFilePath, []byte(*stderr), 0600)
+	if err != nil {
+		slog.Warn(fmt.Sprintf("failed to write %s stderr to %s: %v", *cmd, stderrFilePath, err))
+	}
+}
+
 // collectData tries to run a given collector
-func collectData(args ...string) (*string, error) {
-	var outBuffer bytes.Buffer
+func collectData(args ...string) (*string, *string, error) {
+	var stdoutBuffer bytes.Buffer
+	var stderrBuffer bytes.Buffer
 	collectorCommand := args[0]
 	tempDir := args[1]
 	arguments := []string{"-c", collectorCommand}
 	cmd := exec.Command(bashFilePath, arguments...)
 	cmd.Dir = tempDir
-	cmd.Stdout = &outBuffer
+	cmd.Stdout = &stdoutBuffer
+	cmd.Stderr = &stderrBuffer
 	err := cmd.Run()
 
+	stdOut := stdoutBuffer.String()
+	stdErr := stderrBuffer.String()
+
 	if err != nil {
-		return nil, fmt.Errorf("failed to run collector '%s -c %s': %v",
+		return &stdOut, &stdErr, fmt.Errorf("failed to run collector '%s -c %s': %v",
 			bashFilePath, collectorCommand, err)
 	}
 
-	stdOut := outBuffer.String()
-
-	return &stdOut, nil
+	return &stdOut, &stdErr, nil
 }
 
 // archiveData tries to run a given archiver
-func archiveData(args ...string) (*string, error) {
-	var outBuffer bytes.Buffer
+func archiveData(args ...string) (*string, *string, error) {
+	var stdoutBuffer bytes.Buffer
+	var stderrBuffer bytes.Buffer
 	archiverCommand := args[0]
 	tempDir := args[1]
 	arguments := []string{"-c", archiverCommand + " " + args[2]}
 	cmd := exec.Command(bashFilePath, arguments...)
 	cmd.Dir = tempDir
-	cmd.Stdout = &outBuffer
+	cmd.Stdout = &stdoutBuffer
+	cmd.Stderr = &stderrBuffer
+
 	err := cmd.Run()
 
+	stdOut := stdoutBuffer.String()
+	stdErr := stderrBuffer.String()
+
 	if err != nil {
-		return nil, fmt.Errorf("failed to run archiver '%s': %v", archiverCommand, err)
+		return &stdOut, &stdErr, fmt.Errorf("failed to run archiver '%s': %v", archiverCommand, err)
 	}
 
-	stdOut := outBuffer.String()
-
-	return &stdOut, nil
+	return &stdOut, &stdErr, nil
 }
 
-func uploadData(args ...string) (*string, error) {
-	var outBuffer bytes.Buffer
+// uploadData tries to run a given uploader
+func uploadData(args ...string) (*string, *string, error) {
+	var stdoutBuffer bytes.Buffer
+	var stderrBuffer bytes.Buffer
 	uploaderCommand := args[0]
 	tempDir := args[1]
 	arguments := []string{"-c", uploaderCommand + " " + args[2]}
 	cmd := exec.Command(bashFilePath, arguments...)
 	cmd.Dir = tempDir
-	cmd.Stdout = &outBuffer
+	cmd.Stdout = &stdoutBuffer
+	cmd.Stderr = &stderrBuffer
+
 	err := cmd.Run()
 
+	stdOut := stdoutBuffer.String()
+	stdErr := stderrBuffer.String()
+
 	if err != nil {
-		return nil, fmt.Errorf("failed to run uploader '%s': %v", uploaderCommand, err)
+		return &stdOut, &stdErr, fmt.Errorf("failed to run uploader '%s': %v", uploaderCommand, err)
 	}
 
-	stdOut := outBuffer.String()
-	return &stdOut, nil
+	return &stdOut, &stdErr, nil
 }

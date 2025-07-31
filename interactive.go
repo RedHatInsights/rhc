@@ -90,10 +90,10 @@ func showProgress(
 // Both returned values could be nil
 func showProgressArgs(
 	progressMessage string,
-	function func(args ...string) (*string, error),
+	function func(args ...string) (*string, *string, error),
 	prefixSpaces string,
 	args ...string,
-) (*string, error) {
+) (*string, *string, error) {
 	var s *spinner.Spinner
 	if uiSettings.isRich {
 		s = spinner.New(spinner.CharSets[9], 100*time.Millisecond)

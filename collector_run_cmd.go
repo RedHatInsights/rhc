@@ -10,7 +10,13 @@ import (
 )
 
 const (
-	bashFilePath = "/bin/bash"
+	bashFilePath            = "/bin/bash"
+	collectorStdoutFileName = "collector_stdout"
+	collectorStderrFileName = "collector_stderr"
+	archiverStdoutFileName  = "archiver_stdout"
+	archiverStderrFileName  = "archiver_stderr"
+	uploaderStdoutFileName  = "uploader_stdout"
+	uploaderStderrFileName  = "uploader_stderr"
 )
 
 type CollectorOutput struct {
@@ -85,7 +91,7 @@ func collectorRunAction(ctx *cli.Context) (err error) {
 	}
 
 	// Run collector
-	collectionDirectory, err := runCollector(collectorConfig, workingDir)
+	collectionDirectory, err := runCollector(collectorConfig, &tempDir, workingDir)
 	if err != nil {
 		interactivePrintf(
 			"%v[%s] Failed to collect data in directory %s\n",
@@ -98,7 +104,7 @@ func collectorRunAction(ctx *cli.Context) (err error) {
 			mediumIndent,
 		)
 		interactivePrintf(
-			"%v[ ] Skipping uploading the archive\n",
+			"%v[ ] Skipping uploading the archive\n\n",
 			mediumIndent,
 		)
 		return fmt.Errorf("failed to run collector '%s': %v", collectorId, err)
@@ -114,7 +120,7 @@ func collectorRunAction(ctx *cli.Context) (err error) {
 			*collectionDirectory,
 		)
 		interactivePrintf(
-			"%v[ ] Skipping uploading the archive\n",
+			"%v[ ] Skipping uploading the archive\n\n",
 			mediumIndent,
 		)
 		return fmt.Errorf("failed to run archiver: %s", err)
@@ -124,7 +130,7 @@ func collectorRunAction(ctx *cli.Context) (err error) {
 	_, err = uploadArchivedData(collectorConfig, &tempDir, archiveFilePath)
 	if err != nil {
 		interactivePrintf(
-			"%v[%s] Failed to upload archive %s\n",
+			"%v[%s] Failed to upload archive %s\n\n",
 			mediumIndent,
 			uiSettings.iconError,
 			*archiveFilePath,
@@ -136,20 +142,25 @@ func collectorRunAction(ctx *cli.Context) (err error) {
 }
 
 // runCollector tries to run the given collector
-func runCollector(collectorConfig *CollectorInfo, workingDir string) (*string, error) {
+func runCollector(collectorConfig *CollectorInfo, tempDir *string, workingDir string) (*string, error) {
 
 	collectorCommand := collectorConfig.Exec.Collector.Command
 	if collectorCommand == "" {
 		return nil, fmt.Errorf("collector command is not set in %s", collectorConfig.configFilePath)
 	}
 
-	data, err := showProgressArgs(" Collecting data...", collectData, mediumIndent, collectorCommand, workingDir)
+	collectorStdoutFilePath := filepath.Join(*tempDir, collectorStdoutFileName)
+	collectorStderrFilePath := filepath.Join(*tempDir, collectorStderrFileName)
+
+	stdout, stderr, err := showProgressArgs(" Collecting data...", collectData, mediumIndent, collectorCommand, workingDir)
+	// Write stdout and stderr to the files in the temporary directory
+	writeCommandOutputsToFiles(&collectorCommand, collectorStdoutFilePath, collectorStderrFilePath, stdout, stderr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to collect data: %v", err)
 	}
 
 	var collectorOutput CollectorOutput
-	err = json.Unmarshal([]byte(*data), &collectorOutput)
+	err = json.Unmarshal([]byte(*stdout), &collectorOutput)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse collector output: %v", err)
 	}
@@ -164,14 +175,17 @@ func runCollector(collectorConfig *CollectorInfo, workingDir string) (*string, e
 	return &collectorOutput.CollectionDirectory, nil
 }
 
-// uploadArchivedData tries to upload archive probably to some server or somewhere else. It is up to uploader ;-)
+// uploadArchivedData tries to upload archive probably to some server or somewhere else. It is up to the uploader ;-)
 func uploadArchivedData(collectorConfig *CollectorInfo, tempDir *string, archiveFilePath *string) (*string, error) {
 	uploaderCommand := collectorConfig.Exec.Uploader.Command
 	if uploaderCommand == "" {
 		return nil, fmt.Errorf("uploader file is not set in %s", collectorConfig.configFilePath)
 	}
 
-	data, err := showProgressArgs(
+	uploaderStdoutFilePath := filepath.Join(*tempDir, uploaderStdoutFileName)
+	uploaderStderrFilePath := filepath.Join(*tempDir, uploaderStderrFileName)
+
+	stdout, stderr, err := showProgressArgs(
 		" Uploading data...",
 		uploadData,
 		mediumIndent,
@@ -179,12 +193,14 @@ func uploadArchivedData(collectorConfig *CollectorInfo, tempDir *string, archive
 		*tempDir,
 		*archiveFilePath,
 	)
+	// Write stdout and stderr to the files in the temporary directory
+	writeCommandOutputsToFiles(&uploaderCommand, uploaderStdoutFilePath, uploaderStderrFilePath, stdout, stderr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to upload data: %v", err)
 	}
 
 	var uploaderOutput UploaderOutput
-	err = json.Unmarshal([]byte(*data), &uploaderOutput)
+	err = json.Unmarshal([]byte(*stdout), &uploaderOutput)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse uploader output: %v", err)
 	}
@@ -207,7 +223,10 @@ func archiveCollectedData(collectorConfig *CollectorInfo, tempDir *string, colle
 		return nil, fmt.Errorf("archiver command is not set in %s", collectorConfig.configFilePath)
 	}
 
-	data, err := showProgressArgs(
+	archiverStdoutFilePath := filepath.Join(*tempDir, archiverStdoutFileName)
+	archiverStderrFilePath := filepath.Join(*tempDir, archiverStderrFileName)
+
+	stdout, stderr, err := showProgressArgs(
 		fmt.Sprintf(" Archiving directory '%s'...", *collectionDir),
 		archiveData,
 		mediumIndent,
@@ -215,12 +234,14 @@ func archiveCollectedData(collectorConfig *CollectorInfo, tempDir *string, colle
 		*tempDir,
 		*collectionDir,
 	)
+	// Write stdout and stderr to the files in the temporary directory
+	writeCommandOutputsToFiles(&archiverCommand, archiverStdoutFilePath, archiverStderrFilePath, stdout, stderr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to archive collected data: %v", err)
 	}
 
 	var archiverOutput ArchiverOutput
-	err = json.Unmarshal([]byte(*data), &archiverOutput)
+	err = json.Unmarshal([]byte(*stdout), &archiverOutput)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse arhiver output: %v", err)
 	}
