@@ -11,16 +11,19 @@ import (
 	"math"
 	"os"
 	"os/exec"
+	"os/user"
 	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 )
 
 const (
 	collectorDirName        = "/usr/lib/rhc/collector.d"
 	collectorCacheDirectory = "/var/cache/rhc/collector.d/"
+	collectorGroupName      = "rhc-collector"
 )
 
 const notDefinedValue = "-"
@@ -35,6 +38,7 @@ type CollectorInfo struct {
 	} `json:"meta" toml:"meta"`
 	Exec struct {
 		VersionCommand string `json:"version_command" toml:"version_command"`
+		User           string `json:"user"`
 		Collector      struct {
 			Command string `json:"command" toml:"command"`
 		}
@@ -150,10 +154,22 @@ type LastRun struct {
 func writeTimeStampOfLastRun(collectorConfig *CollectorInfo) error {
 	collectorCacheDir := path.Join(collectorCacheDirectory, collectorConfig.id)
 
+	// Try to create a cache directory for this collector
+	// Something like /var/cache/rhc/collector.d/<COLLECTOR_ID>/
 	if _, err := os.Stat(collectorCacheDir); os.IsNotExist(err) {
 		err = os.Mkdir(collectorCacheDir, 0700)
 		if err != nil {
 			return fmt.Errorf("failed to create collector cache directory %s: %v", collectorCacheDir, err)
+		}
+	}
+
+	lastRunFilePath := path.Join(collectorCacheDir, "last_run.json")
+
+	// When the previous time stamp exists, then delete it first
+	if _, err := os.Stat(lastRunFilePath); err == nil {
+		err = os.Remove(lastRunFilePath)
+		if err != nil {
+			return fmt.Errorf("failed to remove file %s: %v", lastRunFilePath, err)
 		}
 	}
 
@@ -162,13 +178,6 @@ func writeTimeStampOfLastRun(collectorConfig *CollectorInfo) error {
 	data, err := json.MarshalIndent(lastRun, "", "    ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal last run: %v", err)
-	}
-
-	lastRunFilePath := path.Join(collectorCacheDir, "last_run.json")
-
-	err = os.Remove(lastRunFilePath)
-	if err != nil {
-		return fmt.Errorf("failed to remove file %s: %v", lastRunFilePath, err)
 	}
 
 	err = os.WriteFile(lastRunFilePath, data, 0600)
@@ -200,6 +209,11 @@ func runVersionCommand(collectorConfig *CollectorInfo) (*string, error) {
 	return &version, nil
 }
 
+// readLastRun tries to read and parse the last run timestamp of the collector from
+// the last_run.json file in the collector's cache directory. It returns a pointer to
+// time.Time representing when the collector was last run. It returns an error if
+// any error occurred during reading or parsing the timestamp. If the file doesn't
+// exist or cannot be read/parsed, an error is also returned.
 func readLastRun(collectorConfig *CollectorInfo) (*time.Time, error) {
 	collectorCacheDir := path.Join(collectorCacheDirectory, collectorConfig.id)
 	lastRunFilePath := path.Join(collectorCacheDir, "last_run.json")
@@ -218,6 +232,50 @@ func readLastRun(collectorConfig *CollectorInfo) (*time.Time, error) {
 	}
 	lastTime := time.UnixMicro(microseconds)
 	return &lastTime, nil
+}
+
+func changeCurrentUser(collectorConfig *CollectorInfo) error {
+	currentUser, err := user.Current()
+	if err != nil {
+		return fmt.Errorf("failed to get current user: %v", err)
+	}
+
+	// When the user is defined in the collector config, then try to switch to this user and rhc-collector group
+	if collectorConfig.Exec.User != "" && currentUser.Username != collectorConfig.Exec.User {
+		slog.Debug(fmt.Sprintf("current user %s != collector user %s", currentUser.Name, collectorConfig.Exec.User))
+		// Try to get user rhc-collector group
+		collectorUser, err := user.Lookup(collectorConfig.Exec.User)
+		if err != nil {
+			return fmt.Errorf("failed to lookup user %v %v", collectorConfig.Exec.User, err)
+		}
+		collectorGroup, err := user.LookupGroup(collectorGroupName)
+		if err != nil {
+			return fmt.Errorf("failed to lookup group %v: %v", collectorGroupName, err)
+		}
+
+		// Try to convert the provided UID and GID to integers
+		uid, err := strconv.Atoi(collectorUser.Uid)
+		if err != nil {
+			return fmt.Errorf("failed to convert uid %s to int: %v", collectorUser.Uid, err)
+		}
+		gid, err := strconv.Atoi(collectorGroup.Gid)
+		if err != nil {
+			return fmt.Errorf("failed to convert gid %s to int: %v", collectorGroup.Gid, err)
+		}
+
+		// Finally, try to change uid and gid. Note: the following system calls will fail when
+		// the current user is not the root user, but it is expected behavior.
+		if err := syscall.Setgid(gid); err != nil {
+			return fmt.Errorf("failed to set group ID %d: %v (%v)",
+				gid, collectorGroupName, err)
+		}
+		if err := syscall.Setuid(uid); err != nil {
+			return fmt.Errorf("failed to set user ID %d: %v (%v)",
+				uid, collectorConfig.Exec.User, err)
+		}
+	}
+
+	return nil
 }
 
 // collectData tries to run a given collector

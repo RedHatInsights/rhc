@@ -53,13 +53,19 @@ func collectorRunAction(ctx *cli.Context) (err error) {
 
 	collectorConfig, err := readCollectorConfig(collectorConfigfilePath)
 	if err != nil {
-		return cli.Exit(fmt.Sprintf("failed to read collector configuration file %s: %v", fileName, err), 1)
+		return fmt.Errorf("failed to read collector configuration file %s: %v", fileName, err)
+	}
+
+	// Try to change current user, when needed
+	err = changeCurrentUser(collectorConfig)
+	if err != nil {
+		return fmt.Errorf("failed to change current user: %v", err)
 	}
 
 	// Create a temporary directory, where collector will collect data
 	tempDir, err := os.MkdirTemp("/tmp", fmt.Sprintf("rhc-collector-%s-*", collectorId))
 	if err != nil {
-		return cli.Exit(fmt.Sprintf("failed to create temporary directory: %v", err), 1)
+		return fmt.Errorf("failed to create temporary directory: %v", err)
 	}
 	// If --keep is not used, then delete the temporary directory at the end
 	if !keepArtifacts {
@@ -75,25 +81,25 @@ func collectorRunAction(ctx *cli.Context) (err error) {
 	workingDir := filepath.Join(tempDir, collectorId)
 	err = os.Mkdir(workingDir, 0700)
 	if err != nil {
-		return cli.Exit(fmt.Sprintf("failed to create working directory %s: %v", workingDir, err), 1)
+		return fmt.Errorf("failed to create working directory %s: %v", workingDir, err)
 	}
 
 	// Run collector
 	collectionDirectory, err := runCollector(collectorConfig, workingDir)
 	if err != nil {
-		return cli.Exit(fmt.Sprintf("failed to run collector '%s': %v", collectorId, err), 1)
+		return fmt.Errorf("failed to run collector '%s': %v", collectorId, err)
 	}
 
 	// Archive & compress collected data
 	archiveFilePath, err := archiveCollectedData(collectorConfig, &tempDir, collectionDirectory)
 	if err != nil {
-		return cli.Exit(fmt.Sprintf("failed to run archiver: %s", err), 1)
+		return fmt.Errorf("failed to run archiver: %s", err)
 	}
 
 	// Upload data
 	_, err = uploadArchivedData(collectorConfig, &tempDir, archiveFilePath)
 	if err != nil {
-		return cli.Exit(fmt.Sprintf("failed to run uploader: %s", err), 1)
+		return fmt.Errorf("failed to run uploader: %s", err)
 	}
 
 	return nil
