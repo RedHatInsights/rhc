@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"log/slog"
 	"math"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"strconv"
@@ -144,11 +146,15 @@ type LastRun struct {
 	Timestamp string `json:"timestamp"`
 }
 
+// writeTimeStampOfLastRun tries to write last_run.json file to cache directory of the collector
 func writeTimeStampOfLastRun(collectorConfig *CollectorInfo) error {
 	collectorCacheDir := path.Join(collectorCacheDirectory, collectorConfig.id)
-	err := os.Mkdir(collectorCacheDir, 0700)
-	if err != nil {
-		return fmt.Errorf("failed to create collector cache directory %s: %v", collectorCacheDir, err)
+
+	if _, err := os.Stat(collectorCacheDir); os.IsNotExist(err) {
+		err = os.Mkdir(collectorCacheDir, 0700)
+		if err != nil {
+			return fmt.Errorf("failed to create collector cache directory %s: %v", collectorCacheDir, err)
+		}
 	}
 
 	timeStamp := fmt.Sprintf("%d", time.Now().UnixMicro())
@@ -159,12 +165,39 @@ func writeTimeStampOfLastRun(collectorConfig *CollectorInfo) error {
 	}
 
 	lastRunFilePath := path.Join(collectorCacheDir, "last_run.json")
+
+	err = os.Remove(lastRunFilePath)
+	if err != nil {
+		return fmt.Errorf("failed to remove file %s: %v", lastRunFilePath, err)
+	}
+
 	err = os.WriteFile(lastRunFilePath, data, 0600)
 	if err != nil {
 		return fmt.Errorf("failed to write to file %s: %v", lastRunFilePath, err)
 	}
 
 	return nil
+}
+
+// runVersionCommand tries to run version command
+func runVersionCommand(collectorConfig *CollectorInfo) (*string, error) {
+	var outBuffer bytes.Buffer
+	if collectorConfig.Exec.VersionCommand == "" {
+		return nil, fmt.Errorf("no version command specified in %s", collectorConfig.configFilePath)
+	}
+	arguments := []string{"-c", collectorConfig.Exec.VersionCommand}
+	cmd := exec.Command(bashFilePath, arguments...)
+	cmd.Stdout = &outBuffer
+	err := cmd.Run()
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to run collector '%s': %v", collectorConfig.Exec.VersionCommand, err)
+	}
+
+	stdOut := outBuffer.String()
+	version := strings.TrimSpace(stdOut)
+
+	return &version, nil
 }
 
 func readLastRun(collectorConfig *CollectorInfo) (*time.Time, error) {
@@ -185,4 +218,63 @@ func readLastRun(collectorConfig *CollectorInfo) (*time.Time, error) {
 	}
 	lastTime := time.UnixMicro(microseconds)
 	return &lastTime, nil
+}
+
+// collectData tries to run a given collector
+func collectData(args ...string) (*string, error) {
+	var outBuffer bytes.Buffer
+	collectorCommand := args[0]
+	tempDir := args[1]
+	arguments := []string{"-c", collectorCommand}
+	cmd := exec.Command(bashFilePath, arguments...)
+	cmd.Dir = tempDir
+	cmd.Stdout = &outBuffer
+	err := cmd.Run()
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to run collector '%s -c %s': %v",
+			bashFilePath, collectorCommand, err)
+	}
+
+	stdOut := outBuffer.String()
+
+	return &stdOut, nil
+}
+
+// archiveData tries to run a given archiver
+func archiveData(args ...string) (*string, error) {
+	var outBuffer bytes.Buffer
+	archiverCommand := args[0]
+	tempDir := args[1]
+	arguments := []string{"-c", archiverCommand + " " + args[2]}
+	cmd := exec.Command(bashFilePath, arguments...)
+	cmd.Dir = tempDir
+	cmd.Stdout = &outBuffer
+	err := cmd.Run()
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to run archiver '%s': %v", archiverCommand, err)
+	}
+
+	stdOut := outBuffer.String()
+
+	return &stdOut, nil
+}
+
+func uploadData(args ...string) (*string, error) {
+	var outBuffer bytes.Buffer
+	uploaderCommand := args[0]
+	tempDir := args[1]
+	arguments := []string{"-c", uploaderCommand + " " + args[2]}
+	cmd := exec.Command(bashFilePath, arguments...)
+	cmd.Dir = tempDir
+	cmd.Stdout = &outBuffer
+	err := cmd.Run()
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to run uploader '%s': %v", uploaderCommand, err)
+	}
+
+	stdOut := outBuffer.String()
+	return &stdOut, nil
 }

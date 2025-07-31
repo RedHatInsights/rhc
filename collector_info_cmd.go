@@ -1,15 +1,12 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/urfave/cli/v2"
 	"log/slog"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"strings"
 	"text/tabwriter"
 	"time"
 )
@@ -24,27 +21,6 @@ func beforeCollectorInfoAction(ctx *cli.Context) error {
 		return fmt.Errorf("error: expected 1 argument of collector name, got %d", ctx.Args().Len())
 	}
 	return nil
-}
-
-// runVersionCommand tries to run version command
-func runVersionCommand(collectorConfig *CollectorInfo) (*string, error) {
-	var outBuffer bytes.Buffer
-	if collectorConfig.Exec.VersionCommand == "" {
-		return nil, fmt.Errorf("no version command specified in %s", collectorConfig.configFilePath)
-	}
-	arguments := []string{"-c", collectorConfig.Exec.VersionCommand}
-	cmd := exec.Command(bashFilePath, arguments...)
-	cmd.Stdout = &outBuffer
-	err := cmd.Run()
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to run collector '%s': %v", collectorConfig.Exec.VersionCommand, err)
-	}
-
-	stdOut := outBuffer.String()
-	version := strings.TrimSpace(stdOut)
-
-	return &version, nil
 }
 
 func collectorInfoAction(ctx *cli.Context) (err error) {
@@ -81,7 +57,7 @@ func collectorInfoAction(ctx *cli.Context) (err error) {
 			_, _ = fmt.Fprintf(w, "Feature:\t%s\n\n", notDefinedValue)
 		}
 
-		// Try to get last run from the cache file
+		// Try to get the last run from the cache file
 		lastTime, err := readLastRun(collectorConfig)
 		if err != nil {
 			_, _ = fmt.Fprintf(w, "Last run:\t%s\n", notDefinedValue)

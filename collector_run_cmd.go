@@ -1,13 +1,11 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/urfave/cli/v2"
 	"log/slog"
 	"os"
-	"os/exec"
 	"path/filepath"
 )
 
@@ -42,65 +40,6 @@ func beforeCollectorRunAction(ctx *cli.Context) error {
 		return fmt.Errorf("error: expected 1 argument of collector name, got %d", ctx.Args().Len())
 	}
 	return nil
-}
-
-// collectData tries to run a given collector
-func collectData(args ...string) (*string, error) {
-	var outBuffer bytes.Buffer
-	collectorCommand := args[0]
-	tempDir := args[1]
-	arguments := []string{"-c", collectorCommand}
-	cmd := exec.Command(bashFilePath, arguments...)
-	cmd.Dir = tempDir
-	cmd.Stdout = &outBuffer
-	err := cmd.Run()
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to run collector '%s -c %s': %v",
-			bashFilePath, collectorCommand, err)
-	}
-
-	stdOut := outBuffer.String()
-
-	return &stdOut, nil
-}
-
-// archiveData tries to run a given archiver
-func archiveData(args ...string) (*string, error) {
-	var outBuffer bytes.Buffer
-	archiverCommand := args[0]
-	tempDir := args[1]
-	arguments := []string{"-c", archiverCommand + " " + args[2]}
-	cmd := exec.Command(bashFilePath, arguments...)
-	cmd.Dir = tempDir
-	cmd.Stdout = &outBuffer
-	err := cmd.Run()
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to run archiver '%s': %v", archiverCommand, err)
-	}
-
-	stdOut := outBuffer.String()
-
-	return &stdOut, nil
-}
-
-func uploadData(args ...string) (*string, error) {
-	var outBuffer bytes.Buffer
-	uploaderCommand := args[0]
-	tempDir := args[1]
-	arguments := []string{"-c", uploaderCommand + " " + args[2]}
-	cmd := exec.Command(bashFilePath, arguments...)
-	cmd.Dir = tempDir
-	cmd.Stdout = &outBuffer
-	err := cmd.Run()
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to run uploader '%s': %v", uploaderCommand, err)
-	}
-
-	stdOut := outBuffer.String()
-	return &stdOut, nil
 }
 
 // collectorRunAction run given collector, archiver and uploader according
@@ -158,6 +97,43 @@ func collectorRunAction(ctx *cli.Context) (err error) {
 	}
 
 	return nil
+}
+
+// runCollector tries to run the given collector
+func runCollector(collectorConfig *CollectorInfo, workingDir string) (*string, error) {
+
+	collectorCommand := collectorConfig.Exec.Collector.Command
+	if collectorCommand == "" {
+		msg := fmt.Sprintf("collector command is not set in %s", collectorConfig.configFilePath)
+		slog.Error(msg)
+		return nil, fmt.Errorf(msg)
+	}
+
+	data, err := showProgressArgs(" Collecting data...", collectData, mediumIndent, collectorCommand, workingDir)
+	if err != nil {
+		msg := fmt.Sprintf("failed to collect data: %v", err)
+		slog.Error(msg)
+		return nil, fmt.Errorf(msg)
+	}
+
+	var collectorOutput CollectorOutput
+	err = json.Unmarshal([]byte(*data), &collectorOutput)
+	if err != nil {
+		msg := fmt.Sprintf("failed to parse collector output: %v", err)
+		slog.Error(msg)
+		return nil, fmt.Errorf(msg)
+	}
+
+	interactivePrintf("%v[%s] Collected data to %s\n", mediumIndent, uiSettings.iconOK, workingDir)
+
+	err = writeTimeStampOfLastRun(collectorConfig)
+	if err != nil {
+		msg := fmt.Sprintf("failed to write last run timestamp: %v", err)
+		slog.Error(msg)
+		return nil, fmt.Errorf(msg)
+	}
+
+	return &collectorOutput.CollectionDirectory, nil
 }
 
 // uploadArchivedData tries to upload archive probably to some server or somewhere else. It is up to uploader ;-)
@@ -242,41 +218,4 @@ func archiveCollectedData(collectorConfig *CollectorInfo, tempDir *string, colle
 	)
 
 	return &archiverOutput.Archive, nil
-}
-
-// runCollector tries to run given collector
-func runCollector(collectorConfig *CollectorInfo, workingDir string) (*string, error) {
-
-	collectorCommand := collectorConfig.Exec.Collector.Command
-	if collectorCommand == "" {
-		msg := fmt.Sprintf("collector command is not set in %s", collectorConfig.configFilePath)
-		slog.Error(msg)
-		return nil, fmt.Errorf(msg)
-	}
-
-	data, err := showProgressArgs(" Collecting data...", collectData, mediumIndent, collectorCommand, workingDir)
-	if err != nil {
-		msg := fmt.Sprintf("failed to collect data: %v", err)
-		slog.Error(msg)
-		return nil, fmt.Errorf(msg)
-	}
-
-	var collectorOutput CollectorOutput
-	err = json.Unmarshal([]byte(*data), &collectorOutput)
-	if err != nil {
-		msg := fmt.Sprintf("failed to parse collector output: %v", err)
-		slog.Error(msg)
-		return nil, fmt.Errorf(msg)
-	}
-
-	interactivePrintf("%v[%s] Collected data to %s\n", mediumIndent, uiSettings.iconOK, workingDir)
-
-	err = writeTimeStampOfLastRun(collectorConfig)
-	if err != nil {
-		msg := fmt.Sprintf("failed to write last run timestamp: %v", err)
-		slog.Error(msg)
-		return nil, fmt.Errorf(msg)
-	}
-
-	return &collectorOutput.CollectionDirectory, nil
 }

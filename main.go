@@ -243,7 +243,7 @@ func main() {
 		{
 			Name:        "collector",
 			Usage:       "Collect data for analysis",
-			UsageText:   fmt.Sprintf("%v collector", app.Name),
+			UsageText:   fmt.Sprintf("%v collector COMMAND [command options]", app.Name),
 			Description: "Manage data collectors. System data collected by collectors are typically send for analysis to " + Provider,
 			Subcommands: []*cli.Command{
 				{
@@ -340,8 +340,6 @@ func main() {
 					Action:      collectorDisableAction,
 				},
 			},
-			Before: beforeCollectorAction,
-			Action: collectorAction,
 		},
 	}
 	app.EnableBashCompletion = true
