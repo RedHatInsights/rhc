@@ -99,6 +99,13 @@ func collectorRunAction(ctx *cli.Context) (err error) {
 	// Upload data
 	_, err = uploadArchivedData(collectorConfig, &tempDir, archiveFilePath)
 	if err != nil {
+		interactivePrintf(
+			"%v[%s] Failed to upload archive %s ... %s\n",
+			mediumIndent,
+			uiSettings.iconError,
+			*archiveFilePath,
+			err,
+		)
 		return fmt.Errorf("failed to run uploader: %s", err)
 	}
 
@@ -146,9 +153,7 @@ func runCollector(collectorConfig *CollectorInfo, workingDir string) (*string, e
 func uploadArchivedData(collectorConfig *CollectorInfo, tempDir *string, archiveFilePath *string) (*string, error) {
 	uploaderCommand := collectorConfig.Exec.Uploader.Command
 	if uploaderCommand == "" {
-		msg := fmt.Sprintf("uploader file is not set in %s", collectorConfig.configFilePath)
-		slog.Error(msg)
-		return nil, fmt.Errorf(msg)
+		return nil, fmt.Errorf("uploader file is not set in %s", collectorConfig.configFilePath)
 	}
 
 	data, err := showProgressArgs(
@@ -160,17 +165,13 @@ func uploadArchivedData(collectorConfig *CollectorInfo, tempDir *string, archive
 		*archiveFilePath,
 	)
 	if err != nil {
-		msg := fmt.Sprintf("failed to upload data: %v", err)
-		slog.Error(msg)
-		return nil, fmt.Errorf(msg)
+		return nil, fmt.Errorf("failed to upload data: %v", err)
 	}
 
 	var uploaderOutput UploaderOutput
 	err = json.Unmarshal([]byte(*data), &uploaderOutput)
 	if err != nil {
-		msg := fmt.Sprintf("failed to parse uploader output: %v", err)
-		slog.Error(msg)
-		return nil, fmt.Errorf(msg)
+		return nil, fmt.Errorf("failed to parse uploader output: %v", err)
 	}
 
 	interactivePrintf(
