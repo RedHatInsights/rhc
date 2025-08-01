@@ -25,7 +25,7 @@ func collectorDisableAction(ctx *cli.Context) (err error) {
 	collectorId := ctx.Args().First()
 
 	fileName := collectorId + ".toml"
-	collectorConfigfilePath := filepath.Join(collectorDirName, fileName)
+	collectorConfigfilePath := filepath.Join(collectorConfigDirPath, fileName)
 
 	collectorConfig, err := readCollectorConfig(collectorConfigfilePath)
 	if err != nil {

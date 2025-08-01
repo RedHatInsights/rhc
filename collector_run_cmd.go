@@ -55,7 +55,7 @@ func collectorRunAction(ctx *cli.Context) (err error) {
 	keepArtifacts := ctx.Bool("keep")
 
 	fileName := collectorId + ".toml"
-	collectorConfigfilePath := filepath.Join(collectorDirName, fileName)
+	collectorConfigfilePath := filepath.Join(collectorConfigDirPath, fileName)
 
 	collectorConfig, err := readCollectorConfig(collectorConfigfilePath)
 	if err != nil {

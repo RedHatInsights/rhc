@@ -21,9 +21,8 @@ import (
 )
 
 const (
-	collectorDirName        = "/usr/lib/rhc/collector.d"
-	collectorCacheDirectory = "/var/cache/rhc/collector.d/"
-	collectorGroupName      = "rhc-collector"
+	collectorConfigDirPath = "/usr/lib/rhc/collector.d"
+	collectorCacheDirPath  = "/var/cache/rhc/collector.d"
 )
 
 const notDefinedValue = "-"
@@ -39,6 +38,7 @@ type CollectorInfo struct {
 	Exec struct {
 		VersionCommand string `json:"version_command" toml:"version_command"`
 		User           string `json:"user"`
+		Group          string `json:"group"`
 		Collector      struct {
 			Command string `json:"command" toml:"command"`
 		}
@@ -71,10 +71,10 @@ func readCollectorConfig(filePath string) (*CollectorInfo, error) {
 func readAllCollectors() ([]CollectorInfo, error) {
 	var collectors []CollectorInfo
 
-	slog.Debug(fmt.Sprintf("Reading collectors from directory %s", collectorDirName))
-	files, err := os.ReadDir(collectorDirName)
+	slog.Debug(fmt.Sprintf("Reading collectors from directory %s", collectorConfigDirPath))
+	files, err := os.ReadDir(collectorConfigDirPath)
 	if err != nil {
-		return collectors, fmt.Errorf("failed to read directory %s: %v", collectorDirName, err)
+		return collectors, fmt.Errorf("failed to read directory %s: %v", collectorConfigDirPath, err)
 	}
 
 	for _, file := range files {
@@ -83,7 +83,7 @@ func readAllCollectors() ([]CollectorInfo, error) {
 			continue
 		}
 
-		filePath := filepath.Join(collectorDirName, file.Name())
+		filePath := filepath.Join(collectorConfigDirPath, file.Name())
 
 		collectorInfo, err := readCollectorConfig(filePath)
 		if err != nil {
@@ -152,7 +152,7 @@ type LastRun struct {
 
 // writeTimeStampOfLastRun tries to write last_run.json file to cache directory of the collector
 func writeTimeStampOfLastRun(collectorConfig *CollectorInfo) error {
-	collectorCacheDir := path.Join(collectorCacheDirectory, collectorConfig.id)
+	collectorCacheDir := path.Join(collectorCacheDirPath, collectorConfig.id)
 
 	// Try to create a cache directory for this collector
 	// Something like /var/cache/rhc/collector.d/<COLLECTOR_ID>/
@@ -215,7 +215,7 @@ func runVersionCommand(collectorConfig *CollectorInfo) (*string, error) {
 // any error occurred during reading or parsing the timestamp. If the file doesn't
 // exist or cannot be read/parsed, an error is also returned.
 func readLastRun(collectorConfig *CollectorInfo) (*time.Time, error) {
-	collectorCacheDir := path.Join(collectorCacheDirectory, collectorConfig.id)
+	collectorCacheDir := path.Join(collectorCacheDirPath, collectorConfig.id)
 	lastRunFilePath := path.Join(collectorCacheDir, "last_run.json")
 	data, err := os.ReadFile(lastRunFilePath)
 	if err != nil {
@@ -240,16 +240,16 @@ func changeCurrentUser(collectorConfig *CollectorInfo) error {
 		return fmt.Errorf("failed to get current user: %v", err)
 	}
 
-	// When the user is defined in the collector config, then try to switch to this user and rhc-collector group
+	// When the user is defined in the collector config, then try to switch to this user and group
 	if collectorConfig.Exec.User != "" && currentUser.Username != collectorConfig.Exec.User {
-		// Try to get user rhc-collector group
+		// Try to get user and group
 		collectorUser, err := user.Lookup(collectorConfig.Exec.User)
 		if err != nil {
 			return fmt.Errorf("failed to lookup user %v %v", collectorConfig.Exec.User, err)
 		}
-		collectorGroup, err := user.LookupGroup(collectorGroupName)
+		collectorGroup, err := user.LookupGroup(collectorConfig.Exec.Group)
 		if err != nil {
-			return fmt.Errorf("failed to lookup group %v: %v", collectorGroupName, err)
+			return fmt.Errorf("failed to lookup group %v: %v", collectorConfig.Exec.Group, err)
 		}
 
 		// Try to convert the provided UID and GID to integers
@@ -265,11 +265,11 @@ func changeCurrentUser(collectorConfig *CollectorInfo) error {
 		// Finally, try to change uid and gid. Note: the following system calls will fail when
 		// the current user is not the root user, but it is expected behavior.
 		if err := syscall.Setgid(gid); err != nil {
-			return fmt.Errorf("failed to set group ID %d: %v (%v)",
-				gid, collectorGroupName, err)
+			return fmt.Errorf("failed to set group ID %d (%v): %v",
+				gid, collectorConfig.Exec.Group, err)
 		}
 		if err := syscall.Setuid(uid); err != nil {
-			return fmt.Errorf("failed to set user ID %d: %v (%v)",
+			return fmt.Errorf("failed to set user ID %d (%v): %v",
 				uid, collectorConfig.Exec.User, err)
 		}
 	}

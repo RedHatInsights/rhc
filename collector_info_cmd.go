@@ -31,7 +31,7 @@ func collectorInfoAction(ctx *cli.Context) (err error) {
 	collectorId := ctx.Args().First()
 
 	fileName := collectorId + ".toml"
-	filePath := filepath.Join(collectorDirName, fileName)
+	filePath := filepath.Join(collectorConfigDirPath, fileName)
 	collectorConfig, err := readCollectorConfig(filePath)
 	collectorConfig.id = collectorId
 	if err != nil {
