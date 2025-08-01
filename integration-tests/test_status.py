@@ -246,6 +246,74 @@ def test_status_rhsm_masked(rhc):
     subprocess.run(["systemctl", "unmask", "rhsm.service"])
 
 
+@pytest.mark.tier1
+def test_status_rhsm_masked_format_json(rhc):
+    """
+    :id: TODO
+    :title: Verify RHC status command output in JSON format when the rhsm.service is masked
+    :description:
+        This test verifies the output of the 'rhc status --format json' command when the rhsm.service
+        is masked and calling RHSM D-Bus API is not possible. We test this case for
+        disconnected system. It means that other features are inactive
+    :reference: https://issues.redhat.com/browse/CCT-1526
+    :tags: Tier 1
+    :steps:
+        1.  Disconnect the system using 'rhc disconnect'.
+        2.  Stop rhsm.service and mask rhsm.service.
+        3.  Run the 'rhc status --format json' command.
+        4.  Verify the command exit code.
+        5.  Parse JSON output.
+        6.  Unmask rhsm.service.
+    :expectedresults:
+        1.  RHC disconnects successfully.
+        2.  The command executes.
+        3.  The exit code is not 0.
+        4.  The output is a valid JSON document.
+        5.  The JSON contains 'hostname', 'rhsm_connected' (false), 'content_enabled' (false),
+            'insights_connected' (false), and 'rhcd_running' or 'yggdrasil_running' (false)
+            with correct boolean types. It also has to contain 'rhsm_error' and 'content_error'
+    """
+
+    # 'rhc disconnect' to ensure the system is already disconnected
+    rhc.run("disconnect", check=False)
+    # stop and mask rhsm.service
+    subprocess.run(["systemctl", "stop", "rhsm.service"])
+    subprocess.run(["systemctl", "mask", "rhsm.service"])
+    status_result = rhc.run("status", "--format", "json", check=False)
+    assert status_result.returncode != 0
+    status_json = json.loads(status_result.stdout)
+    assert "hostname" in status_json
+    # rhsm
+    assert "rhsm_connected" in status_json
+    assert type(status_json["rhsm_connected"]) == bool
+    assert status_json["rhsm_connected"] == False
+    assert "rhsm_error" in status_json
+    assert type(status_json["rhsm_error"]) == str
+    assert "Could not activate remote peer" in status_json["rhsm_error"]
+    # content
+    assert "content_enabled" in status_json
+    assert type(status_json["content_enabled"]) == bool
+    assert status_json["content_enabled"] == False
+    assert "content_error" in status_json
+    assert type(status_json["content_error"]) == str
+    assert "Could not activate remote peer" in status_json["content_error"]
+    # insights
+    assert "insights_connected" in status_json
+    assert type(status_json["insights_connected"]) == bool
+    assert status_json["insights_connected"] == False
+    # yggdrasil/rhcd
+    if pytest.service_name == "rhcd":
+        assert "rhcd_running" in status_json
+        assert type(status_json["rhcd_running"]) == bool
+        assert status_json["rhcd_running"] == False
+    else:
+        assert "yggdrasil_running" in status_json
+        assert type(status_json["yggdrasil_running"]) == bool
+        assert status_json["yggdrasil_running"] == False
+    # unmask rhsm.service at the end of the test
+    subprocess.run(["systemctl", "unmask", "rhsm.service"])
+
+
 @pytest.mark.skipif(
     pytest.service_name != "rhcd",
     reason="This test only supports restart of rhcd and not yggdrasil",
