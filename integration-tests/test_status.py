@@ -16,6 +16,7 @@ More information about this module could be found: https://github.com/RedHatInsi
 
 import pytest
 import json
+import subprocess
 from pytest_client_tools import util
 from utils import yggdrasil_service_is_active
 
@@ -199,6 +200,172 @@ def test_status_disconnected(rhc):
         assert "The Remote Host Configuration daemon is active" in status_result.stdout
     else:
         assert "The yggdrasil service is inactive" in status_result.stdout
+
+
+@pytest.fixture
+def unmask_rhsm_service():
+    """
+    pytest fixture to unmask rhsm.service
+    """
+    yield
+    subprocess.run(["systemctl", "unmask", "rhsm.service"])
+
+
+@pytest.mark.tier1
+@pytest.mark.usefixtures("unmask_rhsm_service")
+def test_status_connected_rhsm_masked(external_candlepin, rhc, test_config):
+    """
+    :id: 81e1ef2a-cc29-4f9c-9780-cfd027aa08ec
+    :title: Verify RHC status command output when the rhsm.service is masked
+    :description:
+        This test verifies the output of the 'rhc status' command when the rhsm.service
+        is masked and calling RHSM D-Bus API is not possible. We test this case for
+        a connected system. It means that other features should be inactive
+    :reference: https://issues.redhat.com/browse/CCT-1526
+    :tags: Tier 1
+    :steps:
+        1.  Connect the system using 'rhc disconnect'.
+        2.  Stop rhsm.service and mask rhsm.service.
+        3.  Run the 'rhc status' command.
+        4.  Verify the command exit code.
+        5.  Verify specific output strings in stdout.
+        6.  Unmask rhsm.service.
+    :expectedresults:
+        1.  RHC disconnects successfully.
+        2.  The command executes.
+        3.  The exit code is not 0 because there were errors.
+        4.  The status command output contains "Could not activate remote peer",
+            "Not connected to Red Hat Insights", and a message indicating
+            that the yggdrasil/rhcd service is inactive.
+    """
+
+    rhc.connect(
+        username=test_config.get("candlepin.username"),
+        password=test_config.get("candlepin.password"),
+    )
+
+    # stop and mask rhsm.service
+    subprocess.run(["systemctl", "stop", "rhsm.service"])
+    subprocess.run(["systemctl", "mask", "rhsm.service"])
+
+    # Run "rhc status" and check the result
+    status_result = rhc.run("status", check=False)
+    assert status_result.returncode != 0
+    assert "Could not activate remote peer" in status_result.stdout
+
+    # Test other features
+    assert "Connected to Red Hat Insights" in status_result.stdout
+    assert yggdrasil_service_is_active()
+    assert "The yggdrasil service is active" in status_result.stdout
+
+
+@pytest.mark.tier1
+@pytest.mark.usefixtures("unmask_rhsm_service")
+def test_status_disconnected_rhsm_masked(rhc):
+    """
+    :id: 704a91e5-d509-4635-a401-82368c7bdd75
+    :title: Verify RHC status command output when the rhsm.service is masked
+    :description:
+        This test verifies the output of the 'rhc status' command when the rhsm.service
+        is masked and calling RHSM D-Bus API is not possible. We test this case for
+        a disconnected system. It means that other features are inactive
+    :reference: https://issues.redhat.com/browse/CCT-1526
+    :tags: Tier 1
+    :steps:
+        1.  Disconnect the system using 'rhc disconnect'.
+        2.  Stop rhsm.service and mask rhsm.service.
+        3.  Run the 'rhc status' command.
+        4.  Verify the command exit code.
+        5.  Verify specific output strings in stdout.
+        6.  Unmask rhsm.service.
+    :expectedresults:
+        1.  RHC disconnects successfully.
+        2.  The command executes.
+        3.  The exit code is not 0.
+        4.  The status command output contains "Could not activate remote peer",
+            "Not connected to Red Hat Insights", and a message indicating
+            that the yggdrasil/rhcd service is inactive.
+    """
+
+    # 'rhc disconnect' to ensure the system is already disconnected
+    rhc.run("disconnect", check=False)
+    # stop and mask rhsm.service
+    subprocess.run(["systemctl", "stop", "rhsm.service"])
+    subprocess.run(["systemctl", "mask", "rhsm.service"])
+    status_result = rhc.run("status", check=False)
+    assert status_result.returncode != 0
+    assert "Could not activate remote peer" in status_result.stdout
+    assert "Not connected to Red Hat Insights" in status_result.stdout
+    assert "The yggdrasil service is inactive" in status_result.stdout
+
+
+@pytest.mark.tier1
+@pytest.mark.usefixtures("unmask_rhsm_service")
+def test_status_disconnected_rhsm_masked_format_json(rhc):
+    """
+    :id: 0ec86207-827f-4839-a49d-041c0525c1a8
+    :title: Verify RHC status command output in JSON format when the rhsm.service is masked
+    :description:
+        This test verifies the output of the 'rhc status --format json' command when the rhsm.service
+        is masked and calling RHSM D-Bus API is not possible. We test this case for
+        a disconnected system. It means that other features are inactive
+    :reference: https://issues.redhat.com/browse/CCT-1526
+    :tags: Tier 1
+    :steps:
+        1.  Disconnect the system using 'rhc disconnect'.
+        2.  Stop rhsm.service and mask rhsm.service.
+        3.  Run the 'rhc status --format json' command.
+        4.  Verify the command exit code.
+        5.  Parse JSON output.
+        6.  Unmask rhsm.service.
+    :expectedresults:
+        1.  RHC disconnects successfully.
+        2.  The command executes.
+        3.  The exit code is not 0.
+        4.  The output is a valid JSON document.
+        5.  The JSON contains 'hostname', 'rhsm_connected' (false), 'content_enabled' (false),
+            'insights_connected' (false), and 'rhcd_running' or 'yggdrasil_running' (false)
+            with correct boolean types. It also has to contain 'rhsm_error' and 'content_error'
+    """
+
+    # 'rhc disconnect' to ensure the system is already disconnected
+    rhc.run("disconnect", check=False)
+    # stop and mask rhsm.service
+    subprocess.run(["systemctl", "stop", "rhsm.service"])
+    subprocess.run(["systemctl", "mask", "rhsm.service"])
+
+    # Run "rhc status --format json" and check the result
+    status_result = rhc.run("status", "--format", "json", check=False)
+    assert status_result.returncode != 0
+
+    status_json = json.loads(status_result.stdout)
+    assert "hostname" in status_json
+
+    # rhsm
+    assert "rhsm_connected" in status_json
+    assert type(status_json["rhsm_connected"]) == bool
+    assert status_json["rhsm_connected"] == False
+    assert "rhsm_error" in status_json
+    assert type(status_json["rhsm_error"]) == str
+    assert "Could not activate remote peer" in status_json["rhsm_error"]
+
+    # content
+    assert "content_enabled" in status_json
+    assert type(status_json["content_enabled"]) == bool
+    assert status_json["content_enabled"] == False
+    assert "content_error" in status_json
+    assert type(status_json["content_error"]) == str
+    assert "Could not activate remote peer" in status_json["content_error"]
+
+    # insights
+    assert "insights_connected" in status_json
+    assert type(status_json["insights_connected"]) == bool
+    assert status_json["insights_connected"] == False
+
+    # yggdrasil/rhcd
+    assert "yggdrasil_running" in status_json
+    assert type(status_json["yggdrasil_running"]) == bool
+    assert status_json["yggdrasil_running"] == False
 
 
 @pytest.mark.skipif(
