@@ -329,7 +329,7 @@ func unpackRHSMError(err error) error {
 			}
 			return rhsmError
 		}
-		return fmt.Errorf("unable to parse D-Bus error due to unsupported error name: %s", e.Name)
+		return err
 	}
 	return err
 }
