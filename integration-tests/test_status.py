@@ -16,6 +16,7 @@ More information about this module could be found: https://github.com/RedHatInsi
 
 import pytest
 import json
+import subprocess
 from pytest_client_tools import util
 from utils import yggdrasil_service_is_active
 
@@ -199,6 +200,50 @@ def test_status_disconnected(rhc):
         assert "The Remote Host Configuration daemon is active" in status_result.stdout
     else:
         assert "The yggdrasil service is inactive" in status_result.stdout
+
+
+@pytest.mark.tier1
+def test_status_rhsm_masked(rhc):
+    """
+    :id: TODO
+    :title: Verify RHC status command output when the rhsm.service is masked
+    :description:
+        This test verifies the output of the 'rhc status' command when the rhsm.service
+        is masked and calling RHSM D-Bus API is not possible. We test this case for
+        disconnected system. It means that other features are inactive
+    :reference: https://issues.redhat.com/browse/CCT-1526
+    :tags: Tier 1
+    :steps:
+        1.  Disconnect the system using 'rhc disconnect'.
+        2.  Stop rhsm.service and mask rhsm.service.
+        3.  Run the 'rhc status' command.
+        4.  Verify the command exit code.
+        5.  Verify specific output strings in stdout.
+        6.  Unmask rhsm.service.
+    :expectedresults:
+        1.  RHC disconnects successfully.
+        2.  The command executes.
+        3.  The exit code is not 0.
+        4.  The status command output contains "Could not activate remote peer",
+            "Not connected to Red Hat Insights", and a message indicating
+            that the yggdrasil/rhcd service is inactive.
+    """
+
+    # 'rhc disconnect' to ensure the system is already disconnected
+    rhc.run("disconnect", check=False)
+    # stop and mask rhsm.service
+    subprocess.run(["systemctl", "stop", "rhsm.service"])
+    subprocess.run(["systemctl", "mask", "rhsm.service"])
+    status_result = rhc.run("status", check=False)
+    assert status_result.returncode != 0
+    assert "Could not activate remote peer" in status_result.stdout
+    assert "Not connected to Red Hat Insights" in status_result.stdout
+    if pytest.service_name == "rhcd":
+        assert "The Remote Host Configuration daemon is active" in status_result.stdout
+    else:
+        assert "The yggdrasil service is inactive" in status_result.stdout
+    # unmask rhsm.service at the end of the test
+    subprocess.run(["systemctl", "unmask", "rhsm.service"])
 
 
 @pytest.mark.skipif(
