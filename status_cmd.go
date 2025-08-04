@@ -7,6 +7,7 @@ import (
 	"github.com/godbus/dbus/v5"
 	"github.com/urfave/cli/v2"
 	"os"
+	"reflect"
 	"time"
 
 	"github.com/briandowns/spinner"
@@ -186,14 +187,46 @@ func serviceStatus(systemStatus *SystemStatus) error {
 		}
 	} else {
 		systemStatus.returnCode += 1
-		if uiSettings.isMachineReadable {
-			systemStatus.YggdrasilRunning = false
+		loadState := properties["LoadState"]
+		if loadState == "loaded" {
+			if uiSettings.isMachineReadable {
+				systemStatus.YggdrasilRunning = false
+			} else {
+				interactivePrintf(
+					"%s[ ] Remote Management ... The %v service is inactive\n",
+					mediumIndent,
+					ServiceName,
+				)
+			}
 		} else {
-			interactivePrintf(
-				"%s[ ] Remote Management ... The %v service is inactive\n",
-				mediumIndent,
-				ServiceName,
-			)
+			loadError := properties["LoadError"]
+			// This part of the systemd D-Bus API is a little bit tricky. It returns
+			// an empty interface. It should contain a slice of two interfaces. The first
+			// interface in the slice should be the string representing error ID
+			// (e.g. "org.freedesktop.systemd1.NoSuchUnit"). The second interface should be
+			// also string representing the human-readable error message.
+			loadErrorType := reflect.TypeOf(loadError)
+			// Check if the type is []interface{}
+			if loadErrorType.Kind() == reflect.Slice && loadErrorType.Elem().Kind() == reflect.Interface {
+				loadErrorSlice := loadError.([]interface{})
+				if len(loadErrorSlice) >= 2 {
+					// Check if the type of the second interface is string
+					if reflect.TypeOf(loadErrorSlice[1]).Kind() == reflect.String {
+						loadErrorString := loadErrorSlice[1].(string)
+						if uiSettings.isMachineReadable {
+							systemStatus.YggdrasilRunning = false
+							systemStatus.YggdrasilError = loadErrorString
+						} else {
+							interactivePrintf(
+								"%s[%s] Remote Management ... %v\n",
+								mediumIndent,
+								uiSettings.iconError,
+								loadErrorString,
+							)
+						}
+					}
+				}
+			}
 		}
 	}
 	return nil
