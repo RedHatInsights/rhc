@@ -5,12 +5,12 @@ this module could be found: https://github.com/RedHatInsights/pytest-client-tool
 """
 
 """
-:component: rhc
+:casecomponent: rhc
 :requirement: RHSS-291300
 :polarion-project-id: RHELSS
 :polarion-include-skipped: false
 :polarion-lookup-method: id
-:poolteam: rhel-sst-csi-client-tools
+:subsystemteam: rhel-sst-csi-client-tools
 :caseautomation: Automated
 :upstream: Yes
 """
