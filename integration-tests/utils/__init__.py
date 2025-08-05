@@ -1,16 +1,50 @@
 import pytest
 import sh
+import time
 
 
-def rhcd_service_is_active():
+def rhcd_service_is_active(wait_for_stable_state=True, timeout=10, poll_interval=0.5):
     """Method to verify if rhcd is in active/inactive state
+    
+    Args:
+        wait_for_stable_state (bool): If True, wait for service state to stabilize
+        timeout (int): Maximum time to wait for stable state in seconds
+        poll_interval (float): Time between state checks in seconds
+    
     :return: True if rhcd in active state else False
     """
-    try:
-        stdout = sh.systemctl("is-active rhcd".split()).strip()
-        return stdout == "active"
-    except sh.ErrorReturnCode_3:
-        return False
+    def _check_service_state():
+        try:
+            stdout = sh.systemctl("is-active rhcd".split()).strip()
+            return stdout == "active"
+        except sh.ErrorReturnCode_3:
+            return False
+    
+    if not wait_for_stable_state:
+        return _check_service_state()
+    
+    # Wait for service state to stabilize by checking if it remains
+    # consistent for a short period
+    start_time = time.time()
+    last_state = None
+    stable_since = None
+    
+    while time.time() - start_time < timeout:
+        current_state = _check_service_state()
+        
+        if current_state == last_state:
+            if stable_since is None:
+                stable_since = time.time()
+            elif time.time() - stable_since >= 1.0:  # State stable for 1 second
+                return current_state
+        else:
+            stable_since = None
+            last_state = current_state
+        
+        time.sleep(poll_interval)
+    
+    # If we timeout, return the last known state
+    return _check_service_state()
 
 
 def check_rhcd_journalctl_logs(
