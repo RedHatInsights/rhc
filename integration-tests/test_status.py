@@ -368,6 +368,121 @@ def test_status_disconnected_rhsm_masked_format_json(rhc):
     assert status_json["yggdrasil_running"] == False
 
 
+@pytest.fixture
+def unmask_yggdrasil_service():
+    """
+    pytest fixture to unmask rhsm.service
+    """
+    yield
+    subprocess.run(["systemctl", "unmask", "yggdrasil.service"])
+
+
+@pytest.mark.tier1
+@pytest.mark.usefixtures("unmask_yggdrasil_service")
+def test_status_connected_yggdrasil_masked(external_candlepin, rhc, test_config):
+    """
+    :id: 316993d3-cc8d-4a10-9166-2117fa43396a
+    :title: Verify RHC status command output when the yggdrasil.service is masked
+    :description:
+        This test verifies the output of the 'rhc status' command when the yggdrasil.service
+        is masked and getting status is not possible. We test this case for
+        a connected system.
+    :reference: https://issues.redhat.com/browse/CCT-1526
+    :tags: Tier 1
+    :steps:
+        1.  Connect the system using 'rhc disconnect'.
+        2.  Stop yggdrasil.service and mask yggdrasil.service.
+        3.  Run the 'rhc status' command.
+        4.  Verify the command exit code.
+        5.  Verify specific output strings in stdout.
+        6.  Unmask yggdrasil.service.
+    :expectedresults:
+        1.  RHC connects successfully.
+        2.  The command executes.
+        3.  The exit code is not 0 because there were errors.
+        4.  The output contains "Connected to Red Hat Subscription Management",
+            "Connected to Red Hat Insights", "Red Hat repository file generated",
+            "Unit yggdrasil.service is masked"
+    """
+
+    rhc.connect(
+        username=test_config.get("candlepin.username"),
+        password=test_config.get("candlepin.password"),
+    )
+
+    # stop and mask yggdrasil.service
+    subprocess.run(["systemctl", "stop", "yggdrasil.service"])
+    subprocess.run(["systemctl", "mask", "yggdrasil.service"])
+
+    # Run "rhc status" and check the result
+    status_result = rhc.run("status", check=False)
+    assert status_result.returncode != 0
+    # RHSM
+    assert "Connected to Red Hat Subscription Management" in status_result.stdout
+    assert "Red Hat repository file generated" in status_result.stdout
+    # Insights
+    assert "Connected to Red Hat Insights" in status_result.stdout
+    # yggdrasil
+    assert not yggdrasil_service_is_active()
+    assert "Unit yggdrasil.service is masked" in status_result.stdout
+
+
+def test_status_connected_yggdrasil_masked_format_json(external_candlepin, rhc, test_config):
+    """
+    :id: ff0d0da8-6396-4f3a-80e6-dce27157bc30
+    :title: Verify RHC status command output in JSON format when the host is connected
+        and yggdrasil service is masked
+    :description:
+        Test the output of the 'rhc status --format json' command when the host is
+        connected to Subscription Management and Insights, but the yggdrasil.service
+        was masked. Verify that the command exit code is not zero and the output
+        is valid JSON and contains expected data.
+    :tags:
+    :steps:
+        1.  Connect the system using 'rhc connect'.
+        2.  Stop yggdrasil.service and mask yggdrasil.service.
+        3.  Run the 'rhc status --format json' command.
+        4.  Check the exit code of the status command.
+        5.  Parse the JSON output.
+        6.  Verify the presence and data types of specific keys.
+    :expectedresults:
+        1.  RHC connects successfully.
+        2.  The 'rhc status --format json' command executes successfully.
+        3.  The exit code is not 0.
+        4.  The output is a valid JSON document.
+        5.  The JSON contains 'hostname', 'rhsm_connected' (true), 'content_enabled' (true),
+            'insights_connected' (true), 'yggdrasil_running' (false)
+            and yggdrasil_error with the expected error message
+    """
+
+    rhc.connect(
+        username=test_config.get("candlepin.username"),
+        password=test_config.get("candlepin.password"),
+    )
+    # stop and mask yggdrasil.service
+    subprocess.run(["systemctl", "stop", "yggdrasil.service"])
+    subprocess.run(["systemctl", "mask", "yggdrasil.service"])
+    # Run "rhc status --format json" and check the result
+    status_result = rhc.run("status", "--format", "json", check=False)
+    assert status_result.returncode != 0
+    status_json = json.loads(status_result.stdout)
+    assert "hostname" in status_json
+    assert "rhsm_connected" in status_json
+    assert type(status_json["rhsm_connected"]) == bool
+    assert status_json["rhsm_connected"] == True
+    assert "content_enabled" in status_json
+    assert type(status_json["content_enabled"]) == bool
+    assert status_json["content_enabled"] == True
+    assert "insights_connected" in status_json
+    assert type(status_json["insights_connected"]) == bool
+    assert status_json["insights_connected"] == True
+    assert "yggdrasil_running" in status_json
+    assert type(status_json["yggdrasil_running"]) == bool
+    assert status_json["yggdrasil_running"] == False
+    assert "yggdrasil_error" in status_json
+    assert type(status_json["yggdrasil_error"]) == str
+    assert "Unit yggdrasil.service is masked" in status_json["yggdrasil_error"]
+
 @pytest.mark.skipif(
     pytest.service_name != "rhcd",
     reason="This test only supports restart of rhcd and not yggdrasil",
