@@ -7,6 +7,7 @@ import (
 	"github.com/godbus/dbus/v5"
 	"github.com/urfave/cli/v2"
 	"os"
+	"reflect"
 	"time"
 
 	"github.com/briandowns/spinner"
@@ -20,6 +21,8 @@ func rhsmStatus(systemStatus *SystemStatus) error {
 
 	uuid, err := getConsumerUUID()
 	if err != nil {
+		systemStatus.returnCode += 1
+		systemStatus.RHSMError = err.Error()
 		return fmt.Errorf("unable to get consumer UUID: %s", err)
 	}
 	if uuid == "" {
@@ -65,11 +68,15 @@ func isContentEnabled(systemStatus *SystemStatus) error {
 		0,
 		"rhsm.manage_repos",
 		locale).Store(&contentEnabled); err != nil {
+		systemStatus.returnCode += 1
+		systemStatus.ContentError = err.Error()
 		return unpackRHSMError(err)
 	}
 
 	uuid, err := getConsumerUUID()
 	if err != nil {
+		systemStatus.returnCode += 1
+		systemStatus.ContentError = err.Error()
 		return fmt.Errorf("unable to get consumer UUID: %s", err)
 	}
 
@@ -104,7 +111,7 @@ func isContentEnabled(systemStatus *SystemStatus) error {
 }
 
 // insightStatus tries to print status of insights client
-func insightStatus(systemStatus *SystemStatus) {
+func insightStatus(systemStatus *SystemStatus) error {
 	var s *spinner.Spinner
 	if uiSettings.isRich {
 		s = spinner.New(spinner.CharSets[9], 100*time.Millisecond)
@@ -141,16 +148,11 @@ func insightStatus(systemStatus *SystemStatus) {
 			if uiSettings.isMachineReadable {
 				systemStatus.InsightsConnected = false
 				systemStatus.InsightsError = err.Error()
-			} else {
-				interactivePrintf(
-					"%s[%v] Analytics ... Cannot detect Red Hat Insights status: %v\n",
-					mediumIndent,
-					uiSettings.iconError,
-					err,
-				)
 			}
+			return err
 		}
 	}
+	return nil
 }
 
 // serviceStatus tries to print status of yggdrasil.service or rhcd.service
@@ -185,14 +187,46 @@ func serviceStatus(systemStatus *SystemStatus) error {
 		}
 	} else {
 		systemStatus.returnCode += 1
-		if uiSettings.isMachineReadable {
-			systemStatus.YggdrasilRunning = false
+		loadState := properties["LoadState"]
+		if loadState == "loaded" {
+			if uiSettings.isMachineReadable {
+				systemStatus.YggdrasilRunning = false
+			} else {
+				interactivePrintf(
+					"%s[ ] Remote Management ... The %v service is inactive\n",
+					mediumIndent,
+					ServiceName,
+				)
+			}
 		} else {
-			interactivePrintf(
-				"%s[ ] Remote Management ... The %v service is inactive\n",
-				mediumIndent,
-				ServiceName,
-			)
+			loadError := properties["LoadError"]
+			// This part of the systemd D-Bus API is a little bit tricky. It returns
+			// an empty interface. It should contain a slice of two interfaces. The first
+			// interface in the slice should be the string representing error ID
+			// (e.g. "org.freedesktop.systemd1.NoSuchUnit"). The second interface should be
+			// also string representing the human-readable error message.
+			loadErrorType := reflect.TypeOf(loadError)
+			// Check if the type is []interface{}
+			if loadErrorType.Kind() == reflect.Slice && loadErrorType.Elem().Kind() == reflect.Interface {
+				loadErrorSlice := loadError.([]interface{})
+				if len(loadErrorSlice) >= 2 {
+					// Check if the type of the second interface is string
+					if reflect.TypeOf(loadErrorSlice[1]).Kind() == reflect.String {
+						loadErrorString := loadErrorSlice[1].(string)
+						if uiSettings.isMachineReadable {
+							systemStatus.YggdrasilRunning = false
+							systemStatus.YggdrasilError = loadErrorString
+						} else {
+							interactivePrintf(
+								"%s[%s] Remote Management ... %v\n",
+								mediumIndent,
+								uiSettings.iconError,
+								loadErrorString,
+							)
+						}
+					}
+				}
+			}
 		}
 	}
 	return nil
@@ -293,22 +327,45 @@ func statusAction(ctx *cli.Context) (err error) {
 	/* 1. Get Status of RHSM */
 	err = rhsmStatus(&systemStatus)
 	if err != nil {
-		return cli.Exit(err, 1)
+		interactivePrintf(
+			"%s[%s] Red Hat Subscription Management ... %s\n",
+			smallIndent,
+			uiSettings.iconError,
+			err,
+		)
 	}
 
 	/* 2. Is content enabled */
 	err = isContentEnabled(&systemStatus)
 	if err != nil {
-		return cli.Exit(err, 1)
+		interactivePrintf(
+			"%s[%s] Content ... %s\n",
+			mediumIndent,
+			uiSettings.iconError,
+			err,
+		)
 	}
 
 	/* 3. Get status of insights-client */
-	insightStatus(&systemStatus)
+	err = insightStatus(&systemStatus)
+	if err != nil {
+		interactivePrintf(
+			"%s[%v] Analytics ... Cannot detect Red Hat Insights status: %v\n",
+			mediumIndent,
+			uiSettings.iconError,
+			err,
+		)
+	}
 
 	/* 3. Get status of yggdrasil (rhcd) service */
 	err = serviceStatus(&systemStatus)
 	if err != nil {
-		return cli.Exit(err, 1)
+		interactivePrintf(
+			"%s[%s] Remote Management ... %s\n",
+			mediumIndent,
+			uiSettings.iconError,
+			err,
+		)
 	}
 
 	if !uiSettings.isMachineReadable {
