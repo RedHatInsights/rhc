@@ -10,6 +10,7 @@ import logging
 import pytest
 from datetime import datetime
 import sh
+import subprocess
 
 from utils import (
     rhcd_service_is_active,
@@ -34,17 +35,29 @@ def test_connect(external_candlepin, rhc, test_config, auth):
         rhc.disconnect()
     command_args = prepare_args_for_connect(test_config, auth=auth)
     command = ["connect"] + command_args
-    result = rhc.run(*command)
-    assert rhc.is_registered
-    assert rhcd_service_is_active()
-    assert "Connected to Red Hat Subscription Management" in result.stdout
-    assert "Connected to Red Hat Insights" in result.stdout
-    # copr builds have BrandName rhc and downstream builds have "Remote Host Configuration"
-    assert re.search(
-        r"(Activated the Remote Host Configuration daemon|Activated the rhc daemon)",
-        result.stdout,
-    )
-    assert "Successfully connected to Red Hat!" in result.stdout
+    
+    try:
+        result = rhc.run(*command)
+        assert rhc.is_registered
+        assert rhcd_service_is_active()
+        assert "Connected to Red Hat Subscription Management" in result.stdout
+        assert "Connected to Red Hat Insights" in result.stdout
+        # copr builds have BrandName rhc and downstream builds have "Remote Host Configuration"
+        assert re.search(
+            r"(Activated the Remote Host Configuration daemon|Activated the rhc daemon)",
+            result.stdout,
+        )
+        assert "Successfully connected to Red Hat!" in result.stdout
+    except (AssertionError, Exception) as exc:
+        # Print rhcd service logs for debugging when test fails
+        try:
+            logger.error("Test failed, printing rhcd service logs for debugging:")
+            subprocess.run(["journalctl", "-u", "rhcd"], check=True)
+        except subprocess.CalledProcessError as log_error:
+            logger.error(f"Failed to retrieve journalctl logs: {log_error}")
+        except Exception as log_error:
+            logger.error(f"Unexpected error retrieving logs: {log_error}")
+        raise exc
 
 
 @pytest.mark.parametrize(
@@ -85,6 +98,18 @@ def test_connect_wrong_parameters(external_candlepin, rhc, test_config, credenti
     command_args = prepare_args_for_connect(test_config, credentials=credentials)
 
     command = ["connect"] + command_args
-    result = rhc.run(*command, check=False)
-    assert result.returncode == 1
-    assert not rhcd_service_is_active()
+    
+    try:
+        result = rhc.run(*command, check=False)
+        assert result.returncode == 1
+        assert not rhcd_service_is_active()
+    except (AssertionError, Exception) as exc:
+        # Print rhcd service logs for debugging when test fails
+        try:
+            logger.error("Test failed, printing rhcd service logs for debugging:")
+            subprocess.run(["journalctl", "-u", "rhcd"], check=True)
+        except subprocess.CalledProcessError as log_error:
+            logger.error(f"Failed to retrieve journalctl logs: {log_error}")
+        except Exception as log_error:
+            logger.error(f"Unexpected error retrieving logs: {log_error}")
+        raise exc
