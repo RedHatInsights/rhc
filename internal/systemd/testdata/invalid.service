@@ -1,0 +1,4 @@
+[Unit]
+Description=Invalid Service File
+# Missing required fields or invalid syntax
+InvalidField=ThisIsNotValid
