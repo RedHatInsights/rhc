@@ -42,9 +42,6 @@ type CollectorInfo struct {
 		Collector      struct {
 			Command string `json:"command" toml:"command"`
 		}
-		Archiver struct {
-			Command string `json:"command" toml:"command"`
-		}
 		Uploader struct {
 			Command string `json:"command" toml:"command"`
 		}
@@ -308,30 +305,6 @@ func collectData(args ...string) (*string, *string, error) {
 	if err != nil {
 		return &stdOut, &stdErr, fmt.Errorf("failed to run collector '%s -c %s': %v",
 			bashFilePath, collectorCommand, err)
-	}
-
-	return &stdOut, &stdErr, nil
-}
-
-// archiveData tries to run a given archiver
-func archiveData(args ...string) (*string, *string, error) {
-	var stdoutBuffer bytes.Buffer
-	var stderrBuffer bytes.Buffer
-	archiverCommand := args[0]
-	tempDir := args[1]
-	arguments := []string{"-c", archiverCommand + " " + args[2]}
-	cmd := exec.Command(bashFilePath, arguments...)
-	cmd.Dir = tempDir
-	cmd.Stdout = &stdoutBuffer
-	cmd.Stderr = &stderrBuffer
-
-	err := cmd.Run()
-
-	stdOut := stdoutBuffer.String()
-	stdErr := stderrBuffer.String()
-
-	if err != nil {
-		return &stdOut, &stdErr, fmt.Errorf("failed to run archiver '%s': %v", archiverCommand, err)
 	}
 
 	return &stdOut, &stdErr, nil
