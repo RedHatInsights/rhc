@@ -1,9 +1,4 @@
 """
-This Python module contains integration tests for rhc. It uses pytest-client-tools Python module.
-More information about this module could be found: https://github.com/RedHatInsights/pytest-client-tools/
-"""
-
-"""
 :casecomponent: rhc
 :requirement: RHSS-291300
 :polarion-project-id: RHELSS
