@@ -1,9 +1,6 @@
 """
 :casecomponent: rhc
 :requirement: RHSS-291300
-:polarion-project-id: RHELSS
-:polarion-include-skipped: false
-:polarion-lookup-method: id
 :subsystemteam: rhel-sst-csi-client-tools
 :caseautomation: Automated
 :upstream: Yes
@@ -35,7 +32,7 @@ def test_man_page_synopsis():
 
 def test_man_page_global_options():
     """
-    :id: new_uuid
+    :id: 5f937d4a-bf2a-480f-a31f-17629e5f9143
     :title: Verify rhc man page includes global options
     :description:
         This test checks that the `rhc` man page lists the expected global options.
