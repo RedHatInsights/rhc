@@ -9,6 +9,8 @@ on:
 jobs:
   betelgeuse:
     name: "betelgeuse dry-run"
+	permissions:
+		contents: read
     runs-on: ubuntu-latest
     container:
       image: fedora:latest
