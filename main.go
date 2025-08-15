@@ -83,11 +83,20 @@ func showTimeDuration(durations map[string]time.Duration) {
 	if log.CurrentLevel() >= log.LevelDebug {
 		fmt.Println()
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-		_, _ = fmt.Fprintln(w, "STEP\tDURATION\t")
-		for step, duration := range durations {
-			_, _ = fmt.Fprintf(w, "%v\t%v\t\n", step, duration.Truncate(time.Millisecond))
+		_, err := fmt.Fprintln(w, "STEP\tDURATION\t")
+		if err != nil {
+			return
 		}
-		_ = w.Flush()
+		for step, duration := range durations {
+			_, err = fmt.Fprintf(w, "%v\t%v\t\n", step, duration.Truncate(time.Millisecond))
+			if err != nil {
+				return
+			}
+		}
+		err = w.Flush()
+		if err != nil {
+			return
+		}
 	}
 }
 
@@ -97,13 +106,22 @@ func showErrorMessages(action string, errorMessages map[string]LogMessage) error
 		fmt.Println()
 		fmt.Printf("The following errors were encountered during %s:\n\n", action)
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-		_, _ = fmt.Fprintln(w, "TYPE\tSTEP\tERROR\t")
+		_, err := fmt.Fprintln(w, "TYPE\tSTEP\tERROR\t")
+		if err != nil {
+			return cli.Exit("", 1)
+		}
 		for step, logMsg := range errorMessages {
 			if logMsg.level <= log.CurrentLevel() {
-				_, _ = fmt.Fprintf(w, "%v\t%v\t%v\n", logMsg.level, step, logMsg.message)
+				_, err := fmt.Fprintf(w, "%v\t%v\t%v\n", logMsg.level, step, logMsg.message)
+				if err != nil {
+					return cli.Exit("", 1)
+				}
 			}
 		}
-		_ = w.Flush()
+		err = w.Flush()
+		if err != nil {
+			return cli.Exit("", 1)
+		}
 		if hasPriorityErrors(errorMessages, log.LevelError) {
 			return cli.Exit("", 1)
 		}
@@ -231,12 +249,21 @@ func registerRHSM(ctx *cli.Context) (string, error) {
 					fmt.Println("Available Organizations:")
 					writer := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
 					for i, org := range orgs {
-						_, _ = fmt.Fprintf(writer, "%v\t", org)
+						_, err := fmt.Fprintf(writer, "%v\t", org)
+						if err != nil {
+							return "", fmt.Errorf("could not list organizations: %w", err)
+						}
 						if (i+1)%4 == 0 {
-							_, _ = fmt.Fprint(writer, "\n")
+							_, err := fmt.Fprint(writer, "\n")
+							if err != nil {
+								return "", fmt.Errorf("could not list organizations: %w", err)
+							}
 						}
 					}
-					_ = writer.Flush()
+					err := writer.Flush()
+					if err != nil {
+						return "", fmt.Errorf("failed to flush writer: %w", err)
+					}
 					fmt.Print("\nOrganization: ")
 					_ = scanner.Scan()
 					organization = strings.TrimSpace(scanner.Text())
@@ -249,6 +276,9 @@ func registerRHSM(ctx *cli.Context) (string, error) {
 
 					// Try to register once again with given organization
 					_, err = registerUsernamePassword(username, password, organization, contentTemplates, ctx.String("server"))
+					if err != nil {
+						return "", fmt.Errorf("failed to register using username/password: %w", err)
+					}
 				}
 			}
 		}
