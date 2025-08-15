@@ -165,6 +165,7 @@ func serviceStatus(systemStatus *SystemStatus) error {
 		return fmt.Errorf("unable to connect to systemd: %s", err)
 	}
 	defer conn.Close()
+
 	unitName := ServiceName + ".service"
 	properties, err := conn.GetUnitPropertiesContext(ctx, unitName)
 	if err != nil {
