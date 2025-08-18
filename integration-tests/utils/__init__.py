@@ -1,4 +1,7 @@
+
+import subprocess
 import sh
+from contextlib import suppress
 
 
 def yggdrasil_service_is_active():
@@ -74,3 +77,68 @@ def prepare_args_for_connect(
         args.extend(["--format", output_format])
 
     return args
+
+
+def configure_proxy_rhsm(subman, test_config, auth_proxy=False):
+    """
+    Configures the system to use proxy settings and stage server.
+
+    Steps:
+    1. Configure subscription-manager to use proxy
+    2. Configure insights-client to use proxy
+    3. Configure yggdrasil config.toml to use intended server(e.g. stage server)
+    4. Set up systemd service environment for proxy
+    5. Reload systemd daemon
+    """
+    try:
+        service_name = "yggdrasil"
+
+        # Get proxy configuration from settings.toml
+        if auth_proxy:
+            proxy_host = test_config.get("auth_proxy.host")
+            proxy_user = test_config.get("auth_proxy.username")
+            proxy_pass = test_config.get("auth_proxy.password")
+            proxy_port = str(test_config.get("auth_proxy.port"))
+            proxy_url = f"http://{proxy_user}:{proxy_pass}@{proxy_host}:{proxy_port}"
+        else:
+            proxy_host = test_config.get("noauth_proxy.host")
+            proxy_port = str(test_config.get("noauth_proxy.port"))
+            proxy_url = f"http://{proxy_host}:{proxy_port}"
+
+        # Configure subscription-manager rhsm.conf
+        hostname = test_config.get("candlepin.host")
+        baseurl = test_config.get("candlepin.baseurl")
+
+        subman.config(server_hostname=hostname)
+        subman.config(rhsm_baseurl=baseurl)
+        subman.config(server_proxy_hostname=proxy_host)
+        subman.config(server_proxy_port=proxy_port)
+
+        if auth_proxy:
+            subman.config(server_proxy_user=proxy_user)
+            subman.config(server_proxy_password=proxy_pass)
+
+            # Configure SELinux for auth proxy port
+            with suppress(FileNotFoundError, subprocess.CalledProcessError):
+                subprocess.run(
+                    [
+                        "semanage",
+                        "port",
+                        "-a",
+                        "-t",
+                        "http_cache_port_t",
+                        "-p",
+                        "tcp",
+                        proxy_port,
+                    ],
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                )
+
+        print(f"Proxy configuration completed for {service_name}")
+        return proxy_url
+
+    except Exception as e:
+        print(f"Error during stage configuration: {e}")
+        return False
