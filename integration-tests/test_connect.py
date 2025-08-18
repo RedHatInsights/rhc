@@ -17,6 +17,8 @@ from utils import (
     yggdrasil_service_is_active,
     prepare_args_for_connect,
     check_yggdrasil_journalctl_logs,
+    configure_proxy_rhsm
+
 )
 
 logger = logging.getLogger(__name__)
@@ -247,3 +249,62 @@ def test_rhc_worker_playbook_install_after_rhc_connect(
         f"time taken to start yggdrasil service and install "
         f"rhc_worker_playbook : {total_runtime} s"
     )
+
+@pytest.mark.parametrize("auth_proxy", [False, True])
+def test_connect_proxy(
+    external_candlepin,
+    subman,
+    insights_client,
+    rhc,
+    test_config,
+    yggdrasil_proxy_config,
+    auth_proxy,
+):
+    """
+    :id: 8f2a3b1c-4d5e-6f7g-8h9i-0j1k2l3m4n5o
+    :title: Verify successful RHC connection through proxy (authenticated and non-authenticated)
+    :parametrized: yes
+    :description:
+        This test verifies that RHC can successfully connect to CRC through both
+        authenticated and non-authenticated proxy configurations. It configures
+        subscription-manager, insights-client, and yggdrasil service to use the
+        specified proxy settings and verifies that the connection is established
+        and the yggdrasil service becomes active.
+    :tags: Tier 1
+    :steps:
+        1.  Ensure the system is disconnected from RHC.
+        2.  Configure subscription-manager with proxy settings.
+        3.  Configure insights-client with proxy settings.
+        4.  Configure yggdrasil service with proxy environment variables.
+        5.  Run the 'rhc connect' command.
+        6.  Verify that RHC reports being registered.
+        7.  Verify that the yggdrasil service is in active state.
+    :expectedresults:
+        1.  The system is successfully disconnected from RHC.
+        2.  Subscription-manager proxy settings are configured correctly.
+        3.  Insights-client proxy settings are configured correctly.
+        4.  Yggdrasil service proxy environment variables are set.
+        5.  'rhc connect' command executes successfully.
+        6.  The system is registered with RHC.
+        7.  The yggdrasil service is in active state.
+    """
+    with contextlib.suppress(Exception):
+        rhc.disconnect()
+
+    # Configure proxy in rhsm.conf
+    proxy_url = configure_proxy_rhsm(subman, test_config, auth_proxy=auth_proxy)
+
+    # Configure proxy in insights-client.conf
+    insights_client.config.proxy = proxy_url
+    insights_client.config.save()
+
+    # Configure yggdrasil service proxy in systemd override file
+    yggdrasil_proxy_config(proxy_url)
+
+    rhc.connect(
+        username=test_config.get("candlepin.username"),
+        password=test_config.get("candlepin.password"),
+    )
+    # validate the connection
+    assert rhc.is_registered
+    assert yggdrasil_service_is_active()
