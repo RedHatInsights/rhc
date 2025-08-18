@@ -14,6 +14,7 @@ from datetime import datetime
 import sh
 
 from utils import (
+    configure_proxy,
     yggdrasil_service_is_active,
     prepare_args_for_connect,
     check_yggdrasil_journalctl_logs,
@@ -264,3 +265,37 @@ def test_rhc_worker_playbook_install_after_rhc_connect(
         f"time taken to start yggdrasil/rhcd service and install "
         f"rhc_worker_playbook : {total_runtime} s"
     )
+
+
+def test_connect_noauth_proxy(external_candlepin, rhc, test_config):
+    """
+    Test if RHC can connect to CRC via no auth proxy,
+    Also verify that yggdrasil service is in active state afterward.
+    """
+    with contextlib.suppress(Exception):
+        rhc.disconnect()
+
+    configure_proxy(test_config)
+    rhc.connect(
+        username=test_config.get("candlepin.username"),
+        password=test_config.get("candlepin.password"),
+    )
+    assert rhc.is_registered
+    assert yggdrasil_service_is_active()
+
+
+def test_connect_auth_proxy(external_candlepin, rhc, test_config):
+    """
+    Test if RHC can connect to CRC via auth proxy,
+    Also verify that yggdrasil/rhcd service is in active state afterward.
+    """
+    with contextlib.suppress(Exception):
+        rhc.disconnect()
+
+    configure_proxy(test_config, auth_proxy=True)
+    rhc.connect(
+        username=test_config.get("candlepin.username"),
+        password=test_config.get("candlepin.password"),
+    )
+    assert rhc.is_registered
+    assert yggdrasil_service_is_active()
