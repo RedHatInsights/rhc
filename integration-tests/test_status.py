@@ -125,7 +125,7 @@ def test_status_disconnected_format_json(external_candlepin, rhc, test_config):
     :expectedresults:
         1.  RHC disconnects successfully.
         2.  The 'rhc status --format json' command executes successfully.
-        3.  The exit code is 0.
+        3.  The exit code is not 0.
         4.  The output is a valid JSON document.
         5.  The JSON contains 'hostname', 'rhsm_connected' (false), 'content_enabled' (false),
             'insights_connected' (false), and 'rhcd_running' or 'yggdrasil_running' (false)
@@ -175,7 +175,7 @@ def test_status_disconnected(rhc):
     :expectedresults:
         1.  RHC disconnects successfully.
         2.  The command executes.
-        3.  The exit code is 0.
+        3.  The exit code is not 0.
         4.  The status command output contains "Not connected to Red Hat Subscription Management",
             "Red Hat repository file not generated", "Not connected to Red Hat Insights",
             and a message indicating that the yggdrasil/rhcd service is inactive.
@@ -208,27 +208,29 @@ def unmask_rhsm_service():
 def test_status_connected_rhsm_masked(external_candlepin, rhc, test_config):
     """
     :id: 81e1ef2a-cc29-4f9c-9780-cfd027aa08ec
-    :title: Verify RHC status command output when the rhsm.service is masked
+    :title: Verify RHC status command output when the host is connected and rhsm service is masked
     :description:
         This test verifies the output of the 'rhc status' command when the rhsm.service
         is masked and calling RHSM D-Bus API is not possible. We test this case for
-        a connected system. It means that other features should be inactive
+        a connected system. It means that other features should be active.
     :reference: https://issues.redhat.com/browse/CCT-1526
     :tags: Tier 1
     :steps:
-        1.  Connect the system using 'rhc disconnect'.
-        2.  Stop rhsm.service and mask rhsm.service.
+        1.  Connect the system using 'rhc connect'.
+        2.  Stop and mask the 'rhsm.service'.
         3.  Run the 'rhc status' command.
         4.  Verify the command exit code.
         5.  Verify specific output strings in stdout.
-        6.  Unmask rhsm.service.
+        6.  Unmask 'rhsm.service'.
     :expectedresults:
-        1.  RHC disconnects successfully.
-        2.  The command executes.
-        3.  The exit code is not 0 because there were errors.
-        4.  The status command output contains "Could not activate remote peer",
-            "Not connected to Red Hat Insights", and a message indicating
-            that the yggdrasil/rhcd service is inactive.
+        1.  RHC connects successfully.
+        2.  The 'rhsm.service' is stopped and masked.
+        3.  The command executes and fails.
+        4.  The exit code is not 0 because there were errors.
+        5.  The status command output contains "Could not activate remote peer",
+            "Connected to Red Hat Insights", and a message indicating
+            that the yggdrasil/rhcd service is active.
+        6.  The 'rhsm.service' is unmasked.
     """
 
     rhc.connect(
@@ -256,27 +258,29 @@ def test_status_connected_rhsm_masked(external_candlepin, rhc, test_config):
 def test_status_disconnected_rhsm_masked(rhc):
     """
     :id: 704a91e5-d509-4635-a401-82368c7bdd75
-    :title: Verify RHC status command output when the rhsm.service is masked
+    :title: Verify RHC status command output when the host is disconnected and rhsm service is masked
     :description:
         This test verifies the output of the 'rhc status' command when the rhsm.service
         is masked and calling RHSM D-Bus API is not possible. We test this case for
-        a disconnected system. It means that other features are inactive
+        a disconnected system. It means that other features are inactive.
     :reference: https://issues.redhat.com/browse/CCT-1526
     :tags: Tier 1
     :steps:
         1.  Disconnect the system using 'rhc disconnect'.
-        2.  Stop rhsm.service and mask rhsm.service.
+        2.  Stop and mask the 'rhsm.service'.
         3.  Run the 'rhc status' command.
         4.  Verify the command exit code.
         5.  Verify specific output strings in stdout.
-        6.  Unmask rhsm.service.
+        6.  Unmask 'rhsm.service'.
     :expectedresults:
         1.  RHC disconnects successfully.
-        2.  The command executes.
-        3.  The exit code is not 0.
-        4.  The status command output contains "Could not activate remote peer",
+        2.  The 'rhsm.service' is stopped and masked.
+        3.  The command executes and fails.
+        4.  The exit code is not 0.
+        5.  The status command output contains "Could not activate remote peer",
             "Not connected to Red Hat Insights", and a message indicating
             that the yggdrasil/rhcd service is inactive.
+        6.  The 'rhsm.service' is unmasked.
     """
 
     # 'rhc disconnect' to ensure the system is already disconnected
@@ -296,28 +300,31 @@ def test_status_disconnected_rhsm_masked(rhc):
 def test_status_disconnected_rhsm_masked_format_json(rhc):
     """
     :id: 0ec86207-827f-4839-a49d-041c0525c1a8
-    :title: Verify RHC status command output in JSON format when the rhsm.service is masked
+    :title: Verify RHC status command output in JSON format when the host is disconnected and rhsm service is masked
     :description:
         This test verifies the output of the 'rhc status --format json' command when the rhsm.service
         is masked and calling RHSM D-Bus API is not possible. We test this case for
-        a disconnected system. It means that other features are inactive
+        a disconnected system. It means that other features are inactive.
     :reference: https://issues.redhat.com/browse/CCT-1526
     :tags: Tier 1
     :steps:
         1.  Disconnect the system using 'rhc disconnect'.
-        2.  Stop rhsm.service and mask rhsm.service.
+        2.  Stop and mask the 'rhsm.service'.
         3.  Run the 'rhc status --format json' command.
         4.  Verify the command exit code.
-        5.  Parse JSON output.
-        6.  Unmask rhsm.service.
+        5.  Parse the JSON output.
+        6.  Verify the boolean values and error messages in the JSON fields.
+        7.  Unmask 'rhsm.service'.
     :expectedresults:
         1.  RHC disconnects successfully.
-        2.  The command executes.
-        3.  The exit code is not 0.
-        4.  The output is a valid JSON document.
-        5.  The JSON contains 'hostname', 'rhsm_connected' (false), 'content_enabled' (false),
+        2.  The 'rhsm.service' is stopped and masked.
+        3.  The command executes and fails.
+        4.  The exit code is not 0.
+        5.  The output is a valid JSON document.
+        6.  The JSON contains 'hostname', 'rhsm_connected' (false), 'content_enabled' (false),
             'insights_connected' (false), and 'rhcd_running' or 'yggdrasil_running' (false)
-            with correct boolean types. It also has to contain 'rhsm_error' and 'content_error'
+            with correct boolean types. It also contains 'rhsm_error' and 'content_error' messages.
+        7.  The 'rhsm.service' is unmasked.
     """
 
     # 'rhc disconnect' to ensure the system is already disconnected
@@ -374,7 +381,7 @@ def unmask_yggdrasil_service():
 def test_status_connected_yggdrasil_masked(external_candlepin, rhc, test_config):
     """
     :id: 316993d3-cc8d-4a10-9166-2117fa43396a
-    :title: Verify RHC status command output when the yggdrasil.service is masked
+    :title: Verify RHC status command output when the host is connected and yggdrasil service is masked
     :description:
         This test verifies the output of the 'rhc status' command when the yggdrasil.service
         is masked and getting status is not possible. We test this case for
@@ -382,19 +389,21 @@ def test_status_connected_yggdrasil_masked(external_candlepin, rhc, test_config)
     :reference: https://issues.redhat.com/browse/CCT-1526
     :tags: Tier 1
     :steps:
-        1.  Connect the system using 'rhc disconnect'.
-        2.  Stop yggdrasil.service and mask yggdrasil.service.
+        1.  Connect the system using 'rhc connect'.
+        2.  Stop and mask the 'yggdrasil.service'.
         3.  Run the 'rhc status' command.
         4.  Verify the command exit code.
         5.  Verify specific output strings in stdout.
-        6.  Unmask yggdrasil.service.
+        6.  Unmask 'yggdrasil.service'.
     :expectedresults:
         1.  RHC connects successfully.
-        2.  The command executes.
-        3.  The exit code is not 0 because there were errors.
-        4.  The output contains "Connected to Red Hat Subscription Management",
+        2.  The 'yggdrasil.service' is stopped and masked.
+        3.  The command executes and fails.
+        4.  The exit code is not 0.
+        5.  The output contains "Connected to Red Hat Subscription Management",
             "Connected to Red Hat Insights", "Red Hat repository file generated",
             "Unit yggdrasil.service is masked"
+        6.  The 'yggdrasil.service' is unmasked.
     """
 
     rhc.connect(
@@ -432,19 +441,20 @@ def test_status_connected_yggdrasil_masked_format_json(external_candlepin, rhc, 
     :tags:
     :steps:
         1.  Connect the system using 'rhc connect'.
-        2.  Stop yggdrasil.service and mask yggdrasil.service.
+        2.  Stop and mask the 'yggdrasil.service'.
         3.  Run the 'rhc status --format json' command.
-        4.  Check the exit code of the status command.
+        4.  Verify the command exit code.
         5.  Parse the JSON output.
         6.  Verify the presence and data types of specific keys.
     :expectedresults:
         1.  RHC connects successfully.
-        2.  The 'rhc status --format json' command executes successfully.
-        3.  The exit code is not 0.
-        4.  The output is a valid JSON document.
-        5.  The JSON contains 'hostname', 'rhsm_connected' (true), 'content_enabled' (true),
+        2.  The 'yggdrasil.service' is stopped and masked.
+        3.  The command executes and fails.
+        4.  The exit code is not 0.
+        5.  The output is a valid JSON document.
+        6.  The JSON contains 'hostname', 'rhsm_connected' (true), 'content_enabled' (true),
             'insights_connected' (true), 'yggdrasil_running' (false)
-            and yggdrasil_error with the expected error message
+            and yggdrasil_error with the expected error message.
     """
 
     rhc.connect(
