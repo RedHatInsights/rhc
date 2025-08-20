@@ -11,7 +11,7 @@ if ! command -v bootc >/dev/null || bootc status | grep -q 'type: null'; then
   [ -z "${ghprbPullId+x}" ] || ./systemtest/copr-setup.sh
 
   dnf --setopt install_weak_deps=False install -y \
-    podman git-core python3-pip python3-pytest logrotate
+    podman git-core python3-pip python3-pytest logrotate insights-client
 fi
 
 
