@@ -3,10 +3,11 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/urfave/cli/v2"
 	"log/slog"
 	"os"
 	"path/filepath"
+
+	"github.com/urfave/cli/v2"
 )
 
 const (
@@ -152,12 +153,12 @@ func runCollector(collectorConfig *CollectorInfo, tempDir *string, workingDir st
 		return nil, fmt.Errorf("failed to parse collector output: %v", err)
 	}
 
-	interactivePrintf("%v[%s] Collected data to %s\n", mediumIndent, uiSettings.iconOK, collectorOutput.CollectedDataFilePath)
-
 	err = writeTimeStampOfLastRun(collectorConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to write last run timestamp: %v", err)
 	}
+
+	interactivePrintf("%v[%s] Collected data to %s\n", mediumIndent, uiSettings.iconOK, collectorOutput.CollectedDataFilePath)
 
 	return &collectorOutput.CollectedDataFilePath, nil
 }
