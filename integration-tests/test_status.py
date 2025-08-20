@@ -427,7 +427,8 @@ def test_status_connected_yggdrasil_masked(external_candlepin, rhc, test_config)
     assert not yggdrasil_service_is_active()
     assert "Unit yggdrasil.service is masked" in status_result.stdout
 
-
+@pytest.mark.tier1
+@pytest.mark.usefixtures("unmask_yggdrasil_service")
 def test_status_connected_yggdrasil_masked_format_json(external_candlepin, rhc, test_config):
     """
     :id: ff0d0da8-6396-4f3a-80e6-dce27157bc30
@@ -446,6 +447,7 @@ def test_status_connected_yggdrasil_masked_format_json(external_candlepin, rhc, 
         4.  Verify the command exit code.
         5.  Parse the JSON output.
         6.  Verify the presence and data types of specific keys.
+        7.  Unmask 'yggdrasil.service'.
     :expectedresults:
         1.  RHC connects successfully.
         2.  The 'yggdrasil.service' is stopped and masked.
@@ -455,6 +457,7 @@ def test_status_connected_yggdrasil_masked_format_json(external_candlepin, rhc, 
         6.  The JSON contains 'hostname', 'rhsm_connected' (true), 'content_enabled' (true),
             'insights_connected' (true), 'yggdrasil_running' (false)
             and yggdrasil_error with the expected error message.
+        7.  The 'yggdrasil.service' is unmasked.
     """
 
     rhc.connect(
