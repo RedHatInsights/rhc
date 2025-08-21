@@ -1,5 +1,11 @@
+
+import os
+import re
+import stat
+import subprocess
 import pytest
 import sh
+from contextlib import suppress
 
 
 def yggdrasil_service_is_active():
@@ -77,3 +83,145 @@ def prepare_args_for_connect(
         args.extend(["--format", output_format])
 
     return args
+
+
+def configure_proxy(test_config, auth_proxy=False):
+    """
+    Configures the system to use proxy settings and stage server.
+
+    Steps:
+    1. Configure subscription-manager to use proxy
+    2. Configure insights-client to use proxy
+    3. Configure yggdrasil config.toml to use stage server
+    4. Set up systemd service environment for proxy
+    5. Reload systemd daemon
+    """
+    try:
+        service_name = "yggdrasil"
+
+        # Get proxy configuration
+        if auth_proxy:
+            proxy_host = test_config.get("auth_proxy.host")
+            proxy_user = test_config.get("auth_proxy.username")
+            proxy_pass = test_config.get("auth_proxy.password")
+            proxy_port = str(test_config.get("auth_proxy.port"))
+            proxy_url = f"http://{proxy_user}:{proxy_pass}@{proxy_host}:{proxy_port}"
+        else:
+            proxy_host = test_config.get("noauth_proxy.host")
+            proxy_port = str(test_config.get("noauth_proxy.port"))
+            proxy_url = f"http://{proxy_host}:{proxy_port}"
+
+        # Configure subscription-manager
+        hostname = test_config.get("candlepin.host")
+        baseurl = test_config.get("candlepin.baseurl")
+
+        rhsm_replacements = [
+            (r"^hostname =.*", f"hostname = {hostname}"),
+            (r"^proxy_hostname =.*", f"proxy_hostname = {proxy_host}"),
+            (r"^proxy_port =.*", f"proxy_port = {proxy_port}"),
+            (r"^baseurl =.*", f"baseurl = {baseurl}"),
+        ]
+
+        if auth_proxy:
+            rhsm_replacements.extend(
+                [
+                    (r"^proxy_user =.*", f"proxy_user = {proxy_user}"),
+                    (r"^proxy_password =.*", f"proxy_password = {proxy_pass}"),
+                ]
+            )
+
+            # Configure SELinux for auth proxy port
+            with suppress(FileNotFoundError, subprocess.CalledProcessError):
+                subprocess.run(
+                    [
+                        "semanage",
+                        "port",
+                        "-a",
+                        "-t",
+                        "http_cache_port_t",
+                        "-p",
+                        "tcp",
+                        proxy_port,
+                    ],
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                )
+        else:
+            rhsm_replacements.extend(
+                [
+                    (r"^proxy_user =.*", "proxy_user = "),
+                    (r"^proxy_password =.*", "proxy_password = "),
+                ]
+            )
+
+        _configure_file_if_exists("/etc/rhsm/rhsm.conf", rhsm_replacements)
+
+        # Configure insights-client
+        _configure_file_if_exists(
+            "/etc/insights-client/insights-client.conf",
+            [(r"^#?proxy=.*", f"proxy={proxy_url}")],
+        )
+
+        # Configure yggdrasil for stage server
+        stage_server = test_config.get("rhc.server")
+        _configure_file_if_exists(
+            "/etc/yggdrasil/config.toml",
+            [(r"^server = .*", f'server = ["{stage_server}"]')],
+        )
+
+        # --- Systemd override with LoadCredential ---
+        override_dir = f"/etc/systemd/system/{service_name}.service.d"
+        os.makedirs(override_dir, exist_ok=True)
+        override_file = f"{override_dir}/proxy.conf"
+
+        # Store proxy secret in /etc/<service>/secrets (0600)
+        secret_dir = f"/etc/{service_name}/secrets"
+        os.makedirs(secret_dir, exist_ok=True)
+        secret_file = f"{secret_dir}/proxy.env"
+        with open(secret_file, "w") as f:
+            f.write(f"HTTPS_PROXY={proxy_url}\nHTTP_PROXY={proxy_url}\n")
+        os.chmod(secret_file, stat.S_IRUSR | stat.S_IWUSR)
+
+        # Override config (no secret in plain text!)
+        override_content = f"""[Service]
+LoadCredential=proxy.env:{secret_file}
+EnvironmentFile=/run/credentials/{service_name}.service/proxy.env
+"""
+        with open(override_file, "w") as f:
+            f.write(override_content)
+
+        subprocess.run(["systemctl", "daemon-reload"], check=True)
+
+        print(f"Systemd override configured with LoadCredential for {service_name}")
+        return True
+
+    except Exception as e:
+        print(f"Error during stage configuration: {e}")
+        return False
+
+
+def _configure_file_if_exists(file_path, replacements):
+    """
+    Helper function to update configuration files if they exist.
+    """
+    if os.path.exists(file_path):
+        try:
+            with open(file_path, "r") as f:
+                content = f.read()
+
+            for pattern, replacement in replacements:
+                content = re.sub(pattern, replacement, content, flags=re.MULTILINE)
+
+            with open(file_path, "w") as f:
+                f.write(content)
+
+            print(f"Updated {file_path}")
+            return True
+
+        except Exception as e:
+            print(f"Error updating {file_path}: {e}")
+            raise
+    else:
+        print(f"Warning: {file_path} not found")
+        return False
