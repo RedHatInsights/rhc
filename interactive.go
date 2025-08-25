@@ -9,6 +9,8 @@ import (
 
 	"github.com/briandowns/spinner"
 	"github.com/urfave/cli/v2"
+
+	"github.com/redhatinsights/rhc/internal/conf"
 )
 
 const (
@@ -87,7 +89,7 @@ func showProgress(
 
 // showTimeDuration shows table with duration of each sub-action
 func showTimeDuration(durations map[string]time.Duration) {
-	if config.LogLevel <= slog.LevelDebug {
+	if conf.Config.LogLevel <= slog.LevelDebug {
 		fmt.Println()
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 		_, _ = fmt.Fprintln(w, "STEP\tDURATION\t")
@@ -100,14 +102,14 @@ func showTimeDuration(durations map[string]time.Duration) {
 
 // showErrorMessages shows table with all error messages gathered during action
 func showErrorMessages(action string, errorMessages map[string]LogMessage) error {
-	if hasPriorityErrors(errorMessages, config.LogLevel) {
+	if hasPriorityErrors(errorMessages, conf.Config.LogLevel) {
 		if !uiSettings.isMachineReadable {
 			fmt.Println()
 			fmt.Printf("The following errors were encountered during %s:\n\n", action)
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 			_, _ = fmt.Fprintln(w, "TYPE\tSTEP\tERROR\t")
 			for step, logMsg := range errorMessages {
-				if logMsg.level >= config.LogLevel {
+				if logMsg.level >= conf.Config.LogLevel {
 					_, _ = fmt.Fprintf(w, "%v\t%v\t%v\n", logMsg.level, step, logMsg.message)
 				}
 			}

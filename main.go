@@ -8,6 +8,15 @@ import (
 
 	"github.com/urfave/cli/v2"
 	"github.com/urfave/cli/v2/altsrc"
+
+	"github.com/redhatinsights/rhc/internal/conf"
+)
+
+const (
+	cliLogLevel  = "log-level"
+	cliCertFile  = "cert-file"
+	cliKeyFile   = "key-file"
+	cliAPIServer = "base-url"
 )
 
 // mainAction is triggered in the case, when no sub-command is specified
@@ -54,18 +63,18 @@ func beforeAction(c *cli.Context) error {
 		logLevelSrc = fmt.Sprintf("config file: '%s'", c.String("config"))
 	}
 
-	config = Conf{
+	conf.Config = conf.Conf{
 		CertFile: c.String(cliCertFile),
 		KeyFile:  c.String(cliKeyFile),
 	}
 
 	logLevelStr := c.String(cliLogLevel)
-	if err := config.LogLevel.UnmarshalText([]byte(logLevelStr)); err != nil {
+	if err := conf.Config.LogLevel.UnmarshalText([]byte(logLevelStr)); err != nil {
 		slog.Error(fmt.Sprintf("invalid log level '%s' set via %s", logLevelStr, logLevelSrc))
-		config.LogLevel = slog.LevelInfo
+		conf.Config.LogLevel = slog.LevelInfo
 	}
 
-	slog.SetLogLoggerLevel(config.LogLevel)
+	slog.SetLogLoggerLevel(conf.Config.LogLevel)
 
 	// When environment variable NO_COLOR or --no-color CLI option is set, then do not display colors
 	// and animations too. The NO_COLOR environment variable have to have value "1" or "true",
