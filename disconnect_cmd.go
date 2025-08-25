@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/urfave/cli/v2"
+
+	"github.com/redhatinsights/rhc/internal/remotemanagement"
 )
 
 // DisconnectResult is structure holding information about result of
@@ -58,7 +60,7 @@ func beforeDisconnectAction(ctx *cli.Context) error {
 // been already stopped.
 func disconnectService(disconnectResult *DisconnectResult, errorMessages *map[string]LogMessage) error {
 	// First check if the service hasn't been already stopped
-	isInactive, err := isServiceInState("inactive")
+	isInactive, err := remotemanagement.AssertYggdrasilServiceState("inactive")
 	if err != nil {
 		return err
 	}
@@ -70,7 +72,7 @@ func disconnectService(disconnectResult *DisconnectResult, errorMessages *map[st
 	}
 	// When the service is not inactive, then try to get this service to this state
 	progressMessage := fmt.Sprintf(" Deactivating the %v service", ServiceName)
-	err = showProgress(progressMessage, deactivateService, smallIndent)
+	err = showProgress(progressMessage, remotemanagement.DeactivateServices, smallIndent)
 	if err != nil {
 		errMsg := fmt.Sprintf("Cannot deactivate %s service: %v", ServiceName, err)
 		(*errorMessages)[ServiceName] = LogMessage{
