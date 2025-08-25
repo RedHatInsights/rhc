@@ -1,14 +1,16 @@
-package main
+package remotemanagement
 
 import (
 	"context"
 	"fmt"
-	systemd "github.com/redhatinsights/rhc/internal/systemd"
+
+	"github.com/redhatinsights/rhc/internal/systemd"
 )
 
-// activateService tries to enable and start the rhc-canonical-facts.timer,
-// rhc-canonical-facts.service and yggdrasil.service.
-func activateService() error {
+// ActivateServices tries to enable and start the rhc-canonical-facts.timer,
+// rhc-canonical-facts.service and yggdrasil.service (in this order).
+// Error is returned as soon as one of the calls to systemd fails.
+func ActivateServices() error {
 	conn, err := systemd.NewConnectionContext(context.Background(), systemd.ConnectionTypeSystem)
 	if err != nil {
 		return fmt.Errorf("cannot connect to systemd: %v", err)
@@ -36,8 +38,8 @@ func activateService() error {
 	return nil
 }
 
-// isServiceInState returns true, when yggdrasil.service is in given state
-func isServiceInState(wantedState string) (bool, error) {
+// AssertYggdrasilServiceState returns true, when yggdrasil.service is in given state
+func AssertYggdrasilServiceState(wantedState string) (bool, error) {
 	conn, err := systemd.NewConnectionContext(context.Background(), systemd.ConnectionTypeSystem)
 	if err != nil {
 		return false, fmt.Errorf("cannot connect to systemd: %v", err)
@@ -55,9 +57,10 @@ func isServiceInState(wantedState string) (bool, error) {
 	}
 }
 
-// deactivateService tries to stop and disable the rhc-canonical-facts.timer,
-// rhc-canonical-facts.service and yggdrasil.service.
-func deactivateService() error {
+// DeactivateServices tries to stop and disable the rhc-canonical-facts.timer,
+// rhc-canonical-facts.service and yggdrasil.service (in this order).
+// Error is returned as soon as one of the calls to systemd fails.
+func DeactivateServices() error {
 	conn, err := systemd.NewConnectionContext(context.Background(), systemd.ConnectionTypeSystem)
 	if err != nil {
 		return fmt.Errorf("cannot connect to systemd: %v", err)
