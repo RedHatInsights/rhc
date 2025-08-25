@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/urfave/cli/v2"
+
+	"github.com/redhatinsights/rhc/internal/remotemanagement"
 )
 
 type FeatureResult struct {
@@ -316,7 +318,7 @@ func connectAction(ctx *cli.Context) error {
 		} else {
 			start = time.Now()
 			progressMessage := fmt.Sprintf(" Activating the %v service", ServiceName)
-			err = showProgress(progressMessage, activateService, mediumIndent)
+			err = showProgress(progressMessage, remotemanagement.ActivateServices, mediumIndent)
 			if err != nil {
 				connectResult.Features.RemoteManagement.Successful = false
 				errorMessages[ServiceName] = LogMessage{
