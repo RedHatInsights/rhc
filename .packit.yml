@@ -32,10 +32,16 @@ jobs:
     targets:
       - centos-stream-10-aarch64
       - centos-stream-10-x86_64
+      - centos-stream-10-ppc64le
+      - centos-stream-10-s390x
       - fedora-all-aarch64
       - fedora-all-x86_64
+      - fedora-all-ppc64le
+      - fedora-all-s390x
       - rhel-10-aarch64
       - rhel-10-x86_64
+      - rhel-10-ppc64le
+      - rhel-10-s390x
 
   - job: copr_build
     trigger: commit
@@ -47,10 +53,16 @@ jobs:
     targets:
       - centos-stream-10-aarch64
       - centos-stream-10-x86_64
+      - centos-stream-10-ppc64le
+      - centos-stream-10-s390x
       - fedora-all-aarch64
       - fedora-all-x86_64
+      - fedora-all-ppc64le
+      - fedora-all-s390x
       - rhel-10-aarch64
       - rhel-10-x86_64
+      - rhel-10-s390x
+      - rhel-10-ppc64le
 
   - job: tests
     trigger: pull_request
