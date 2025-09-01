@@ -56,12 +56,8 @@ jobs:
           POLARION_PROJECT: ${{ secrets.POLARION_PROJECT }}
         run: |
           PYTHONPATH=integration-tests/ betelgeuse --config-module \
-            custom_betelgeuse_config test-case \
+            custom_betelgeuse_config test-case --requirement-lookup-method id \
             integration-tests/ ${{ secrets.POLARION_PROJECT }} ./test_case.xml
-
-      - name: Modify XML for Polarion upload
-        run: |
-          sed -i -e 's/linked-work-item lookup-method="name" role-id="verifies"/linked-work-item lookup-method="id" role-id="verifies"/g' test_case.xml
 
       - name: Upload to Polarion
         env:
