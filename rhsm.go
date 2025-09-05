@@ -15,6 +15,8 @@ import (
 	"golang.org/x/term"
 
 	"github.com/godbus/dbus/v5"
+
+	"github.com/redhatinsights/rhc/internal/localization"
 )
 
 const EnvTypeContentTemplate = "content-template"
@@ -25,7 +27,7 @@ func getConsumerUUID() (string, error) {
 		return "", err
 	}
 
-	locale := getLocale()
+	locale := localization.GetLocale()
 
 	var uuid string
 	if err := conn.Object(
@@ -105,7 +107,7 @@ func registerUsernamePassword(username, password, organization string, environme
 
 	registerServer := conn.Object("com.redhat.RHSM1", "/com/redhat/RHSM1/RegisterServer")
 
-	locale := getLocale()
+	locale := localization.GetLocale()
 
 	var privateDbusSocketURI string
 	if err := registerServer.Call(
@@ -215,7 +217,7 @@ func registerActivationKey(orgID string, activationKeys []string, environments [
 
 	registerServer := conn.Object("com.redhat.RHSM1", "/com/redhat/RHSM1/RegisterServer")
 
-	locale := getLocale()
+	locale := localization.GetLocale()
 
 	var privateDbusSocketURI string
 	if err := registerServer.Call(
@@ -286,7 +288,7 @@ func unregister() error {
 		return fmt.Errorf("warning: the system is already unregistered")
 	}
 
-	locale := getLocale()
+	locale := localization.GetLocale()
 
 	err = conn.Object(
 		"com.redhat.RHSM1",

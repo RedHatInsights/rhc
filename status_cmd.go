@@ -15,6 +15,7 @@ import (
 	systemd "github.com/coreos/go-systemd/v22/dbus"
 
 	"github.com/redhatinsights/rhc/internal/datacollection"
+	"github.com/redhatinsights/rhc/internal/localization"
 )
 
 // rhsmStatus tries to print status provided by RHSM D-Bus API. If we provide
@@ -61,7 +62,7 @@ func isContentEnabled(systemStatus *SystemStatus) error {
 		return fmt.Errorf("cannot connect to system D-Bus: %w", err)
 	}
 
-	locale := getLocale()
+	locale := localization.GetLocale()
 
 	config := conn.Object("com.redhat.RHSM1", "/com/redhat/RHSM1/Config")
 
