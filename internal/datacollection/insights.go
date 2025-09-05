@@ -1,4 +1,4 @@
-package main
+package datacollection
 
 import (
 	"bytes"
@@ -8,23 +8,23 @@ import (
 	"strings"
 )
 
-func registerInsights() error {
+func RegisterInsightsClient() error {
 	cmd := exec.Command("/usr/bin/insights-client", "--register")
 
 	return cmd.Run()
 }
 
-func unregisterInsights() error {
+func UnregisterInsightsClient() error {
 	cmd := exec.Command("/usr/bin/insights-client", "--unregister")
 
 	return cmd.Run()
 }
 
-// insightsIsRegistered checks whether insights-client reports its
+// InsightsClientIsRegistered checks whether insights-client reports its
 // status as registered or not. If the system is registered, `true` is
 // returned, otherwise `false` is returned, and `error` is filled with
 // an error value.
-func insightsIsRegistered() (bool, error) {
+func InsightsClientIsRegistered() (bool, error) {
 	var errBuffer bytes.Buffer
 	cmd := exec.Command("/usr/bin/insights-client", "--status")
 	cmd.Stderr = &errBuffer
