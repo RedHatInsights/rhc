@@ -91,9 +91,7 @@ func checkForUnknownArgs(ctx *cli.Context) error {
 func setupFormatOption(ctx *cli.Context) error {
 	format := ctx.String("format")
 	switch format {
-	case "":
-		return nil
-	case "json":
+	case "", "json":
 		return nil
 	default:
 		err := fmt.Errorf(

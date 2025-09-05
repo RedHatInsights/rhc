@@ -7,31 +7,11 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/briandowns/spinner"
 	"github.com/urfave/cli/v2"
 
 	"github.com/redhatinsights/rhc/internal/conf"
 	"github.com/redhatinsights/rhc/internal/ui"
 )
-
-// showProgress calls function and, when it is possible display spinner with
-// some progress message.
-func showProgress(
-	progressMessage string,
-	function func() error,
-	prefixSpaces string,
-) error {
-	var s *spinner.Spinner
-	if ui.IsOutputRich() {
-		s = spinner.New(spinner.CharSets[9], 100*time.Millisecond)
-		s.Prefix = prefixSpaces + "["
-		s.Suffix = "]" + progressMessage
-		s.Start()
-		// Stop spinner after running function
-		defer func() { s.Stop() }()
-	}
-	return function()
-}
 
 // showTimeDuration shows table with duration of each sub-action
 func showTimeDuration(durations map[string]time.Duration) {
@@ -66,13 +46,4 @@ func showErrorMessages(action string, errorMessages map[string]LogMessage) error
 		}
 	}
 	return nil
-}
-
-// interactivePrintf is method for printing human-readable output. It suppresses output, when
-// machine-readable format is used.
-func interactivePrintf(format string, a ...interface{}) {
-	if ui.IsOutputMachineReadable() {
-		return
-	}
-	fmt.Printf(format, a...)
 }
