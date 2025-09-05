@@ -87,18 +87,13 @@ func checkForUnknownArgs(ctx *cli.Context) error {
 	return nil
 }
 
-// setupFormatOption ensures the user has supplied a correct `--format` flag
-// and set values in uiSettings, when JSON format is used.
+// setupFormatOption ensures the user has supplied a correct `--format` flag.
 func setupFormatOption(ctx *cli.Context) error {
-	// This is run after the `app.Before()` has been run,
-	// the uiSettings is already set up for us to modify.
 	format := ctx.String("format")
 	switch format {
 	case "":
 		return nil
 	case "json":
-		uiSettings.isMachineReadable = true
-		uiSettings.isRich = false
 		return nil
 	default:
 		err := fmt.Errorf(
