@@ -71,12 +71,12 @@ func disconnectService(disconnectResult *DisconnectResult, errorMessages *map[st
 	if isInactive {
 		infoMsg := fmt.Sprintf("The %s service is already inactive", ServiceName)
 		disconnectResult.YggdrasilStopped = true
-		interactivePrintf(" [%v] %v\n", ui.Icons.Info, infoMsg)
+		ui.Printf(" [%v] %v\n", ui.Icons.Info, infoMsg)
 		return nil
 	}
 	// When the service is not inactive, then try to get this service to this state
-	progressMessage := fmt.Sprintf(" Deactivating the %v service", ServiceName)
-	err = showProgress(progressMessage, remotemanagement.DeactivateServices, ui.Indent.Small)
+	progressMessage := fmt.Sprintf("Deactivating the %v service", ServiceName)
+	err = ui.Spinner(remotemanagement.DeactivateServices, ui.Indent.Small, progressMessage)
 	if err != nil {
 		errMsg := fmt.Sprintf("Cannot deactivate %s service: %v", ServiceName, err)
 		(*errorMessages)[ServiceName] = LogMessage{
@@ -84,10 +84,10 @@ func disconnectService(disconnectResult *DisconnectResult, errorMessages *map[st
 			message: fmt.Errorf("%v", errMsg)}
 		disconnectResult.YggdrasilStopped = false
 		disconnectResult.YggdrasilStoppedError = errMsg
-		interactivePrintf(" [%v] %v\n", ui.Icons.Error, errMsg)
+		ui.Printf(" [%v] %v\n", ui.Icons.Error, errMsg)
 	} else {
 		disconnectResult.YggdrasilStopped = true
-		interactivePrintf(" [%v] Deactivated the %v service\n", ui.Icons.Ok, ServiceName)
+		ui.Printf(" [%v] Deactivated the %v service\n", ui.Icons.Ok, ServiceName)
 	}
 	return nil
 }
@@ -102,10 +102,10 @@ func disconnectInsightsClient(disconnectResult *DisconnectResult, errorMessages 
 	if !isRegistered {
 		infoMsg := "Already disconnected from Red Hat Insights"
 		disconnectResult.InsightsDisconnected = true
-		interactivePrintf(" [%v] %v\n", ui.Icons.Info, infoMsg)
+		ui.Printf(" [%v] %v\n", ui.Icons.Info, infoMsg)
 		return nil
 	}
-	err = showProgress(" Disconnecting from Red Hat Insights...", datacollection.UnregisterInsightsClient, ui.Indent.Small)
+	err = ui.Spinner(datacollection.UnregisterInsightsClient, ui.Indent.Small, "Disconnecting from Red Hat Insights...")
 	if err != nil {
 		errMsg := fmt.Sprintf("Cannot disconnect from Red Hat Insights: %v", err)
 		(*errorMessages)["insights"] = LogMessage{
@@ -113,10 +113,10 @@ func disconnectInsightsClient(disconnectResult *DisconnectResult, errorMessages 
 			message: fmt.Errorf("%v", errMsg)}
 		disconnectResult.InsightsDisconnected = false
 		disconnectResult.InsightsDisconnectedError = errMsg
-		interactivePrintf(" [%v] %v\n", ui.Icons.Error, errMsg)
+		ui.Printf(" [%v] %v\n", ui.Icons.Error, errMsg)
 	} else {
 		disconnectResult.InsightsDisconnected = true
-		interactivePrintf(" [%v] Disconnected from Red Hat Insights\n", ui.Icons.Ok)
+		ui.Printf(" [%v] Disconnected from Red Hat Insights\n", ui.Icons.Ok)
 	}
 	return nil
 }
@@ -131,13 +131,13 @@ func disconnectRHSM(disconnectResult *DisconnectResult, errorMessages *map[strin
 	if !isRegistered {
 		infoMsg := "Already disconnected from Red Hat Subscription Management"
 		disconnectResult.RHSMDisconnected = true
-		interactivePrintf(" [%v] %v\n", uiSettings.iconInfo, infoMsg)
+		ui.Printf(" [%v] %v\n", ui.Icons.Info, infoMsg)
 		return nil
 	}
-	err = showProgress(
-		" Disconnecting from Red Hat Subscription Management...",
+	err = ui.Spinner(
 		unregister,
 		ui.Indent.Small,
+		"Disconnecting from Red Hat Subscription Management...",
 	)
 	if err != nil {
 		errMsg := fmt.Sprintf("Cannot disconnect from Red Hat Subscription Management: %v", err)
@@ -147,10 +147,10 @@ func disconnectRHSM(disconnectResult *DisconnectResult, errorMessages *map[strin
 
 		disconnectResult.RHSMDisconnected = false
 		disconnectResult.RHSMDisconnectedError = errMsg
-		interactivePrintf(" [%v] %v\n", ui.Icons.Error, errMsg)
+		ui.Printf(" [%v] %v\n", ui.Icons.Error, errMsg)
 	} else {
 		disconnectResult.RHSMDisconnected = true
-		interactivePrintf(" [%v] Disconnected from Red Hat Subscription Management\n", ui.Icons.Ok)
+		ui.Printf(" [%v] Disconnected from Red Hat Subscription Management\n", ui.Icons.Ok)
 	}
 	return nil
 }
@@ -175,9 +175,7 @@ func disconnectAction(ctx *cli.Context) error {
 	}
 
 	hostname, err := os.Hostname()
-	if ui.IsOutputMachineReadable() {
-		disconnectResult.Hostname = hostname
-	}
+	disconnectResult.Hostname = hostname
 	if err != nil {
 		exitCode := 1
 		if ui.IsOutputMachineReadable() {
@@ -188,7 +186,7 @@ func disconnectAction(ctx *cli.Context) error {
 		}
 	}
 
-	interactivePrintf("Disconnecting %v from %v.\nThis might take a few seconds.\n\n", hostname, Provider)
+	ui.Printf("Disconnecting %v from %v.\nThis might take a few seconds.\n\n", hostname, Provider)
 
 	var start time.Time
 	durations := make(map[string]time.Duration)
