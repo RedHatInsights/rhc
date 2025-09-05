@@ -32,24 +32,18 @@ func rhsmStatus(systemStatus *SystemStatus) error {
 	}
 	if uuid == "" {
 		systemStatus.returnCode += 1
-		if ui.IsOutputMachineReadable() {
-			systemStatus.RHSMConnected = false
-		} else {
-			interactivePrintf(
-				"%s[ ] Not connected to Red Hat Subscription Management\n",
-				ui.Indent.Small,
-			)
-		}
+		systemStatus.RHSMConnected = false
+		ui.Printf(
+			"%s[ ] Not connected to Red Hat Subscription Management\n",
+			ui.Indent.Small,
+		)
 	} else {
-		if ui.IsOutputMachineReadable() {
-			systemStatus.RHSMConnected = true
-		} else {
-			interactivePrintf(
-				"%s[%v] Connected to Red Hat Subscription Management\n",
-				ui.Indent.Small,
-				ui.Icons.Ok,
-			)
-		}
+		systemStatus.RHSMConnected = true
+		ui.Printf(
+			"%s[%v] Connected to Red Hat Subscription Management\n",
+			ui.Indent.Small,
+			ui.Icons.Ok,
+		)
 	}
 	return nil
 }
@@ -86,30 +80,24 @@ func isContentEnabled(systemStatus *SystemStatus) error {
 	}
 
 	if contentEnabled == "1" && uuid != "" {
-		if ui.IsOutputMachineReadable() {
-			systemStatus.ContentEnabled = true
-		} else {
-			interactivePrintf(
-				"%s[%v] Content ... Red Hat repository file generated\n",
-				ui.Indent.Medium,
-				ui.Icons.Ok,
-			)
-		}
+		systemStatus.ContentEnabled = true
+		ui.Printf(
+			"%s[%v] Content ... Red Hat repository file generated\n",
+			ui.Indent.Medium,
+			ui.Icons.Ok,
+		)
 	} else {
-		if ui.IsOutputMachineReadable() {
-			systemStatus.ContentEnabled = false
+		systemStatus.ContentEnabled = false
+		if uuid != "" {
+			ui.Printf(
+				"%s[ ] Content ... Generating of Red Hat repository file disabled in rhsm.conf\n",
+				ui.Indent.Medium,
+			)
 		} else {
-			if uuid != "" {
-				interactivePrintf(
-					"%s[ ] Content ... Generating of Red Hat repository file disabled in rhsm.conf\n",
-					ui.Indent.Medium,
-				)
-			} else {
-				interactivePrintf(
-					"%s[ ] Content ... Red Hat repository file not generated\n",
-					ui.Indent.Medium,
-				)
-			}
+			ui.Printf(
+				"%s[ ] Content ... Red Hat repository file not generated\n",
+				ui.Indent.Medium,
+			)
 		}
 	}
 	return nil
@@ -129,31 +117,23 @@ func insightStatus(systemStatus *SystemStatus) error {
 		s.Stop()
 	}
 	if isRegistered {
-		if ui.IsOutputMachineReadable() {
-			systemStatus.InsightsConnected = true
-		} else {
-			interactivePrintf(
-				"%s[%v] Analytics ... Connected to Red Hat Insights\n",
-				ui.Indent.Medium,
-				ui.Icons.Ok,
-			)
-		}
+		systemStatus.InsightsConnected = true
+		ui.Printf(
+			"%s[%v] Analytics ... Connected to Red Hat Insights\n",
+			ui.Indent.Medium,
+			ui.Icons.Ok,
+		)
 	} else {
 		systemStatus.returnCode += 1
 		if err == nil {
-			if ui.IsOutputMachineReadable() {
-				systemStatus.InsightsConnected = false
-			} else {
-				interactivePrintf(
-					"%s[ ] Analytics ... Not connected to Red Hat Insights\n",
-					ui.Indent.Medium,
-				)
-			}
+			systemStatus.InsightsConnected = false
+			ui.Printf(
+				"%s[ ] Analytics ... Not connected to Red Hat Insights\n",
+				ui.Indent.Medium,
+			)
 		} else {
-			if ui.IsOutputMachineReadable() {
-				systemStatus.InsightsConnected = false
-				systemStatus.InsightsError = err.Error()
-			}
+			systemStatus.InsightsConnected = false
+			systemStatus.InsightsError = err.Error()
 			return err
 		}
 	}
@@ -180,29 +160,23 @@ func serviceStatus(systemStatus *SystemStatus) error {
 
 	activeState := properties["ActiveState"]
 	if activeState.(string) == "active" {
-		if ui.IsOutputMachineReadable() {
-			systemStatus.YggdrasilRunning = true
-		} else {
-			interactivePrintf(
-				"%s[%v] Remote Management ... The %v service is active\n",
-				ui.Indent.Medium,
-				ui.Icons.Ok,
-				ServiceName,
-			)
-		}
+		systemStatus.YggdrasilRunning = true
+		ui.Printf(
+			"%s[%v] Remote Management ... The %v service is active\n",
+			ui.Indent.Medium,
+			ui.Icons.Ok,
+			ServiceName,
+		)
 	} else {
 		systemStatus.returnCode += 1
 		loadState := properties["LoadState"]
 		if loadState == "loaded" {
-			if ui.IsOutputMachineReadable() {
-				systemStatus.YggdrasilRunning = false
-			} else {
-				interactivePrintf(
-					"%s[ ] Remote Management ... The %v service is inactive\n",
-					ui.Indent.Medium,
-					ServiceName,
-				)
-			}
+			systemStatus.YggdrasilRunning = false
+			ui.Printf(
+				"%s[ ] Remote Management ... The %v service is inactive\n",
+				ui.Indent.Medium,
+				ServiceName,
+			)
 		} else {
 			loadError := properties["LoadError"]
 			// This part of the systemd D-Bus API is a little bit tricky. It returns
@@ -218,17 +192,14 @@ func serviceStatus(systemStatus *SystemStatus) error {
 					// Check if the type of the second interface is string
 					if reflect.TypeOf(loadErrorSlice[1]).Kind() == reflect.String {
 						loadErrorString := loadErrorSlice[1].(string)
-						if ui.IsOutputMachineReadable() {
-							systemStatus.YggdrasilRunning = false
-							systemStatus.YggdrasilError = loadErrorString
-						} else {
-							interactivePrintf(
-								"%s[%s] Remote Management ... %v\n",
-								ui.Indent.Medium,
-								ui.Icons.Error,
-								loadErrorString,
-							)
-						}
+						systemStatus.YggdrasilRunning = false
+						systemStatus.YggdrasilError = loadErrorString
+						ui.Printf(
+							"%s[%s] Remote Management ... %v\n",
+							ui.Indent.Medium,
+							ui.Icons.Error,
+							loadErrorString,
+						)
 					}
 				}
 			}
@@ -325,16 +296,13 @@ func statusAction(ctx *cli.Context) (err error) {
 		}
 	}
 
-	if ui.IsOutputMachineReadable() {
-		systemStatus.SystemHostname = hostname
-	} else {
-		fmt.Printf("Connection status for %v:\n\n", hostname)
-	}
+	systemStatus.SystemHostname = hostname
+	ui.Printf("Connection status for %v:\n\n", hostname)
 
 	/* 1. Get Status of RHSM */
 	err = rhsmStatus(&systemStatus)
 	if err != nil {
-		interactivePrintf(
+		ui.Printf(
 			"%s[%s] Red Hat Subscription Management ... %s\n",
 			ui.Indent.Small,
 			ui.Icons.Error,
@@ -345,7 +313,7 @@ func statusAction(ctx *cli.Context) (err error) {
 	/* 2. Is content enabled */
 	err = isContentEnabled(&systemStatus)
 	if err != nil {
-		interactivePrintf(
+		ui.Printf(
 			"%s[%s] Content ... %s\n",
 			ui.Indent.Medium,
 			ui.Icons.Error,
@@ -356,7 +324,7 @@ func statusAction(ctx *cli.Context) (err error) {
 	/* 3. Get status of insights-client */
 	err = insightStatus(&systemStatus)
 	if err != nil {
-		interactivePrintf(
+		ui.Printf(
 			"%s[%v] Analytics ... Cannot detect Red Hat Insights status: %v\n",
 			ui.Indent.Medium,
 			ui.Icons.Error,
@@ -367,7 +335,7 @@ func statusAction(ctx *cli.Context) (err error) {
 	/* 3. Get status of yggdrasil (rhcd) service */
 	err = serviceStatus(&systemStatus)
 	if err != nil {
-		interactivePrintf(
+		ui.Printf(
 			"%s[%s] Remote Management ... %s\n",
 			ui.Indent.Medium,
 			ui.Icons.Error,
@@ -375,9 +343,7 @@ func statusAction(ctx *cli.Context) (err error) {
 		)
 	}
 
-	if !ui.IsOutputMachineReadable() {
-		fmt.Printf("\nManage your connected systems: https://red.ht/connector\n")
-	}
+	ui.Printf("\nManage your connected systems: https://red.ht/connector\n")
 
 	// At the end check if all statuses are correct.
 	// If not, return 1 exit code without any message.

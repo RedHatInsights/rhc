@@ -182,7 +182,7 @@ func connectAction(ctx *cli.Context) error {
 		}
 	}
 
-	interactivePrintf("Connecting %v to %v.\nThis might take a few seconds.\n\n", hostname, Provider)
+	ui.Printf("Connecting %v to %v.\nThis might take a few seconds.\n\n", hostname, Provider)
 
 	var featuresStr []string
 	for _, feature := range KnownFeatures {
@@ -213,7 +213,7 @@ func connectAction(ctx *cli.Context) error {
 		}
 	}
 	featuresListStr := strings.Join(featuresStr, ", ")
-	interactivePrintf("Features preferences: %s\n\n", featuresListStr)
+	ui.Printf("Features preferences: %s\n\n", featuresListStr)
 
 	var start time.Time
 	durations := make(map[string]time.Duration)
@@ -228,38 +228,31 @@ func connectAction(ctx *cli.Context) error {
 			level: slog.LevelError,
 			message: fmt.Errorf("cannot connect to Red Hat Subscription Management: %w",
 				err)}
-		if ui.IsOutputMachineReadable() {
-			connectResult.RHSMConnectError = errorMessages["rhsm"].message.Error()
-			connectResult.Features.Content.Successful = false
-		} else {
-			fmt.Printf(
-				"%s[%v] Cannot connect to Red Hat Subscription Management\n",
-				ui.Indent.Small,
-				ui.Icons.Error,
-			)
-			fmt.Printf(
-				"%s[%v] Skipping generation of Red Hat repository file\n",
-				ui.Indent.Medium,
-				ui.Icons.Error,
-			)
-		}
+		connectResult.RHSMConnectError = errorMessages["rhsm"].message.Error()
+		connectResult.Features.Content.Successful = false
+		ui.Printf(
+			"%s[%v] Cannot connect to Red Hat Subscription Management\n",
+			ui.Indent.Small,
+			ui.Icons.Error,
+		)
+		ui.Printf(
+			"%s[%v] Skipping generation of Red Hat repository file\n",
+			ui.Indent.Medium,
+			ui.Icons.Error,
+		)
 	} else {
 		connectResult.RHSMConnected = true
-		interactivePrintf("%s[%v] %v\n", ui.Indent.Small, ui.Icons.Ok, returnedMsg)
+		ui.Printf("%s[%v] %v\n", ui.Indent.Small, ui.Icons.Ok, returnedMsg)
 		if ContentFeature.Enabled {
-			if ui.IsOutputMachineReadable() {
-				connectResult.Features.Content.Successful = true
-			}
-			interactivePrintf(
+			connectResult.Features.Content.Successful = true
+			ui.Printf(
 				"%s[%v] Content ... Red Hat repository file generated\n",
 				ui.Indent.Medium,
 				ui.Icons.Ok,
 			)
 		} else {
-			if ui.IsOutputMachineReadable() {
-				connectResult.Features.Content.Successful = false
-			}
-			interactivePrintf("%s[ ] Content ... Red Hat repository file not generated\n", ui.Indent.Medium)
+			connectResult.Features.Content.Successful = false
+			ui.Printf("%s[ ] Content ... Red Hat repository file not generated\n", ui.Indent.Medium)
 		}
 	}
 	durations["rhsm"] = time.Since(start)
@@ -268,7 +261,7 @@ func connectAction(ctx *cli.Context) error {
 	if AnalyticsFeature.Enabled {
 		if errors, exist := errorMessages["rhsm"]; exist {
 			if errors.level == slog.LevelError {
-				interactivePrintf(
+				ui.Printf(
 					"%s[%v] Skipping connection to Red Hat Insights\n",
 					ui.Indent.Medium,
 					ui.Icons.Error,
@@ -276,24 +269,21 @@ func connectAction(ctx *cli.Context) error {
 			}
 		} else {
 			start = time.Now()
-			err = showProgress(" Connecting to Red Hat Insights...", datacollection.RegisterInsightsClient, ui.Indent.Medium)
+			err = ui.Spinner(datacollection.RegisterInsightsClient, ui.Indent.Medium, "Connecting to Red Hat Insights...")
 			if err != nil {
 				connectResult.Features.Analytics.Successful = false
 				errorMessages["insights"] = LogMessage{
 					level:   slog.LevelError,
 					message: fmt.Errorf("cannot connect to Red Hat Insights: %w", err)}
-				if ui.IsOutputMachineReadable() {
-					connectResult.Features.Analytics.Error = errorMessages["insights"].message.Error()
-				} else {
-					fmt.Printf(
-						"%s[%v] Analytics ... Cannot connect to Red Hat Insights\n",
-						ui.Indent.Medium,
-						ui.Icons.Error,
-					)
-				}
+				connectResult.Features.Analytics.Error = errorMessages["insights"].message.Error()
+				ui.Printf(
+					"%s[%v] Analytics ... Cannot connect to Red Hat Insights\n",
+					ui.Indent.Medium,
+					ui.Icons.Error,
+				)
 			} else {
 				connectResult.Features.Analytics.Successful = true
-				interactivePrintf(
+				ui.Printf(
 					"%s[%v] Analytics ... Connected to Red Hat Insights\n",
 					ui.Indent.Medium,
 					ui.Icons.Ok,
@@ -302,17 +292,15 @@ func connectAction(ctx *cli.Context) error {
 			durations["insights"] = time.Since(start)
 		}
 	} else {
-		if ui.IsOutputMachineReadable() {
-			connectResult.Features.Analytics.Successful = false
-		}
-		interactivePrintf("%s[ ] Analytics ... Connecting to Red Hat Insights disabled\n", ui.Indent.Medium)
+		connectResult.Features.Analytics.Successful = false
+		ui.Printf("%s[ ] Analytics ... Connecting to Red Hat Insights disabled\n", ui.Indent.Medium)
 	}
 
 	if ManagementFeature.Enabled {
 		/* 3. Start yggdrasil (rhcd) service */
 		if rhsmErrMsg, exist := errorMessages["rhsm"]; exist && rhsmErrMsg.level == slog.LevelError {
 			connectResult.Features.RemoteManagement.Successful = false
-			interactivePrintf(
+			ui.Printf(
 				"%s[%v] Skipping activation of %v service\n",
 				ui.Indent.Medium,
 				ui.Icons.Error,
@@ -321,26 +309,24 @@ func connectAction(ctx *cli.Context) error {
 		} else {
 			start = time.Now()
 			progressMessage := fmt.Sprintf(" Activating the %v service", ServiceName)
-			err = showProgress(progressMessage, remotemanagement.ActivateServices, ui.Indent.Medium)
+			err = ui.Spinner(remotemanagement.ActivateServices, ui.Indent.Medium, progressMessage)
 			if err != nil {
 				connectResult.Features.RemoteManagement.Successful = false
 				errorMessages[ServiceName] = LogMessage{
 					level: slog.LevelError,
 					message: fmt.Errorf("cannot activate %s service: %w",
 						ServiceName, err)}
-				if ui.IsOutputMachineReadable() {
-					connectResult.Features.RemoteManagement.Error = errorMessages[ServiceName].message.Error()
-				} else {
-					interactivePrintf(
-						"%s[%v] Remote Management ... Cannot activate the %v service\n",
-						ui.Indent.Medium,
-						ui.Icons.Error,
-						ServiceName,
-					)
-				}
+
+				connectResult.Features.RemoteManagement.Error = errorMessages[ServiceName].message.Error()
+				ui.Printf(
+					"%s[%v] Remote Management ... Cannot activate the %v service\n",
+					ui.Indent.Medium,
+					ui.Icons.Error,
+					ServiceName,
+				)
 			} else {
 				connectResult.Features.RemoteManagement.Successful = true
-				interactivePrintf(
+				ui.Printf(
 					"%s[%v] Remote Management ... Activated the %v service\n",
 					ui.Indent.Medium,
 					ui.Icons.Ok,
@@ -350,18 +336,16 @@ func connectAction(ctx *cli.Context) error {
 			durations[ServiceName] = time.Since(start)
 		}
 	} else {
-		if ui.IsOutputMachineReadable() {
-			connectResult.Features.RemoteManagement.Successful = false
-		}
+		connectResult.Features.RemoteManagement.Successful = false
 		if ManagementFeature.Reason != "" {
-			interactivePrintf(
+			ui.Printf(
 				"%s[ ] Management .... Starting %s service disabled (%s)\n",
 				ui.Indent.Medium,
 				ServiceName,
 				ManagementFeature.Reason,
 			)
 		} else {
-			interactivePrintf(
+			ui.Printf(
 				"%s[ ] Management .... Starting %s service disabled\n",
 				ui.Indent.Medium,
 				ServiceName,
@@ -369,7 +353,7 @@ func connectAction(ctx *cli.Context) error {
 		}
 	}
 
-	interactivePrintf("\nSuccessfully connected to Red Hat!\n")
+	ui.Printf("\nSuccessfully connected to Red Hat!\n")
 
 	if !ui.IsOutputMachineReadable() {
 		/* 5. Show footer message */
