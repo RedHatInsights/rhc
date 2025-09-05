@@ -10,6 +10,7 @@ import (
 
 	"github.com/urfave/cli/v2"
 
+	"github.com/redhatinsights/rhc/internal/datacollection"
 	"github.com/redhatinsights/rhc/internal/remotemanagement"
 )
 
@@ -273,7 +274,7 @@ func connectAction(ctx *cli.Context) error {
 			}
 		} else {
 			start = time.Now()
-			err = showProgress(" Connecting to Red Hat Insights...", registerInsights, mediumIndent)
+			err = showProgress(" Connecting to Red Hat Insights...", datacollection.RegisterInsightsClient, mediumIndent)
 			if err != nil {
 				connectResult.Features.Analytics.Successful = false
 				errorMessages["insights"] = LogMessage{

@@ -9,6 +9,7 @@ import (
 
 	"github.com/urfave/cli/v2"
 
+	"github.com/redhatinsights/rhc/internal/datacollection"
 	"github.com/redhatinsights/rhc/internal/remotemanagement"
 )
 
@@ -91,7 +92,7 @@ func disconnectService(disconnectResult *DisconnectResult, errorMessages *map[st
 // disconnectInsightsClient tries to unregister insights-client if the client hasn't been
 // already unregistered
 func disconnectInsightsClient(disconnectResult *DisconnectResult, errorMessages *map[string]LogMessage) error {
-	isRegistered, err := insightsIsRegistered()
+	isRegistered, err := datacollection.InsightsClientIsRegistered()
 	if err != nil {
 		return err
 	}
@@ -101,7 +102,7 @@ func disconnectInsightsClient(disconnectResult *DisconnectResult, errorMessages 
 		interactivePrintf(" [%v] %v\n", uiSettings.iconInfo, infoMsg)
 		return nil
 	}
-	err = showProgress(" Disconnecting from Red Hat Insights...", unregisterInsights, smallIndent)
+	err = showProgress(" Disconnecting from Red Hat Insights...", datacollection.UnregisterInsightsClient, smallIndent)
 	if err != nil {
 		errMsg := fmt.Sprintf("Cannot disconnect from Red Hat Insights: %v", err)
 		(*errorMessages)["insights"] = LogMessage{

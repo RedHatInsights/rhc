@@ -4,14 +4,17 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/godbus/dbus/v5"
-	"github.com/urfave/cli/v2"
 	"os"
 	"reflect"
 	"time"
 
+	"github.com/godbus/dbus/v5"
+	"github.com/urfave/cli/v2"
+
 	"github.com/briandowns/spinner"
 	systemd "github.com/coreos/go-systemd/v22/dbus"
+
+	"github.com/redhatinsights/rhc/internal/datacollection"
 )
 
 // rhsmStatus tries to print status provided by RHSM D-Bus API. If we provide
@@ -119,7 +122,7 @@ func insightStatus(systemStatus *SystemStatus) error {
 		s.Suffix = "] Checking Red Hat Insights..."
 		s.Start()
 	}
-	isRegistered, err := insightsIsRegistered()
+	isRegistered, err := datacollection.InsightsClientIsRegistered()
 	if uiSettings.isRich {
 		s.Stop()
 	}
