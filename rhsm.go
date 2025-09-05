@@ -15,6 +15,8 @@ import (
 	"golang.org/x/term"
 
 	"github.com/godbus/dbus/v5"
+
+	"github.com/redhatinsights/rhc/internal/ui"
 )
 
 const EnvTypeContentTemplate = "content-template"
@@ -369,9 +371,9 @@ func registerRHSM(ctx *cli.Context, enableContent bool) (string, error) {
 		}
 
 		var s *spinner.Spinner
-		if uiSettings.isRich {
+		if ui.IsOutputRich() {
 			s = spinner.New(spinner.CharSets[9], 100*time.Millisecond)
-			s.Prefix = smallIndent + "["
+			s.Prefix = ui.Indent.Small + "["
 			s.Suffix = "] Connecting to Red Hat Subscription Management..."
 			s.Start()
 			defer s.Stop()
@@ -394,11 +396,11 @@ func registerRHSM(ctx *cli.Context, enableContent bool) (string, error) {
 				   required, because user is member of more than one organization, then ask for
 				   the organization. */
 				if len(orgs) > 0 {
-					if uiSettings.isMachineReadable {
+					if ui.IsOutputMachineReadable() {
 						return "Unable to register system to RHSM", cli.Exit("no organization specified", 1)
 					}
 					// Stop spinner to be able to display message and ask for organization
-					if uiSettings.isRich {
+					if ui.IsOutputRich() {
 						s.Stop()
 					}
 
@@ -419,7 +421,7 @@ func registerRHSM(ctx *cli.Context, enableContent bool) (string, error) {
 					fmt.Printf("\n")
 
 					// Start spinner again
-					if uiSettings.isRich {
+					if ui.IsOutputRich() {
 						s.Start()
 					}
 

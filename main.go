@@ -10,6 +10,7 @@ import (
 	"github.com/urfave/cli/v2/altsrc"
 
 	"github.com/redhatinsights/rhc/internal/conf"
+	"github.com/redhatinsights/rhc/internal/ui"
 )
 
 const (
@@ -36,6 +37,22 @@ func mainAction(c *cli.Context) error {
 	}
 	fmt.Println(data)
 	return nil
+}
+
+func configureUI(ctx *cli.Context) {
+	ui.ConfigureOutput(
+		// Rich output (animations) are only enabled when all are true:
+		// - we're printing in human-friendly format,
+		// - stdout is interactive console.
+		!ctx.IsSet("format") && ui.IsInteractive(),
+		// Colors are only enabled when all are true:
+		// output is rich,
+		// --no-color/$NO_COLOR are not set.
+		!ctx.IsSet("no-color"),
+		// Machine-readable output is enabled when all are true:
+		// - we're printing in JSON or other parseable format.
+		ctx.IsSet("format"),
+	)
 }
 
 // beforeAction is triggered before other actions are triggered
@@ -89,7 +106,7 @@ func beforeAction(c *cli.Context) error {
 	}
 
 	// Set up standard output preference: colors, icons, etc.
-	configureUISettings(c)
+	configureUI(c)
 
 	return nil
 }
