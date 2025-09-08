@@ -1,8 +1,6 @@
 module github.com/redhatinsights/rhc
 
-go 1.23.0
-
-toolchain go1.23.7
+go 1.24.0
 
 require (
 	github.com/briandowns/spinner v1.23.2
@@ -11,7 +9,7 @@ require (
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
 	github.com/urfave/cli/v2 v2.27.7
-	golang.org/x/sys v0.35.0
+	golang.org/x/sys v0.36.0
 	golang.org/x/term v0.34.0
 )
 
