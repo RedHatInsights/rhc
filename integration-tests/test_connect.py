@@ -7,6 +7,7 @@
 """
 
 import contextlib
+import json
 import time
 import logging
 import pytest
@@ -58,9 +59,9 @@ def test_connect(external_candlepin, rhc, test_config, auth, output_format):
         4.  The yggdrasil service is in an active state.
         5.  For text output, stdout contains "Connected to Red Hat Insights",
             "Connected to Red Hat Subscription Management",
-            "Activated the yggdrasil service", and "Successfully connected to Red Hat!".
-            For JSON output, no specific assertions are made due to a known issue (CCT-1191).
-     """
+            "Activated the yggdrasil service" and "Successfully connected to Red Hat!".
+            For JSON output, comprehensive validation is performed on the response structure and values.
+    """
 
     # rhc+satellite does not support basic auth for now
     # refer: https://issues.redhat.com/browse/RHEL-53436
@@ -75,19 +76,34 @@ def test_connect(external_candlepin, rhc, test_config, auth, output_format):
     assert yggdrasil_service_is_active()
 
     if output_format is None:
+        # Verify connection messages
         assert "Connected to Red Hat Subscription Management" in result.stdout
         assert "Connected to Red Hat Insights" in result.stdout
         assert "Activated the yggdrasil service" in result.stdout
+
+        # Verify final success message
         assert "Successfully connected to Red Hat!" in result.stdout
 
     elif output_format == "json":
-        pass
-        # TODO: parse result.stdout, when CCT-1191 is fixed. It is not possible now, because
-        #       "rhc connect --format json" prints JSON document to stderr (not stdout)
-        # json_output = json.loads(result.stdout)
-        # assert json_output["rhsm_connected"] is True
+        json_output = json.loads(result.stdout)
 
+        # Verify field types and values
+        assert type(json_output["hostname"]) == str
+        assert type(json_output["uid"]) == int
+        assert (
+            type(json_output["rhsm_connected"]) == bool
+            and json_output["rhsm_connected"] is True
+        )
+        assert type(json_output["features"]) == dict
 
+        # Verify feature types and values
+        features = json_output["features"]
+        for feature_name in ["content", "analytics", "remote_management"]:
+            for key in ["enabled", "successful"]:
+                value = features[feature_name][key]
+                assert (
+                    isinstance(value, bool) and value is True
+                ), f"{feature_name}.{key} should be True boolean, got {value!r}"
 @pytest.mark.parametrize(
     "credentials,return_code",
     [
