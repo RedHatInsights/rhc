@@ -127,7 +127,7 @@ func disconnectRHSM(disconnectResult *DisconnectResult, errorMessages *map[strin
 	}
 	if !isRegistered {
 		infoMsg := "Already disconnected from Red Hat Subscription Management"
-		disconnectResult.InsightsDisconnected = true
+		disconnectResult.RHSMDisconnected = true
 		interactivePrintf(" [%v] %v\n", uiSettings.iconInfo, infoMsg)
 		return nil
 	}
