@@ -3,8 +3,8 @@ import sh
 
 
 def yggdrasil_service_is_active():
-    """Method to verify if yggdrasil/rhcd is in active/inactive state
-    :return: True if yggdrasil/rhcd in active state else False
+    """Method to verify if yggdrasil is in active/inactive state
+    :return: True if yggdrasil in active state else False
     Note: upstream name of service is yggdrasil and downstream is rhcd
     """
     try:
