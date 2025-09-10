@@ -7,6 +7,7 @@
 """
 
 import contextlib
+import json
 import time
 import logging
 import pytest
@@ -19,7 +20,9 @@ from utils import (
     check_yggdrasil_journalctl_logs,
 )
 
+
 logger = logging.getLogger(__name__)
+
 
 @pytest.mark.tier1
 @pytest.mark.parametrize(
@@ -29,7 +32,7 @@ logger = logging.getLogger(__name__)
         ("basic", "json"),
         ("activation-key", None),
         ("activation-key", "json"),
-    ]
+    ],
 )
 def test_connect(external_candlepin, rhc, test_config, auth, output_format):
     """
@@ -58,8 +61,8 @@ def test_connect(external_candlepin, rhc, test_config, auth, output_format):
             "Connected to Red Hat Subscription Management",
             "Activated the yggdrasil service" or "Activated the Remote Host Configuration daemon"
             and "Successfully connected to Red Hat!".
-            For JSON output, no specific assertions are made due to a known issue (CCT-1191).
-     """
+            For JSON output, comprehensive validation is performed on the response structure and values.
+    """
 
     # rhc+satellite does not support basic auth for now
     # refer: https://issues.redhat.com/browse/RHEL-53436
@@ -67,57 +70,55 @@ def test_connect(external_candlepin, rhc, test_config, auth, output_format):
         pytest.skip("rhc+satellite only support activation key registration now")
     with contextlib.suppress(Exception):
         rhc.disconnect()
-    command_args = prepare_args_for_connect(test_config, auth=auth, output_format=output_format)
+    command_args = prepare_args_for_connect(
+        test_config, auth=auth, output_format=output_format
+    )
     command = ["connect"] + command_args
     result = rhc.run(*command)
     assert rhc.is_registered
     assert yggdrasil_service_is_active()
 
     if output_format is None:
+        # Verify connection messages
         assert "Connected to Red Hat Subscription Management" in result.stdout
         assert "Connected to Red Hat Insights" in result.stdout
-    elif output_format == "json":
-        pass
-        # TODO: parse result.stdout, when CCT-1191 is fixed. It is not possible now, because
-        #       "rhc connect --format json" prints JSON document to stderr (not stdout)
-        # json_output = json.loads(result.stdout)
-        # assert json_output["rhsm_connected"] is True
 
-    if pytest.service_name == "rhcd":
-        if output_format is None:
-            assert "Activated the Remote Host Configuration daemon" in result.stdout
-        elif output_format == "json":
-            pass
-            # TODO: parse result.stdout, when CCT-1191 is fixed
-    else:
-        if output_format is None:
-            assert "Activated the yggdrasil service" in result.stdout
-        elif output_format == "json":
-            pass
-            # TODO: parse result.stdout, when CCT-1191 is fixed
+        assert "Activated the yggdrasil service" in result.stdout
 
-    if output_format is None:
+        # Verify final success message
         assert "Successfully connected to Red Hat!" in result.stdout
+
     elif output_format == "json":
-        pass
-        # TODO: parse result.stdout, when CCT-1191 is fixed
+        json_output = json.loads(result.stdout)
+
+        # Verify field types and values
+        assert type(json_output["hostname"]) == str
+        assert type(json_output["uid"]) == int
+        assert (
+            type(json_output["rhsm_connected"]) == bool
+            and json_output["rhsm_connected"] is True
+        )
+        assert type(json_output["features"]) == dict
+
+        # Verify feature types and values
+        features = json_output["features"]
+        for feature_name in ["content", "analytics", "remote_management"]:
+            for key in ["enabled", "successful"]:
+                value = features[feature_name][key]
+                assert (
+                    isinstance(value, bool) and value is True
+                ), f"{feature_name}.{key} should be True boolean, got {value!r}"
 
 
 @pytest.mark.parametrize(
     "credentials,return_code",
     [
         (  # username: invalid, password: valid
-            {
-                "username": "non-existent-user",
-                "password": "candlepin.password"
-            },
+            {"username": "non-existent-user", "password": "candlepin.password"},
             None,
         ),
         (  # username: valid, password: invalid
-            {
-                "username": "candlepin.username",
-                "password": "xpto123"
-            },
+            {"username": "candlepin.username", "password": "xpto123"},
             None,
         ),
         (  # organization: invalid, activation-key: valid
@@ -128,10 +129,7 @@ def test_connect(external_candlepin, rhc, test_config, auth, output_format):
             None,
         ),
         (  # organization: valid, activation-key: invalid
-            {
-                "organization": "candlepin.org",
-                "activation-key": "xpto123"
-            },
+            {"organization": "candlepin.org", "activation-key": "xpto123"},
             None,
         ),
         (  # invalid combination of parameters (username & activation-key)
@@ -187,9 +185,7 @@ def test_connect_wrong_parameters(
     # An attempt to bring system in disconnected state in case it is not.
     with contextlib.suppress(Exception):
         rhc.disconnect()
-    command_args = prepare_args_for_connect(
-        test_config, credentials=credentials
-    )
+    command_args = prepare_args_for_connect(test_config, credentials=credentials)
     command = ["connect"] + command_args
     result = rhc.run(*command, check=False)
     if return_code is not None:
