@@ -39,7 +39,7 @@ def test_connect(external_candlepin, rhc, test_config, auth, output_format):
     :description:
         This test verifies that RHC can successfully connect to CRC using either
         basic authentication or an activation key. It also checks that the
-        yggdrasil/rhcd service is in active state after a successful
+        yggdrasil service is in active state after a successful
         connection. The test covers both default text output and machine-readable
         JSON output formats.
     :tags: Tier 1
@@ -47,17 +47,16 @@ def test_connect(external_candlepin, rhc, test_config, auth, output_format):
         1.  Ensure the system is disconnected from RHC.
         2.  Run the 'rhc connect' command using the given authentication method and output format.
         3.  Verify that RHC reports being registered.
-        4.  Verify that the yggdrasil or rhcd service is active.
+        4.  Verify that the yggdrasil service is active.
         5.  Verify the command output based on the specified format (text or JSON).
     :expectedresults:
         1.  The system is successfully disconnected (if previously connected).
         2.  The 'rhc connect' command executes without error.
         3.  RHC indicates the system is registered.
-        4.  The yggdrasil/rhcd service is in an active state.
+        4.  The yggdrasil service is in an active state.
         5.  For text output, stdout contains "Connected to Red Hat Insights",
             "Connected to Red Hat Subscription Management",
-            "Activated the yggdrasil service" or "Activated the Remote Host Configuration daemon"
-            and "Successfully connected to Red Hat!".
+            "Activated the yggdrasil service", and "Successfully connected to Red Hat!".
             For JSON output, no specific assertions are made due to a known issue (CCT-1191).
      """
 
@@ -76,31 +75,15 @@ def test_connect(external_candlepin, rhc, test_config, auth, output_format):
     if output_format is None:
         assert "Connected to Red Hat Subscription Management" in result.stdout
         assert "Connected to Red Hat Insights" in result.stdout
+        assert "Activated the yggdrasil service" in result.stdout
+        assert "Successfully connected to Red Hat!" in result.stdout
+
     elif output_format == "json":
         pass
         # TODO: parse result.stdout, when CCT-1191 is fixed. It is not possible now, because
         #       "rhc connect --format json" prints JSON document to stderr (not stdout)
         # json_output = json.loads(result.stdout)
         # assert json_output["rhsm_connected"] is True
-
-    if pytest.service_name == "rhcd":
-        if output_format is None:
-            assert "Activated the Remote Host Configuration daemon" in result.stdout
-        elif output_format == "json":
-            pass
-            # TODO: parse result.stdout, when CCT-1191 is fixed
-    else:
-        if output_format is None:
-            assert "Activated the yggdrasil service" in result.stdout
-        elif output_format == "json":
-            pass
-            # TODO: parse result.stdout, when CCT-1191 is fixed
-
-    if output_format is None:
-        assert "Successfully connected to Red Hat!" in result.stdout
-    elif output_format == "json":
-        pass
-        # TODO: parse result.stdout, when CCT-1191 is fixed
 
 
 @pytest.mark.parametrize(
@@ -168,20 +151,20 @@ def test_connect_wrong_parameters(
         scenarios involving invalid credentials (wrong username/password or
         organization/activation key) and invalid parameter combinations (e.g.,
         using both username and activation key). It checks that the command fails
-        and the yggdrasil/rhcd service does not become active.
+        and the yggdrasil service does not become active.
     :tags:
     :steps:
         1.  Ensure the system is disconnected from RHC.
         2.  Run the 'rhc connect' command using invalid credentials or parameters,
             expecting it to fail.
         3.  Verify the command's return code.
-        4.  Verify that the yggdrasil/rhcd service is not active.
+        4.  Verify that the yggdrasil service is not active.
     :expectedresults:
         1.  The system is successfully disconnected (if previously connected).
         2.  The 'rhc connect' command fails.
         3.  The command's return code matches the expected non-zero value
             (or a specific code if provided).
-        4.  The yggdrasil/rhcd service is not in an active state.
+        4.  The yggdrasil service is not in an active state.
     """
 
     # An attempt to bring system in disconnected state in case it is not.
@@ -235,7 +218,7 @@ def test_rhc_worker_playbook_install_after_rhc_connect(
 
     start_date_time = datetime.now().strftime(
         "%Y-%m-%d %H:%M:%S"
-    )  # current date and time for observing yggdrasil/rhcd logs
+    )  # current date and time for observing yggdrasil logs
     command_args = prepare_args_for_connect(test_config, auth=auth)
     command = ["connect"] + command_args
     rhc.run(*command, check=False)
@@ -261,6 +244,6 @@ def test_rhc_worker_playbook_install_after_rhc_connect(
     pkg_version = sh.rpm("-qa", "rhc-worker-playbook")
     logger.info(f"successfully installed rhc_worker_playbook package {pkg_version}")
     logger.info(
-        f"time taken to start yggdrasil/rhcd service and install "
+        f"time taken to start yggdrasil service and install "
         f"rhc_worker_playbook : {total_runtime} s"
     )
