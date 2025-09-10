@@ -24,19 +24,19 @@ def test_status_connected(external_candlepin, rhc, test_config):
     :tags: Tier 1
     :steps:
         1.  Connect the system using 'rhc connect'.
-        2.  Ensure the yggdrasil/rhcd service is active.
+        2.  Ensure the yggdrasil service is active.
         3.  Run the 'rhc status' command.
         4.  Verify the command exit code.
         5.  Verify specific strings are present in the standard output
-            indicating connectivity and yggdrasil/rhcd service status.
+            indicating connectivity and yggdrasil service status.
     :expectedresults:
         1.  RHC connects successfully.
-        2.  The yggdrasil/rhcd service is active.
+        2.  The yggdrasil service is active.
         3.  The 'rhc status' command executes successfully.
         4.  The exit code is 0.
         5.  The output contains "Connected to Red Hat Subscription Management",
             "Connected to Red Hat Insights", "Red Hat repository file generated",
-            and "The yggdrasil service is active" or "The Remote Host Configuration daemon is active".
+            and "The yggdrasil service is active".
     """
 
     rhc.connect(
@@ -49,10 +49,7 @@ def test_status_connected(external_candlepin, rhc, test_config):
     assert "Connected to Red Hat Subscription Management" in status_result.stdout
     assert "Red Hat repository file generated" in status_result.stdout
     assert "Connected to Red Hat Insights" in status_result.stdout
-    if pytest.service_name == "rhcd":
-        assert "The Remote Host Configuration daemon is active" in status_result.stdout
-    else:
-        assert "The yggdrasil service is active" in status_result.stdout
+    assert "The yggdrasil service is active" in status_result.stdout
 
 
 def test_status_connected_format_json(external_candlepin, rhc, test_config):
@@ -76,7 +73,7 @@ def test_status_connected_format_json(external_candlepin, rhc, test_config):
         3.  The exit code is 0.
         4.  The output is a valid JSON document.
         5.  The JSON contains 'hostname', 'rhsm_connected' (true), 'content_enabled' (true),
-            'insights_connected' (true), and 'rhcd_running' or 'yggdrasil_running' (true)
+            'insights_connected' (true), and 'yggdrasil_running' (true)
             with correct boolean types.
     """
 
@@ -97,14 +94,9 @@ def test_status_connected_format_json(external_candlepin, rhc, test_config):
     assert "insights_connected" in status_json
     assert type(status_json["insights_connected"]) == bool
     assert status_json["insights_connected"] == True
-    if pytest.service_name == "rhcd":
-        assert "rhcd_running" in status_json
-        assert type(status_json["rhcd_running"]) == bool
-        assert status_json["rhcd_running"] == True
-    else:
-        assert "yggdrasil_running" in status_json
-        assert type(status_json["yggdrasil_running"]) == bool
-        assert status_json["yggdrasil_running"] == True
+    assert "yggdrasil_running" in status_json
+    assert type(status_json["yggdrasil_running"]) == bool
+    assert status_json["yggdrasil_running"] == True
 
 
 def test_status_disconnected_format_json(external_candlepin, rhc, test_config):
@@ -128,7 +120,7 @@ def test_status_disconnected_format_json(external_candlepin, rhc, test_config):
         3.  The exit code is not 0.
         4.  The output is a valid JSON document.
         5.  The JSON contains 'hostname', 'rhsm_connected' (false), 'content_enabled' (false),
-            'insights_connected' (false), and 'rhcd_running' or 'yggdrasil_running' (false)
+            'insights_connected' (false), and 'yggdrasil_running' (false)
             with correct boolean types.
     """
 
@@ -146,14 +138,9 @@ def test_status_disconnected_format_json(external_candlepin, rhc, test_config):
     assert "insights_connected" in status_json
     assert type(status_json["insights_connected"]) == bool
     assert status_json["insights_connected"] == False
-    if pytest.service_name == "rhcd":
-        assert "rhcd_running" in status_json
-        assert type(status_json["rhcd_running"]) == bool
-        assert status_json["rhcd_running"] == False
-    else:
-        assert "yggdrasil_running" in status_json
-        assert type(status_json["yggdrasil_running"]) == bool
-        assert status_json["yggdrasil_running"] == False
+    assert "yggdrasil_running" in status_json
+    assert type(status_json["yggdrasil_running"]) == bool
+    assert status_json["yggdrasil_running"] == False
 
 
 @pytest.mark.tier1
@@ -164,7 +151,7 @@ def test_status_disconnected(rhc):
     :description:
         This test verifies the output of the 'rhc status' command when the host
         is disconnected from Red Hat Subscription Management and Red Hat Insights,
-        and the yggdrasil/rhcd service is inactive.
+        and the yggdrasil service is inactive.
     :reference: https://issues.redhat.com/browse/CCT-525
     :tags: Tier 1
     :steps:
@@ -178,7 +165,7 @@ def test_status_disconnected(rhc):
         3.  The exit code is not 0.
         4.  The status command output contains "Not connected to Red Hat Subscription Management",
             "Red Hat repository file not generated", "Not connected to Red Hat Insights",
-            and a message indicating that the yggdrasil/rhcd service is inactive.
+            and a message indicating that the yggdrasil service is inactive.
     """
 
     # 'rhc disconnect' to ensure system is already disconnected
@@ -188,10 +175,7 @@ def test_status_disconnected(rhc):
     assert "Not connected to Red Hat Subscription Management" in status_result.stdout
     assert "Red Hat repository file not generated" in status_result.stdout
     assert "Not connected to Red Hat Insights" in status_result.stdout
-    if pytest.service_name == "rhcd":
-        assert "The Remote Host Configuration daemon is active" in status_result.stdout
-    else:
-        assert "The yggdrasil service is inactive" in status_result.stdout
+    assert "The yggdrasil service is inactive" in status_result.stdout
 
 
 @pytest.fixture
@@ -229,7 +213,7 @@ def test_status_connected_rhsm_masked(external_candlepin, rhc, test_config):
         4.  The exit code is not 0 because there were errors.
         5.  The status command output contains "Could not activate remote peer",
             "Connected to Red Hat Insights", and a message indicating
-            that the yggdrasil/rhcd service is active.
+            that the yggdrasil service is active.
         6.  The 'rhsm.service' is unmasked.
     """
 
@@ -279,7 +263,7 @@ def test_status_disconnected_rhsm_masked(rhc):
         4.  The exit code is not 0.
         5.  The status command output contains "Could not activate remote peer",
             "Not connected to Red Hat Insights", and a message indicating
-            that the yggdrasil/rhcd service is inactive.
+            that the yggdrasil service is inactive.
         6.  The 'rhsm.service' is unmasked.
     """
 
@@ -322,7 +306,7 @@ def test_status_disconnected_rhsm_masked_format_json(rhc):
         4.  The exit code is not 0.
         5.  The output is a valid JSON document.
         6.  The JSON contains 'hostname', 'rhsm_connected' (false), 'content_enabled' (false),
-            'insights_connected' (false), and 'rhcd_running' or 'yggdrasil_running' (false)
+            'insights_connected' (false), and 'yggdrasil_running' (false)
             with correct boolean types. It also contains 'rhsm_error' and 'content_error' messages.
         7.  The 'rhsm.service' is unmasked.
     """
@@ -361,7 +345,7 @@ def test_status_disconnected_rhsm_masked_format_json(rhc):
     assert type(status_json["insights_connected"]) == bool
     assert status_json["insights_connected"] == False
 
-    # yggdrasil/rhcd
+    # yggdrasil
     assert "yggdrasil_running" in status_json
     assert type(status_json["yggdrasil_running"]) == bool
     assert status_json["yggdrasil_running"] == False
@@ -427,6 +411,7 @@ def test_status_connected_yggdrasil_masked(external_candlepin, rhc, test_config)
     assert not yggdrasil_service_is_active()
     assert "Unit yggdrasil.service is masked" in status_result.stdout
 
+
 @pytest.mark.tier1
 @pytest.mark.usefixtures("unmask_yggdrasil_service")
 def test_status_connected_yggdrasil_masked_format_json(external_candlepin, rhc, test_config):
@@ -488,53 +473,49 @@ def test_status_connected_yggdrasil_masked_format_json(external_candlepin, rhc, 
     assert type(status_json["yggdrasil_error"]) == str
     assert "Unit yggdrasil.service is masked" in status_json["yggdrasil_error"]
 
-@pytest.mark.skipif(
-    pytest.service_name != "rhcd",
-    reason="This test only supports restart of rhcd and not yggdrasil",
-)
-def test_rhcd_service_restart(external_candlepin, rhc, test_config):
+
+def test_yggdrasil_service_restart(external_candlepin, rhc, test_config):
     """
     :id: 92dbb5e7-c16c-4f5f-9c33-84e9e1269dde
-    :title: Verify rhcd service restart functionality
+    :title: Verify yggdrasil service restart functionality
     :description:
-        This test verifies that the rhcd service can be successfully restarted
+        This test verifies that the yggdrasil service can be successfully restarted
         when the system is connected and that its status is correctly reflected
-        after restart. This test is specifically for the 'rhcd' service and skips
-        if the service name is not 'rhcd'.
+        after restart.
     :tags:
     :steps:
         1. Disconnect the system using 'rhc disconnect' to ensure a clean state.
-        2. Restart the rhcd service using 'systemctl restart rhcd'.
+        2. Restart the yggdrasil service using 'systemctl restart yggdrasil'.
         3. Connect the system using 'rhc connect'.
-        4. Restart the rhcd service again using 'systemctl restart rhcd'.
+        4. Restart the yggdrasil service again using 'systemctl restart yggdrasil'.
     :expectedresults:
         1. RHC disconnects successfully.
-        2. The rhcd service restarts successfully, and it's inactive.
+        2. The yggdrasil service restarts successfully, and it's inactive.
         3. The system connects successfully and is registered.
-        4. The rhcd service restarts successfully, and it's active.
+        4. The yggdrasil service restarts successfully, and it's active.
     """
 
     # 'rhc disconnect' to ensure system is already disconnected
     rhc.run("disconnect", check=False)
-    util.logged_run("systemctl status rhcd --no-pager".split())
+    util.logged_run("systemctl status yggdrasil --no-pager".split())
     try:
 
-        util.logged_run("systemctl restart rhcd".split())
+        util.logged_run("systemctl restart yggdrasil".split())
         assert not yggdrasil_service_is_active()
     except AssertionError as exc:
-        # for debugging lets check current state of rhcd service
-        util.logged_run("systemctl status rhcd --no-pager".split())
+        # for debugging lets check current state of yggdrasil service
+        util.logged_run("systemctl status yggdrasil --no-pager".split())
         raise exc
 
-    # test rhcd service restart on a connected system
+    # test yggdrasil service restart on a connected system
     rhc.connect(
         username=test_config.get("candlepin.username"),
         password=test_config.get("candlepin.password"),
     )
     assert rhc.is_registered
     try:
-        util.logged_run("systemctl restart rhcd".split())
+        util.logged_run("systemctl restart yggdrasil".split())
         assert yggdrasil_service_is_active()
     except AssertionError as exc:
-        util.logged_run("systemctl status rhcd --no-pager".split())
+        util.logged_run("systemctl status yggdrasil --no-pager".split())
         raise exc
