@@ -14,12 +14,14 @@ from datetime import datetime
 import sh
 
 from utils import (
+    configure_proxy_rhsm,
     yggdrasil_service_is_active,
     prepare_args_for_connect,
     check_yggdrasil_journalctl_logs,
 )
 
 logger = logging.getLogger(__name__)
+
 
 @pytest.mark.tier1
 @pytest.mark.parametrize(
@@ -29,7 +31,7 @@ logger = logging.getLogger(__name__)
         ("basic", "json"),
         ("activation-key", None),
         ("activation-key", "json"),
-    ]
+    ],
 )
 def test_connect(external_candlepin, rhc, test_config, auth, output_format):
     """
@@ -59,7 +61,7 @@ def test_connect(external_candlepin, rhc, test_config, auth, output_format):
             "Activated the yggdrasil service" or "Activated the Remote Host Configuration daemon"
             and "Successfully connected to Red Hat!".
             For JSON output, no specific assertions are made due to a known issue (CCT-1191).
-     """
+    """
 
     # rhc+satellite does not support basic auth for now
     # refer: https://issues.redhat.com/browse/RHEL-53436
@@ -67,7 +69,9 @@ def test_connect(external_candlepin, rhc, test_config, auth, output_format):
         pytest.skip("rhc+satellite only support activation key registration now")
     with contextlib.suppress(Exception):
         rhc.disconnect()
-    command_args = prepare_args_for_connect(test_config, auth=auth, output_format=output_format)
+    command_args = prepare_args_for_connect(
+        test_config, auth=auth, output_format=output_format
+    )
     command = ["connect"] + command_args
     result = rhc.run(*command)
     assert rhc.is_registered
@@ -107,17 +111,11 @@ def test_connect(external_candlepin, rhc, test_config, auth, output_format):
     "credentials,return_code",
     [
         (  # username: invalid, password: valid
-            {
-                "username": "non-existent-user",
-                "password": "candlepin.password"
-            },
+            {"username": "non-existent-user", "password": "candlepin.password"},
             None,
         ),
         (  # username: valid, password: invalid
-            {
-                "username": "candlepin.username",
-                "password": "xpto123"
-            },
+            {"username": "candlepin.username", "password": "xpto123"},
             None,
         ),
         (  # organization: invalid, activation-key: valid
@@ -128,10 +126,7 @@ def test_connect(external_candlepin, rhc, test_config, auth, output_format):
             None,
         ),
         (  # organization: valid, activation-key: invalid
-            {
-                "organization": "candlepin.org",
-                "activation-key": "xpto123"
-            },
+            {"organization": "candlepin.org", "activation-key": "xpto123"},
             None,
         ),
         (  # invalid combination of parameters (username & activation-key)
@@ -187,9 +182,7 @@ def test_connect_wrong_parameters(
     # An attempt to bring system in disconnected state in case it is not.
     with contextlib.suppress(Exception):
         rhc.disconnect()
-    command_args = prepare_args_for_connect(
-        test_config, credentials=credentials
-    )
+    command_args = prepare_args_for_connect(test_config, credentials=credentials)
     command = ["connect"] + command_args
     result = rhc.run(*command, check=False)
     if return_code is not None:
@@ -264,3 +257,59 @@ def test_rhc_worker_playbook_install_after_rhc_connect(
         f"time taken to start yggdrasil/rhcd service and install "
         f"rhc_worker_playbook : {total_runtime} s"
     )
+
+
+@pytest.mark.parametrize("auth_proxy", [False, True])
+def test_connect_proxy(
+    external_candlepin,
+    subman,
+    insights_client,
+    rhc,
+    test_config,
+    yggdrasil_proxy_config,
+    auth_proxy,
+):
+    """
+    :id: 8f2a3b1c-4d5e-6f7g-8h9i-0j1k2l3m4n5o
+    :title: Verify successful RHC connection through proxy (authenticated and non-authenticated)
+    :parametrized: yes
+    :description:
+        This test verifies that RHC can successfully connect to CRC through both
+        authenticated and non-authenticated proxy configurations. It configures
+        subscription-manager, insights-client, and yggdrasil service to use the
+        specified proxy settings and verifies that the connection is established
+        and the yggdrasil/rhcd service becomes active.
+    :tags: Tier 1
+    :steps:
+        1.  Ensure the system is disconnected from RHC.
+        2.  Configure subscription-manager with proxy settings.
+        3.  Configure insights-client with proxy settings.
+        4.  Configure yggdrasil service with proxy environment variables.
+        5.  Run the 'rhc connect' command using basic authentication.
+        6.  Verify that RHC reports being registered.
+        7.  Verify that the yggdrasil/rhcd service is in active state.
+    :expectedresults:
+        - RHC successfully connects through the configured proxy
+        - The system is registered with RHC
+        - The yggdrasil/rhcd service is active
+        - Proxy configuration is automatically cleaned up after test completion
+    """
+    with contextlib.suppress(Exception):
+        rhc.disconnect()
+
+    # Configure proxy in rhsm.conf
+    proxy_url = configure_proxy_rhsm(subman, test_config, auth_proxy=auth_proxy)
+
+    # Configure proxy in insights-client.conf
+    insights_client.config.proxy = proxy_url
+    insights_client.config.save()
+
+    # Configure yggdrasil service proxy in systemd override file
+    yggdrasil_proxy_config(proxy_url)
+
+    rhc.connect(
+        username=test_config.get("candlepin.username"),
+        password=test_config.get("candlepin.password"),
+    )
+    assert rhc.is_registered
+    assert yggdrasil_service_is_active()
