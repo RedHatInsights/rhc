@@ -40,8 +40,8 @@ def test_status_connected(external_candlepin, rhc, test_config):
     """
 
     rhc.connect(
-        username=test_config.get("candlepin.username"),
-        password=test_config.get("candlepin.password"),
+        activationkey=test_config.get("candlepin.activation_keys")[0],
+        org=test_config.get("candlepin.org"),
     )
     assert yggdrasil_service_is_active()
     status_result = rhc.run("status", check=False)
@@ -78,8 +78,8 @@ def test_status_connected_format_json(external_candlepin, rhc, test_config):
     """
 
     rhc.connect(
-        username=test_config.get("candlepin.username"),
-        password=test_config.get("candlepin.password"),
+        activationkey=test_config.get("candlepin.activation_keys")[0],
+        org=test_config.get("candlepin.org"),
     )
     status_result = rhc.run("status", "--format", "json", check=False)
     assert status_result.returncode == 0
@@ -218,8 +218,8 @@ def test_status_connected_rhsm_masked(external_candlepin, rhc, test_config):
     """
 
     rhc.connect(
-        username=test_config.get("candlepin.username"),
-        password=test_config.get("candlepin.password"),
+        activationkey=test_config.get("candlepin.activation_keys")[0],
+        org=test_config.get("candlepin.org"),
     )
 
     # stop and mask rhsm.service
@@ -391,8 +391,8 @@ def test_status_connected_yggdrasil_masked(external_candlepin, rhc, test_config)
     """
 
     rhc.connect(
-        username=test_config.get("candlepin.username"),
-        password=test_config.get("candlepin.password"),
+        activationkey=test_config.get("candlepin.activation_keys")[0],
+        org=test_config.get("candlepin.org"),
     )
 
     # stop and mask yggdrasil.service
@@ -446,8 +446,8 @@ def test_status_connected_yggdrasil_masked_format_json(external_candlepin, rhc, 
     """
 
     rhc.connect(
-        username=test_config.get("candlepin.username"),
-        password=test_config.get("candlepin.password"),
+        activationkey=test_config.get("candlepin.activation_keys")[0],
+        org=test_config.get("candlepin.org"),
     )
     # stop and mask yggdrasil.service
     subprocess.run(["systemctl", "stop", "yggdrasil.service"])
@@ -509,8 +509,8 @@ def test_yggdrasil_service_restart(external_candlepin, rhc, test_config):
 
     # test yggdrasil service restart on a connected system
     rhc.connect(
-        username=test_config.get("candlepin.username"),
-        password=test_config.get("candlepin.password"),
+        activationkey=test_config.get("candlepin.activation_keys")[0],
+        org=test_config.get("candlepin.org"),
     )
     assert rhc.is_registered
     try:
