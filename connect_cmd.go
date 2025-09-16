@@ -148,7 +148,7 @@ func beforeConnectAction(ctx *cli.Context) error {
 
 // connectAction tries to register system against Red Hat Subscription Management,
 // gather the profile information that the system will configure
-// connect system to Red Hat Insights, and it also tries to start rhcd service
+// connect system to Red Hat Lightspeed, and it also tries to start rhcd service
 func connectAction(ctx *cli.Context) error {
 	var connectResult ConnectResult
 	connectResult.format = ctx.String("format")
@@ -267,24 +267,24 @@ func connectAction(ctx *cli.Context) error {
 		if errors, exist := errorMessages["rhsm"]; exist {
 			if errors.level == slog.LevelError {
 				interactivePrintf(
-					"%s[%v] Skipping connection to Red Hat Insights\n",
+					"%s[%v] Skipping connection to Red Hat Lightspeed\n",
 					mediumIndent,
 					uiSettings.iconError,
 				)
 			}
 		} else {
 			start = time.Now()
-			err = showProgress(" Connecting to Red Hat Insights...", datacollection.RegisterInsightsClient, mediumIndent)
+			err = showProgress(" Connecting to Red Hat Lightspeed...", datacollection.RegisterInsightsClient, mediumIndent)
 			if err != nil {
 				connectResult.Features.Analytics.Successful = false
 				errorMessages["insights"] = LogMessage{
 					level:   slog.LevelError,
-					message: fmt.Errorf("cannot connect to Red Hat Insights: %w", err)}
+					message: fmt.Errorf("cannot connect to Red Hat Lightspeed: %w", err)}
 				if uiSettings.isMachineReadable {
 					connectResult.Features.Analytics.Error = errorMessages["insights"].message.Error()
 				} else {
 					fmt.Printf(
-						"%s[%v] Analytics ... Cannot connect to Red Hat Insights\n",
+						"%s[%v] Analytics ... Cannot connect to Red Hat Lightspeed\n",
 						mediumIndent,
 						uiSettings.iconError,
 					)
@@ -292,7 +292,7 @@ func connectAction(ctx *cli.Context) error {
 			} else {
 				connectResult.Features.Analytics.Successful = true
 				interactivePrintf(
-					"%s[%v] Analytics ... Connected to Red Hat Insights\n",
+					"%s[%v] Analytics ... Connected to Red Hat Lightspeed\n",
 					mediumIndent,
 					uiSettings.iconOK,
 				)
@@ -303,7 +303,7 @@ func connectAction(ctx *cli.Context) error {
 		if uiSettings.isMachineReadable {
 			connectResult.Features.Analytics.Successful = false
 		}
-		interactivePrintf("%s[ ] Analytics ... Connecting to Red Hat Insights disabled\n", mediumIndent)
+		interactivePrintf("%s[ ] Analytics ... Connecting to Red Hat Lightspeed disabled\n", mediumIndent)
 	}
 
 	if ManagementFeature.Enabled {

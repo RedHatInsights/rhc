@@ -54,7 +54,7 @@ def test_connect(external_candlepin, rhc, test_config, auth, output_format):
         2.  The 'rhc connect' command executes without error.
         3.  RHC indicates the system is registered.
         4.  The yggdrasil service is in an active state.
-        5.  For text output, stdout contains "Connected to Red Hat Insights",
+        5.  For text output, stdout contains "Connected to Red Hat Lightspeed",
             "Connected to Red Hat Subscription Management",
             "Activated the yggdrasil service", and "Successfully connected to Red Hat!".
             For JSON output, no specific assertions are made due to a known issue (CCT-1191).
@@ -74,7 +74,7 @@ def test_connect(external_candlepin, rhc, test_config, auth, output_format):
 
     if output_format is None:
         assert "Connected to Red Hat Subscription Management" in result.stdout
-        assert "Connected to Red Hat Insights" in result.stdout
+        assert "Connected to Red Hat Lightspeed" in result.stdout
         assert "Activated the yggdrasil service" in result.stdout
         assert "Successfully connected to Red Hat!" in result.stdout
 
