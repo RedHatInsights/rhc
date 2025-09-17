@@ -1,0 +1,29 @@
+name: Go version check
+permissions:
+  contents: read
+
+on:
+  pull_request:
+
+jobs:
+  check-go-version:
+    name: "Check Go version"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Check Go version in go.mod
+        run: |
+          # Extract the Go version from go.mod
+          GO_VERSION=$(grep "^go " go.mod | cut -d' ' -f2)
+          echo "Found Go version: $GO_VERSION"
+
+          # Check if version starts with "1.23"
+          if [[ "$GO_VERSION" =~ ^1\.23 ]]; then
+            echo "Pass"
+          else
+            echo "Error: Go version $GO_VERSION is not compatible with RHEL 10.0"
+            echo "RHEL 10.0 still needs to be built with golang 1.23"
+            echo "Please downgrade the Go version in go.mod to 1.23.x"
+            exit 1
+          fi
