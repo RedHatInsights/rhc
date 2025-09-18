@@ -35,7 +35,7 @@ def test_rhc_disconnect(external_candlepin, rhc, test_config):
         4.  The exit code is 0.
         5.  The system is unregistered and the yggdrasil service is inactive.
         6.  Stdout contains "Deactivated the yggdrasil service", "Disconnected from
-            Red Hat Insights", and "Disconnected from Red Hat Subscription Management".
+            Red Hat Lightspeed", and "Disconnected from Red Hat Subscription Management".
     """
 
     # Connect first to perform disconnect operation
@@ -50,7 +50,7 @@ def test_rhc_disconnect(external_candlepin, rhc, test_config):
     assert not rhc.is_registered
     assert not yggdrasil_service_is_active()
     assert "Deactivated the yggdrasil service" in disconnect_result.stdout
-    assert "Disconnected from Red Hat Insights" in disconnect_result.stdout
+    assert "Disconnected from Red Hat Lightspeed" in disconnect_result.stdout
     assert (
         "Disconnected from Red Hat Subscription Management" in disconnect_result.stdout
     )
@@ -77,7 +77,7 @@ def test_disconnect_when_already_disconnected(rhc):
         4.  The system is unregistered.
         5.  Stdout contains "Deactivated the yggdrasil service",
             "The yggdrasil service is already inactive",
-            "Already disconnected from Red Hat Insights",
+            "Already disconnected from Red Hat Lightspeed",
             and "Already disconnected from Red Hat Subscription Management".
     """
 
@@ -88,7 +88,7 @@ def test_disconnect_when_already_disconnected(rhc):
     assert disconnect_result.returncode == 0
     assert not rhc.is_registered
     assert "The yggdrasil service is already inactive" in disconnect_result.stdout
-    assert "Already disconnected from Red Hat Insights" in disconnect_result.stdout
+    assert "Already disconnected from Red Hat Lightspeed" in disconnect_result.stdout
     assert (
         "Already disconnected from Red Hat Subscription Management"
         in disconnect_result.stdout

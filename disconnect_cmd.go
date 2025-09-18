@@ -97,14 +97,14 @@ func disconnectInsightsClient(disconnectResult *DisconnectResult, errorMessages 
 		return err
 	}
 	if !isRegistered {
-		infoMsg := "Already disconnected from Red Hat Insights"
+		infoMsg := "Already disconnected from Red Hat Lightspeed"
 		disconnectResult.InsightsDisconnected = true
 		interactivePrintf(" [%v] %v\n", uiSettings.iconInfo, infoMsg)
 		return nil
 	}
-	err = showProgress(" Disconnecting from Red Hat Insights...", datacollection.UnregisterInsightsClient, smallIndent)
+	err = showProgress(" Disconnecting from Red Hat Lightspeed...", datacollection.UnregisterInsightsClient, smallIndent)
 	if err != nil {
-		errMsg := fmt.Sprintf("Cannot disconnect from Red Hat Insights: %v", err)
+		errMsg := fmt.Sprintf("Cannot disconnect from Red Hat Lightspeed: %v", err)
 		(*errorMessages)["insights"] = LogMessage{
 			level:   slog.LevelError,
 			message: fmt.Errorf("%v", errMsg)}
@@ -113,7 +113,7 @@ func disconnectInsightsClient(disconnectResult *DisconnectResult, errorMessages 
 		interactivePrintf(" [%v] %v\n", uiSettings.iconError, errMsg)
 	} else {
 		disconnectResult.InsightsDisconnected = true
-		interactivePrintf(" [%v] Disconnected from Red Hat Insights\n", uiSettings.iconOK)
+		interactivePrintf(" [%v] Disconnected from Red Hat Lightspeed\n", uiSettings.iconOK)
 	}
 	return nil
 }
@@ -152,7 +152,7 @@ func disconnectRHSM(disconnectResult *DisconnectResult, errorMessages *map[strin
 	return nil
 }
 
-// disconnectAction tries to stop (yggdrasil) rhcd service, disconnect from Red Hat Insights,
+// disconnectAction tries to stop (yggdrasil) rhcd service, disconnect from Red Hat Lightspeed,
 // and finally it unregisters system from Red Hat Subscription Management
 func disconnectAction(ctx *cli.Context) error {
 	var disconnectResult DisconnectResult
@@ -196,7 +196,7 @@ func disconnectAction(ctx *cli.Context) error {
 	_ = disconnectService(&disconnectResult, &errorMessages)
 	durations[ServiceName] = time.Since(start)
 
-	/* 2. Disconnect from Red Hat Insights */
+	/* 2. Disconnect from Red Hat Lightspeed */
 	start = time.Now()
 	_ = disconnectInsightsClient(&disconnectResult, &errorMessages)
 	durations["insights"] = time.Since(start)
