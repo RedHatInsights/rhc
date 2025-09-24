@@ -66,12 +66,12 @@ var ContentFeature = RhcFeature{
 	},
 }
 
-// AnalyticsFeature allows to enable/disable collecting data for Red Hat Insights
+// AnalyticsFeature allows to enable/disable collecting data for Red Hat Lightspeed
 var AnalyticsFeature = RhcFeature{
 	ID:          "analytics",
 	Requires:    []*RhcFeature{},
 	Enabled:     func() bool { return true }(),
-	Description: "Enable data collection for Red Hat Insights",
+	Description: "Enable data collection for Red Hat Lightspeed",
 	EnableFunc: func(ctx *cli.Context) error {
 		slog.Debug("enabling 'analytics' feature not implemented")
 		return nil
