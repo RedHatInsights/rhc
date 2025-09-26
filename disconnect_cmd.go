@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/redhatinsights/rhc/internal/rhsm"
 	"github.com/urfave/cli/v2"
 
 	"github.com/redhatinsights/rhc/internal/datacollection"
@@ -124,7 +125,7 @@ func disconnectInsightsClient(disconnectResult *DisconnectResult, errorMessages 
 // disconnectRHSM tries to unregister system from RHSM if the client hasn't been already
 // unregistered from RHSM
 func disconnectRHSM(disconnectResult *DisconnectResult, errorMessages *map[string]LogMessage) error {
-	isRegistered, err := isRHSMRegistered()
+	isRegistered, err := rhsm.IsRHSMRegistered()
 	if err != nil {
 		return err
 	}
@@ -135,7 +136,7 @@ func disconnectRHSM(disconnectResult *DisconnectResult, errorMessages *map[strin
 		return nil
 	}
 	err = ui.Spinner(
-		unregister,
+		rhsm.Unregister,
 		ui.Indent.Small,
 		"Disconnecting from Red Hat Subscription Management...",
 	)

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/godbus/dbus/v5"
+	"github.com/redhatinsights/rhc/internal/rhsm"
 	"github.com/urfave/cli/v2"
 
 	"github.com/briandowns/spinner"
@@ -24,7 +25,7 @@ import (
 // structure and content of this structure will be printed later
 func rhsmStatus(systemStatus *SystemStatus) error {
 
-	uuid, err := getConsumerUUID()
+	uuid, err := rhsm.GetConsumerUUID()
 	if err != nil {
 		systemStatus.returnCode += 1
 		systemStatus.RHSMError = err.Error()
@@ -69,10 +70,10 @@ func isContentEnabled(systemStatus *SystemStatus) error {
 		locale).Store(&contentEnabled); err != nil {
 		systemStatus.returnCode += 1
 		systemStatus.ContentError = err.Error()
-		return unpackRHSMError(err)
+		return rhsm.UnpackDBusError(err)
 	}
 
-	uuid, err := getConsumerUUID()
+	uuid, err := rhsm.GetConsumerUUID()
 	if err != nil {
 		systemStatus.returnCode += 1
 		systemStatus.ContentError = err.Error()

@@ -1,4 +1,4 @@
-package main
+package rhsm
 
 import (
 	"bufio"
@@ -22,7 +22,7 @@ import (
 
 const EnvTypeContentTemplate = "content-template"
 
-func getConsumerUUID() (string, error) {
+func GetConsumerUUID() (string, error) {
 	conn, err := dbus.SystemBus()
 	if err != nil {
 		return "", err
@@ -37,7 +37,7 @@ func getConsumerUUID() (string, error) {
 		"com.redhat.RHSM1.Consumer.GetUuid",
 		dbus.Flags(0),
 		locale).Store(&uuid); err != nil {
-		return "", unpackRHSMError(err)
+		return "", UnpackDBusError(err)
 	}
 	return uuid, nil
 }
@@ -98,7 +98,7 @@ func registerUsernamePassword(username, password, organization string, environme
 		return orgs, err
 	}
 
-	uuid, err := getConsumerUUID()
+	uuid, err := GetConsumerUUID()
 	if err != nil {
 		return orgs, err
 	}
@@ -163,17 +163,17 @@ func registerUsernamePassword(username, password, organization string, environme
 		locale).Err; err != nil {
 
 		// Try to unpack D-Bus method
-		err := unpackRHSMError(err)
+		err := UnpackDBusError(err)
 
-		// Is unpacked error RHSMError
-		rhsmError, ok := err.(RHSMError)
+		// Is unpacked error DBusError
+		dbusError, ok := err.(DBusError)
 		if !ok {
 			return orgs, err
 		}
 
 		// When organization was not specified, and it is required to specify it, then
 		// try to get list of available organizations
-		if organization == "" && rhsmError.Exception == "OrgNotSpecifiedException" {
+		if organization == "" && dbusError.Exception == "OrgNotSpecifiedException" {
 			var s string
 			orgsCall := privConn.Object(
 				"com.redhat.RHSM1",
@@ -195,7 +195,7 @@ func registerUsernamePassword(username, password, organization string, environme
 			orgs, err = unpackOrgs(s)
 			return orgs, err
 		}
-		return orgs, unpackRHSMError(err)
+		return orgs, UnpackDBusError(err)
 	}
 
 	return orgs, nil
@@ -208,7 +208,7 @@ func registerActivationKey(orgID string, activationKeys []string, environments [
 		return err
 	}
 
-	uuid, err := getConsumerUUID()
+	uuid, err := GetConsumerUUID()
 	if err != nil {
 		return err
 	}
@@ -269,19 +269,19 @@ func registerActivationKey(orgID string, activationKeys []string, environments [
 		options,
 		map[string]string{},
 		locale).Err; err != nil {
-		return unpackRHSMError(err)
+		return UnpackDBusError(err)
 	}
 
 	return nil
 }
 
-func unregister() error {
+func Unregister() error {
 	conn, err := dbus.SystemBus()
 	if err != nil {
 		return err
 	}
 
-	uuid, err := getConsumerUUID()
+	uuid, err := GetConsumerUUID()
 	if err != nil {
 		return err
 	}
@@ -300,46 +300,46 @@ func unregister() error {
 		locale).Err
 
 	if err != nil {
-		return unpackRHSMError(err)
+		return UnpackDBusError(err)
 	}
 
 	return nil
 }
 
-// RHSMError is used for parsing JSON document returned by D-Bus methods.
-type RHSMError struct {
+// DBusError is used for parsing JSON document returned by D-Bus methods.
+type DBusError struct {
 	Exception string `json:"exception"`
 	Severity  string `json:"severity"`
 	Message   string `json:"message"`
 }
 
-// Error return textual representation of RHSMError. This implements all needed
-// methods for error interface. Thus, RHSMError can be handled as regular error.
-func (rhsmError RHSMError) Error() string {
-	return fmt.Sprintf("%v: %v", rhsmError.Severity, rhsmError.Message)
+// Error returns textual representation of DBusError. This implements all necessary
+// methods for the error interface. Thus, DBusError can be handled as a regular error.
+func (dbusError DBusError) Error() string {
+	return fmt.Sprintf("%v: %v", dbusError.Severity, dbusError.Message)
 }
 
-// unpackRHSMError tries to unpack JSON document (part of error) into the structure RHSMError. When it is
-// not possible to parse error into structure, then corresponding or original error is returned.
-// When it is possible to parse error into structure, then RHSMError is returned
-func unpackRHSMError(err error) error {
-	rhsmError := RHSMError{}
+// UnpackDBusError tries to unpack a JSON document (part of the error) into the structure DBusError. When it is
+// not possible to parse an error into structure, then a corresponding or original error is returned.
+// When it is possible to parse error into structure, then DBusError is returned
+func UnpackDBusError(err error) error {
+	dbusError := DBusError{}
 	switch e := err.(type) {
 	case dbus.Error:
 		if e.Name == "com.redhat.RHSM1.Error" {
-			if jsonErr := json.Unmarshal([]byte(e.Error()), &rhsmError); jsonErr != nil {
+			if jsonErr := json.Unmarshal([]byte(e.Error()), &dbusError); jsonErr != nil {
 				return jsonErr
 			}
-			return rhsmError
+			return dbusError
 		}
 		return err
 	}
 	return err
 }
 
-// registerRHSM tries to register system against Red Hat Subscription Management server (candlepin server)
-func registerRHSM(ctx *cli.Context, enableContent bool) (string, error) {
-	uuid, err := getConsumerUUID()
+// RegisterRHSM tries to register system against Red Hat Subscription Management server (candlepin server)
+func RegisterRHSM(ctx *cli.Context, enableContent bool) (string, error) {
+	uuid, err := GetConsumerUUID()
 	if err != nil {
 		return "Unable to get consumer UUID", cli.Exit(err, 1)
 	}
@@ -441,9 +441,9 @@ func registerRHSM(ctx *cli.Context, enableContent bool) (string, error) {
 	return successMsg, nil
 }
 
-// isRHSMRegistered returns true, when system is registered
-func isRHSMRegistered() (bool, error) {
-	uuid, err := getConsumerUUID()
+// IsRHSMRegistered returns true, when system is registered
+func IsRHSMRegistered() (bool, error) {
+	uuid, err := GetConsumerUUID()
 	if err != nil {
 		return false, err
 	}
