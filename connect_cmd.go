@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/redhatinsights/rhc/internal/rhsm"
 	"github.com/urfave/cli/v2"
 
 	"github.com/redhatinsights/rhc/internal/datacollection"
@@ -71,7 +72,7 @@ func beforeConnectAction(ctx *cli.Context) error {
 	configureUI(ctx)
 
 	// When machine is already connected, then return error
-	uuid, err := getConsumerUUID()
+	uuid, err := rhsm.GetConsumerUUID()
 	if err != nil {
 		return cli.Exit(
 			fmt.Sprintf("unable to get consumer UUID: %s", err),
@@ -221,7 +222,7 @@ func connectAction(ctx *cli.Context) error {
 	/* 1. Register to RHSM, because we need to get consumer certificate. This blocks following action */
 	start = time.Now()
 	var returnedMsg string
-	returnedMsg, err = registerRHSM(ctx, ContentFeature.Enabled)
+	returnedMsg, err = rhsm.RegisterRHSM(ctx, ContentFeature.Enabled)
 	if err != nil {
 		connectResult.RHSMConnected = false
 		errorMessages["rhsm"] = LogMessage{
