@@ -1,4 +1,4 @@
-package main
+package rhsm
 
 import (
 	"bufio"
@@ -22,7 +22,7 @@ import (
 
 const EnvTypeContentTemplate = "content-template"
 
-func getConsumerUUID() (string, error) {
+func GetConsumerUUID() (string, error) {
 	conn, err := dbus.SystemBus()
 	if err != nil {
 		return "", err
@@ -37,7 +37,7 @@ func getConsumerUUID() (string, error) {
 		"com.redhat.RHSM1.Consumer.GetUuid",
 		dbus.Flags(0),
 		locale).Store(&uuid); err != nil {
-		return "", unpackRHSMError(err)
+		return "", UnpackRHSMError(err)
 	}
 	return uuid, nil
 }
@@ -98,7 +98,7 @@ func registerUsernamePassword(username, password, organization string, environme
 		return orgs, err
 	}
 
-	uuid, err := getConsumerUUID()
+	uuid, err := GetConsumerUUID()
 	if err != nil {
 		return orgs, err
 	}
@@ -163,7 +163,7 @@ func registerUsernamePassword(username, password, organization string, environme
 		locale).Err; err != nil {
 
 		// Try to unpack D-Bus method
-		err := unpackRHSMError(err)
+		err := UnpackRHSMError(err)
 
 		// Is unpacked error RHSMError
 		rhsmError, ok := err.(RHSMError)
@@ -195,7 +195,7 @@ func registerUsernamePassword(username, password, organization string, environme
 			orgs, err = unpackOrgs(s)
 			return orgs, err
 		}
-		return orgs, unpackRHSMError(err)
+		return orgs, UnpackRHSMError(err)
 	}
 
 	return orgs, nil
@@ -208,7 +208,7 @@ func registerActivationKey(orgID string, activationKeys []string, environments [
 		return err
 	}
 
-	uuid, err := getConsumerUUID()
+	uuid, err := GetConsumerUUID()
 	if err != nil {
 		return err
 	}
@@ -269,19 +269,19 @@ func registerActivationKey(orgID string, activationKeys []string, environments [
 		options,
 		map[string]string{},
 		locale).Err; err != nil {
-		return unpackRHSMError(err)
+		return UnpackRHSMError(err)
 	}
 
 	return nil
 }
 
-func unregister() error {
+func Unregister() error {
 	conn, err := dbus.SystemBus()
 	if err != nil {
 		return err
 	}
 
-	uuid, err := getConsumerUUID()
+	uuid, err := GetConsumerUUID()
 	if err != nil {
 		return err
 	}
@@ -300,7 +300,7 @@ func unregister() error {
 		locale).Err
 
 	if err != nil {
-		return unpackRHSMError(err)
+		return UnpackRHSMError(err)
 	}
 
 	return nil
@@ -319,10 +319,10 @@ func (rhsmError RHSMError) Error() string {
 	return fmt.Sprintf("%v: %v", rhsmError.Severity, rhsmError.Message)
 }
 
-// unpackRHSMError tries to unpack JSON document (part of error) into the structure RHSMError. When it is
+// UnpackRHSMError tries to unpack JSON document (part of error) into the structure RHSMError. When it is
 // not possible to parse error into structure, then corresponding or original error is returned.
 // When it is possible to parse error into structure, then RHSMError is returned
-func unpackRHSMError(err error) error {
+func UnpackRHSMError(err error) error {
 	rhsmError := RHSMError{}
 	switch e := err.(type) {
 	case dbus.Error:
@@ -337,9 +337,9 @@ func unpackRHSMError(err error) error {
 	return err
 }
 
-// registerRHSM tries to register system against Red Hat Subscription Management server (candlepin server)
-func registerRHSM(ctx *cli.Context, enableContent bool) (string, error) {
-	uuid, err := getConsumerUUID()
+// RegisterRHSM tries to register system against Red Hat Subscription Management server (candlepin server)
+func RegisterRHSM(ctx *cli.Context, enableContent bool) (string, error) {
+	uuid, err := GetConsumerUUID()
 	if err != nil {
 		return "Unable to get consumer UUID", cli.Exit(err, 1)
 	}
@@ -441,9 +441,9 @@ func registerRHSM(ctx *cli.Context, enableContent bool) (string, error) {
 	return successMsg, nil
 }
 
-// isRHSMRegistered returns true, when system is registered
-func isRHSMRegistered() (bool, error) {
-	uuid, err := getConsumerUUID()
+// IsRHSMRegistered returns true, when system is registered
+func IsRHSMRegistered() (bool, error) {
+	uuid, err := GetConsumerUUID()
 	if err != nil {
 		return false, err
 	}
