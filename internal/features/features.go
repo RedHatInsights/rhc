@@ -1,4 +1,4 @@
-package main
+package features
 
 import (
 	"fmt"
@@ -99,8 +99,8 @@ var ManagementFeature = RhcFeature{
 	},
 }
 
-// checkFeatureInput checks input of enabled and disabled features
-func checkFeatureInput(enabledFeaturesIDs *[]string, disabledFeaturesIDs *[]string) error {
+// CheckFeatureInput checks input of enabled and disabled features
+func CheckFeatureInput(enabledFeaturesIDs *[]string, disabledFeaturesIDs *[]string) error {
 	// First check disabled features: check only correctness of IDs
 	for _, featureId := range *disabledFeaturesIDs {
 		isKnown := false
