@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/redhatinsights/rhc/internal/features"
 	"github.com/redhatinsights/rhc/internal/rhsm"
 	"github.com/urfave/cli/v2"
 
@@ -129,12 +130,12 @@ func beforeConnectAction(ctx *cli.Context) error {
 		}
 	}
 
-	err = checkFeatureInput(&enabledFeatures, &disabledFeatures)
+	err = features.CheckFeatureInput(&enabledFeatures, &disabledFeatures)
 	if err != nil {
 		return cli.Exit(err.Error(), ExitCodeUsage)
 	}
 
-	if !ContentFeature.Enabled && len(contentTemplates) > 0 {
+	if !features.ContentFeature.Enabled && len(contentTemplates) > 0 {
 		return cli.Exit(
 			"'--content-template' can not be used together with '--disable-feature content'",
 			ExitCodeUsage,
@@ -186,7 +187,7 @@ func connectAction(ctx *cli.Context) error {
 	ui.Printf("Connecting %v to %v.\nThis might take a few seconds.\n\n", hostname, Provider)
 
 	var featuresStr []string
-	for _, feature := range KnownFeatures {
+	for _, feature := range features.KnownFeatures {
 		if feature.Enabled {
 			if ui.IsOutputMachineReadable() {
 				switch feature.ID {
@@ -222,7 +223,7 @@ func connectAction(ctx *cli.Context) error {
 	/* 1. Register to RHSM, because we need to get consumer certificate. This blocks following action */
 	start = time.Now()
 	var returnedMsg string
-	returnedMsg, err = rhsm.RegisterRHSM(ctx, ContentFeature.Enabled)
+	returnedMsg, err = rhsm.RegisterRHSM(ctx, features.ContentFeature.Enabled)
 	if err != nil {
 		connectResult.RHSMConnected = false
 		errorMessages["rhsm"] = LogMessage{
@@ -244,7 +245,7 @@ func connectAction(ctx *cli.Context) error {
 	} else {
 		connectResult.RHSMConnected = true
 		ui.Printf("%s[%v] %v\n", ui.Indent.Small, ui.Icons.Ok, returnedMsg)
-		if ContentFeature.Enabled {
+		if features.ContentFeature.Enabled {
 			connectResult.Features.Content.Successful = true
 			ui.Printf(
 				"%s[%v] Content ... Red Hat repository file generated\n",
@@ -259,7 +260,7 @@ func connectAction(ctx *cli.Context) error {
 	durations["rhsm"] = time.Since(start)
 
 	/* 2. Register insights-client */
-	if AnalyticsFeature.Enabled {
+	if features.AnalyticsFeature.Enabled {
 		if errors, exist := errorMessages["rhsm"]; exist {
 			if errors.level == slog.LevelError {
 				ui.Printf(
@@ -297,7 +298,7 @@ func connectAction(ctx *cli.Context) error {
 		ui.Printf("%s[ ] Analytics ... Connecting to Red Hat Insights disabled\n", ui.Indent.Medium)
 	}
 
-	if ManagementFeature.Enabled {
+	if features.ManagementFeature.Enabled {
 		/* 3. Start yggdrasil (rhcd) service */
 		if rhsmErrMsg, exist := errorMessages["rhsm"]; exist && rhsmErrMsg.level == slog.LevelError {
 			connectResult.Features.RemoteManagement.Successful = false
@@ -338,12 +339,12 @@ func connectAction(ctx *cli.Context) error {
 		}
 	} else {
 		connectResult.Features.RemoteManagement.Successful = false
-		if ManagementFeature.Reason != "" {
+		if features.ManagementFeature.Reason != "" {
 			ui.Printf(
 				"%s[ ] Management .... Starting %s service disabled (%s)\n",
 				ui.Indent.Medium,
 				ServiceName,
-				ManagementFeature.Reason,
+				features.ManagementFeature.Reason,
 			)
 		} else {
 			ui.Printf(

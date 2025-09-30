@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/redhatinsights/rhc/internal/features"
 	"github.com/urfave/cli/v2"
 	"github.com/urfave/cli/v2/altsrc"
 
@@ -126,7 +127,7 @@ func main() {
 		"Run '" + app.Name + " command --help' for more details."
 
 	var featureIdSlice []string
-	for _, featureID := range KnownFeatures {
+	for _, featureID := range features.KnownFeatures {
 		featureIdSlice = append(featureIdSlice, featureID.ID)
 	}
 	featureIDs := strings.Join(featureIdSlice, ", ")
