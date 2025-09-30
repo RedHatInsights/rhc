@@ -1,4 +1,4 @@
-package main
+package canonical_facts
 
 import (
 	"crypto/x509"
