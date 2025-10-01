@@ -7,7 +7,7 @@ It currently performs 3 steps when it connects a system:
 
 1. Registers the system with Red Hat Subscription Management. If the system is
    already registered, this step is a noop and it moves to the next step.
-2. Registers the system with Red Hat Insights. If the system is already
+2. Registers the system with Red Hat Lightspeed. If the system is already
    registered, this step is a noop and it moves to the next step.
 3. Activate the `yggdrasil` (or branded `rhcd`) service.
 
@@ -15,7 +15,7 @@ Likewise, when `rhc` is disconnecting a system, it performs the steps in
 descending order.
 
 1. Deactivates the `yggdrasil` (or branded `rhcd`) service.
-2. Unregisters the system from Red Hat Insights.
+2. Unregisters the system from Red Hat Lightspeed.
 3. Unregisters the system from Red Hat Subscription Management.
 
 `rhc` (the front-end client) is not the same thing as
