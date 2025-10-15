@@ -1,6 +1,17 @@
 summary: rhc test suite
+prepare:
+  - name: install test dependencies
+    how: shell
+    script: ./systemtest/install-test-deps.sh
+
 discover:
-    how: fmf
+  - how: shell
+    tests:
+      - name: check for image mode reboot
+        test: ./systemtest/prepare-reboot.sh
+        duration: 20m
+
+  - how: fmf
 
 execute:
-    how: tmt
+  how: tmt
