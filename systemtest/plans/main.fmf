@@ -1,6 +1,18 @@
 summary: rhc test suite
 discover:
-    how: fmf
+  how: fmf
+
+prepare:
+  - name: "Install pytest deps"
+    how: install
+    package:
+      - git-core
+      - insights-client
+      - logrotate
+      - man-db
+      - podman
+      - python3-pip
+      - python3-pytest
 
 execute:
-    how: tmt
+  how: tmt
