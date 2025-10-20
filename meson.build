@@ -26,22 +26,7 @@ goldflags += ' -X "main.ServiceName=yggdrasil"'
 
 gobuildflags = get_option('gobuildflags')
 
-rhc = custom_target(
-  'rhc',
-  build_always_stale: true,
-  output: 'rhc',
-  command: [
-    go,
-    'build',
-    gobuildflags,
-    '-o', '@OUTPUT@',
-    '-ldflags', goldflags,
-    'github.com/redhatinsights/rhc',
-  ],
-  install: true,
-  install_dir: get_option('bindir'),
-)
-
+subdir('cmd/rhc')
 subdir('data')
 subdir('dist')
 subdir('doc')
