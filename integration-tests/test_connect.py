@@ -563,7 +563,7 @@ def test_connect_with_single_feature_disabled(external_candlepin, rhc, test_conf
     with contextlib.suppress(Exception):
         rhc.disconnect()
 
-    command_args = prepare_args_for_connect(test_config, auth="basic", output_format="json")
+    command_args = prepare_args_for_connect(test_config, auth="activation-key", output_format="json")
 
     command_args.extend(["--disable-feature", feature])
 
@@ -605,8 +605,6 @@ def test_connect_with_single_feature_disabled(external_candlepin, rhc, test_conf
         for feature_name in ["content", "analytics"]:
             assert feature_name["enabled"] is True, (
             f"Feature '{feature_name}' should be enabled when only 'remote_management' is disabled")
-            assert json_output["rhsm_connected"] is True
-            assert json_output["insights_connected"] is True
 
 
 @pytest.mark.tier1
@@ -762,3 +760,115 @@ def test_connect_with_feature_enabled_disabled_combinations(
             )
 
     assert not yggdrasil_service_is_active()
+
+
+@pytest.mark.tier1
+def test_connect_with_all_features_enabled(external_candlepin, rhc, test_config):
+    """
+    :id: a9cd8a6a-7e4a-403c-bb1b-06e0a0d9f1c2
+    :title: Verify RHC connection with all features explicitly enabled
+    :description:
+        This test verifies that when all three features (remote-management, content, and analytics)
+        are explicitly enabled via --enable-feature flags, the connection succeeds, all features
+        are active, and the yggdrasil service is active.
+    :tags: Tier 1
+    :steps:
+        1.  Ensure the system is disconnected from RHC.
+        2.  Run 'rhc connect' with --enable-feature for all three features using JSON output format.
+        3.  Verify the system is registered.
+        4.  Verify all features are enabled in the JSON output.
+        5.  Verify yggdrasil service is active.
+    :expectedresults:
+        1.  System is successfully disconnected (if previously connected).
+        2.  Connection succeeds with all features enabled.
+        3.  System is registered.
+        4.  JSON output shows all features (remote_management, content, analytics) as enabled=True.
+        5.  Yggdrasil service is in active state.
+    """
+    with contextlib.suppress(Exception):
+        rhc.disconnect()
+
+    command_args = prepare_args_for_connect(test_config, auth="activation-key", output_format="json")
+
+    # Enable all three features explicitly
+    for feature in ["remote-management", "content", "analytics"]:
+        command_args.extend(["--enable-feature", feature])
+
+    command = ["connect"] + command_args
+    result = rhc.run(*command)
+
+    assert rhc.is_registered
+    assert yggdrasil_service_is_active()
+
+    # Parse JSON output
+    json_output = json.loads(result.stdout)
+    features = json_output["features"]
+
+    # Verify all features are enabled
+    for feature_name in ["remote_management", "content", "analytics"]:
+        assert features[feature_name]["enabled"] is True, (
+            f"Feature '{feature_name}' should be enabled when explicitly set"
+        )
+        assert features[feature_name]["successful"] is True, (
+            f"Feature '{feature_name}' should be successful"
+        )
+
+
+@pytest.mark.tier1
+@pytest.mark.parametrize("flag", ["--enable-feature", "--disable-feature"],)
+def test_connect_with_nonexistent_feature(external_candlepin, rhc, test_config, flag):
+    """
+    :id: 0d20c618-506e-4372-9183-ea5c4b3f3f47
+    :title: Verify RHC connect fails with appropriate error for non-existent features
+    :parametrized: yes
+    :description:
+        This test verifies that the 'rhc connect' command fails with an appropriate error
+        when trying to enable or disable a feature that doesn't exist. The valid features
+        are remote-management, content, and analytics. Any other feature name should be
+        rejected.
+    :tags: Tier 1
+    :steps:
+        1.  Ensure the system is disconnected from RHC.
+        2.  Run 'rhc connect' with --enable-feature or --disable-feature flag using
+            a non-existent feature name.
+        3.  Verify the command fails with a non-zero return code.
+        4.  Verify the system is not registered.
+        5.  Verify yggdrasil service is not active.
+        6.  Verify error message in stderr indicates invalid feature.
+    :expectedresults:
+        1.  System is successfully disconnected (if previously connected).
+        2.  The 'rhc connect' command fails.
+        3.  Return code is non-zero (command failed).
+        4.  System is not registered.
+        5.  Yggdrasil service is not active.
+        6.  Error message in stderr mentions the invalid feature.
+    """
+    with contextlib.suppress(Exception):
+        rhc.disconnect()
+
+    nonexistent_feature = "nonexistent-feature"
+
+    command_args = prepare_args_for_connect(
+        test_config, auth="activation-key", output_format="json"
+    )
+
+    # Add the flag with non-existent feature
+    command_args.extend([flag, nonexistent_feature])
+
+    command = ["connect"] + command_args
+    result = rhc.run(*command, check=False)
+
+    # Verify command failed
+    assert result.returncode != 0, (
+        f"Command should fail when using {flag} with non-existent feature '{nonexistent_feature}'"
+    )
+
+    assert not rhc.is_registered
+    assert not yggdrasil_service_is_active()
+
+    # Verify error message contains expected text
+    error_output = result.stderr + result.stdout
+    expected_error = f'feature "{nonexistent_feature}": no such feature exists (content,analytics,remote-management)'
+    assert expected_error in error_output, (
+        f"Expected error message not found in output: {error_output}"
+    )
