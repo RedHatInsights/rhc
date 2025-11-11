@@ -527,3 +527,238 @@ def get_template_repos_by_name(template_name, username, password, template_url):
             print(f"Response status: {response.status_code}")
             print(f"Response content (first 200 chars): {response.text[:200]}...")
         raise
+
+
+@pytest.mark.tier1
+@pytest.mark.parametrize("feature", ["remote-management", "content", "analytics"])
+def test_connect_with_single_feature_disabled(external_candlepin, rhc, test_config, feature):
+    """
+    :id: 4168e32d-f70e-47db-8aa1-49fcb730e17c
+    :title: Verify RHC connection with one feature disabled using --disable-feature flag
+    :parametrized: yes
+    :description:
+        This test verifies that when connecting to RHC with one feature explicitly
+        disabled using the --disable-feature flag, the expected features are disabled
+        based on dependency rules. When content or analytics is disabled, remote_management
+        is also automatically disabled as a dependency. The test validates this by
+        examining the JSON output of the connect command.
+    :tags: Tier 1
+    :steps:
+        1.  Ensure the system is disconnected from RHC.
+        2.  Run the 'rhc connect' command with --disable-feature flag for the specified feature and JSON output format.
+        3.  Verify that RHC reports being registered.
+        4.  Verify that the yggdrasil service is inactive.
+        5.  Parse the JSON output and verify the disabled feature shows enabled=False.
+        6.  Verify that if content or analytics is disabled, remote_management is also disabled.
+        7.  Verify that other features show the correct enabled status.
+    :expectedresults:
+        1.  The system is successfully disconnected (if previously connected).
+        2.  The 'rhc connect' command executes without error.
+        3.  RHC indicates the system is registered.
+        4.  The yggdrasil service is not in an active state.
+        5.  The explicitly disabled feature has enabled=False in the JSON output.
+        6.  If content or analytics is disabled, remote_management also has enabled=False.
+        7.  Other features show the correct enabled status based on dependency rules.
+    """
+    with contextlib.suppress(Exception):
+        rhc.disconnect()
+
+    command_args = prepare_args_for_connect(test_config, auth="basic", output_format="json")
+
+    command_args.extend(["--disable-feature", feature])
+
+    command = ["connect"] + command_args
+
+    result = rhc.run(*command)
+
+    assert rhc.is_registered
+    assert not yggdrasil_service_is_active()
+
+    json_output = json.loads(result.stdout)
+    features = json_output["features"]
+
+    # Map CLI feature names to JSON feature names
+    feature_mapping = {
+        "remote-management": "remote_management",
+        "content": "content",
+        "analytics": "analytics",
+    }
+
+    disabled_feature_key = feature_mapping[feature]
+
+    # Verify the disabled feature has enabled=false
+    assert features[disabled_feature_key]["enabled"] is False, (
+        f"Feature '{disabled_feature_key}' should be disabled")
+
+    # Dependency rule: if content or analytics is disabled, remote_management is also disabled
+    if feature in ["content", "analytics"]:
+        assert features["remote_management"]["enabled"] is False, (
+            f"Feature 'remote_management' should be disabled when '{feature}' is disabled")
+
+        # Verify the other feature (not the disabled one, not remote_management) is enabled
+        other_feature = "analytics" if feature == "content" else "content"
+        assert features[other_feature]["enabled"] is True, (
+            f"'{other_feature}' should be enabled")
+
+    # If remote_management is disabled, content and analytics should remain enabled
+    elif feature == "remote_management":
+        for feature_name in ["content", "analytics"]:
+            assert feature_name["enabled"] is True, (
+            f"Feature '{feature_name}' should be enabled when only 'remote_management' is disabled")
+            assert json_output["rhsm_connected"] is True
+            assert json_output["insights_connected"] is True
+
+
+@pytest.mark.tier1
+@pytest.mark.parametrize(
+    "enabled_features,disabled_features,expected_states,should_fail",
+    [
+        # Only one feature enabled
+        (
+            ["remote-management"],
+            ["content", "analytics"],
+            None,  # No expected states as connection should fail
+            True,  # Should fail with return code 64
+        ),
+        (
+            ["content"],
+            ["remote-management", "analytics"],
+            {
+                "remote_management": False,
+                "content": True,
+                "analytics": False,
+            },
+            False,
+        ),
+        (
+            ["analytics"],
+            ["remote-management", "content"],
+            {
+                "remote_management": False,
+                "content": False,
+                "analytics": True,
+            },
+            False,
+        ),
+        # Two features enabled
+        (
+            ["content", "analytics"],
+            ["remote-management"],
+            {
+                "remote_management": False,
+                "content": True,
+                "analytics": True,
+            },
+            False,
+        ),
+        (
+            ["content", "remote-management"],
+            ["analytics"],
+            None,  # No expected states as connection should fail
+            True,  # Should fail with return code 64
+        ),
+        (
+            ["analytics", "remote-management"],
+            ["content"],
+            None,  # No expected states as connection should fail
+            True,  # Should fail with return code 64
+        ),
+        # No features enabled
+        (
+            [],
+            ["content", "analytics", "remote-management"],
+            {
+                "remote_management": False,
+                "content": False,
+                "analytics": False,
+            },
+            False,
+        ),
+    ],
+)
+def test_connect_with_feature_enabled_disabled_combinations(
+    external_candlepin, rhc, test_config, enabled_features, disabled_features,
+    expected_states, should_fail
+):
+    """
+    :id: ba55abd4-ea1d-403d-b683-a6a666edcd46
+    :title: Verify RHC connection with various feature enable/disable combinations
+    :parametrized: yes
+    :description:
+        This test verifies 'rhc connect' behavior with --enable-feature and --disable-feature
+        flags for remote-management, content, and analytics features. This test is covering
+        single features, two-feature combinations, and no features enabled.
+        Key rule: remote-management requires BOTH content AND analytics enabled, otherwise
+        connection fails with expected return code.
+    :tags: Tier 1
+    :steps:
+        1.  Ensure the system is disconnected from RHC.
+        2.  Run 'rhc connect' with --enable-feature and --disable-feature for specified features,
+            using JSON output format.
+        3.  Verify the command's success or failure based on feature dependencies.
+        4.  For successful connections: verify system is registered and feature states
+            match expected values from JSON output.
+        5.  For failed connections: verify return code 64 and system is not registered.
+        6.  Verify yggdrasil service is not active in all test cases.
+    :expectedresults:
+        1.  System is successfully disconnected (if previously connected).
+        2.  Command execution follows dependency rules:
+            - Fails (return code 64) when remote-management is enabled but content
+              or analytics is disabled
+            - Succeeds when only content/analytics are enabled or all are disabled
+        3.  For successful connections: system is registered, feature states in JSON
+            output match expected values.
+        4.  For failed connections: system is not registered, return code is 64.
+        5.  Yggdrasil service is not active in all test scenarios.
+    """
+    with contextlib.suppress(Exception):
+        rhc.disconnect()
+
+    command_args = prepare_args_for_connect(test_config, auth="basic", output_format="json")
+
+    # Add --enable-feature flags for enabled features
+    for feature in enabled_features:
+        command_args.extend(["--enable-feature", feature])
+
+    # Add --disable-feature flags for disabled features
+    for feature in disabled_features:
+        command_args.extend(["--disable-feature", feature])
+
+    command = ["connect"] + command_args
+
+    if should_fail:
+        # Special cases that should fail: remote-management enabled when content or analytics feature disabled
+        result = rhc.run(*command, check=False)
+
+        # Verify command failed with return code 64
+        assert result.returncode == 64, (
+            f"Expected return code 64 for invalid feature combination, "
+            f"but got {result.returncode}"
+        )
+
+        # Verify system is not registered
+        assert not rhc.is_registered, (
+            f"System should not be registered with enabled_features={enabled_features} "
+            f"when disabled_features={disabled_features}"
+        )
+
+    else:
+        # Valid feature combinations
+        result = rhc.run(*command)
+
+        # Verify the system is registered
+        assert rhc.is_registered
+
+        # Parse JSON output
+        json_output = json.loads(result.stdout)
+        features = json_output["features"]
+
+        # Verify each feature's enabled status matches expected states
+        for feature_key, expected_enabled in expected_states.items():
+            actual_enabled = features[feature_key]["enabled"]
+            assert actual_enabled is expected_enabled, (
+                f"Feature '{feature_key}' should have enabled={expected_enabled}, "
+                f"but got enabled={actual_enabled}"
+            )
+
+    assert not yggdrasil_service_is_active()
