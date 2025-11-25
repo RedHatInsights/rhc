@@ -9,19 +9,62 @@ if [[ -f "/etc/os-release" ]]; then
   source /etc/os-release
 fi
 
+function mock_insights_client() {
+  # Create configuration directory, when it does not exists
+  if [[ ! -d "/etc/insights-client/" ]]; then
+    mkdir -p /etc/insights-client/
+  fi
+  # Create empty configuration file
+  if [[ ! -f "/etc/insights-client/insights-client.conf" ]]; then
+    touch /etc/insights-client/insights-client.conf
+  fi
+
+  # Create a mock of insights-client.
+  #
+  # To mimic behavior of original client we return 0, when
+  # the system is registered (the consumer cert is installed)
+  # Otherwise, it returns non-zero value. The original
+  # insights-client also creates hidden files in
+  # the /etc/insights-client directory. When the insights-client
+  # is registered, then there is .registered file, and when
+  # the insights-client is unregistered, then there is
+  # .unregistered file. This behavior should be enough
+  # to make rhc happy.
+  if [[ ! -f "/bin/insights-client" ]]; then
+    cat >/bin/insights-client << 'EOF'
+#!/bin/bash
+
+if [[ -f /etc/pki/consumer/cert.pem ]]
+then
+	touch /etc/insights-client/.registered
+	rm -f /etc/insights-client/.unregistered
+	exit 0
+else
+	touch /etc/insights-client/.unregistered
+	rm -f /etc/insights-client/.registered
+	exit 1
+fi
+EOF
+    chmod a+x /bin/insights-client
+  fi
+}
+
 # Check for bootc/image-mode deployments which should not run dnf
 if ! command -v bootc >/dev/null || bootc status | grep -q 'type: null'; then
   # Check for GitHub pull request ID and install build if needed.
   # This is for the downstream PR jobs.
   [ -z "${ghprbPullId+x}" ] || ./systemtest/copr-setup.sh
 
+  dnf --setopt install_weak_deps=False install -y \
+    podman git-core python3-pip python3-pytest logrotate
+
   if [[ "${ID}" = "fedora" ]]; then
-    # Do not try to install insights-client on Fedora, because it cannot be installed there
-    dnf --setopt install_weak_deps=False install -y \
-      podman git-core python3-pip python3-pytest logrotate
+    # Do not try to install insights-client on Fedora, because it cannot be installed there.
+    # Try to only mock insights-client to be able to test behavior of rhc on Fedora.
+    mock_insights_client
   else
-    dnf --setopt install_weak_deps=False install -y \
-      podman git-core python3-pip python3-pytest logrotate insights-client
+    # Try to install insights-client on other Linux distributions
+    dnf --setopt install_weak_deps=False install -y insights-client
   fi
 fi
 
