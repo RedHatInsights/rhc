@@ -5,6 +5,9 @@ on:
     types:
       - closed
 
+permissions:
+  contents: write
+
 jobs:
   tag-release:
     if: github.event.pull_request.merged == true && contains(github.event.pull_request.labels.*.name, 'auto-release')
