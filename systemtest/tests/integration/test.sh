@@ -4,14 +4,25 @@ set -ux
 # get to project root
 cd ../../../
 
+# Read information about release from standard release file
+if [[ -f "/etc/os-release" ]]; then
+  source /etc/os-release
+fi
+
 # Check for bootc/image-mode deployments which should not run dnf
 if ! command -v bootc >/dev/null || bootc status | grep -q 'type: null'; then
   # Check for GitHub pull request ID and install build if needed.
   # This is for the downstream PR jobs.
   [ -z "${ghprbPullId+x}" ] || ./systemtest/copr-setup.sh
 
-  dnf --setopt install_weak_deps=False install -y \
-    podman git-core python3-pip python3-pytest logrotate insights-client
+  if [[ "${ID}" = "fedora" ]]; then
+    # Do not try to install insights-client on Fedora, because it cannot be installed there
+    dnf --setopt install_weak_deps=False install -y \
+      podman git-core python3-pip python3-pytest logrotate
+  else
+    dnf --setopt install_weak_deps=False install -y \
+      podman git-core python3-pip python3-pytest logrotate insights-client
+  fi
 fi
 
 
