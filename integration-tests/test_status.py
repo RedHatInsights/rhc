@@ -22,8 +22,8 @@ def test_status_connected(external_candlepin, rhc, test_config):
             "The rhcd service is active"
     """
     rhc.connect(
-        username=test_config.get("candlepin.username"),
-        password=test_config.get("candlepin.password"),
+        activationkey=test_config.get("candlepin.activation_keys")[0],
+        org=test_config.get("candlepin.org"),
     )
     assert rhcd_service_is_active()
     status_result = rhc.run("status", check=False)
@@ -48,8 +48,8 @@ def test_status_connected_format_json(external_candlepin, rhc, test_config):
         2 - Validate that JSON document contains expected data
     """
     rhc.connect(
-        username=test_config.get("candlepin.username"),
-        password=test_config.get("candlepin.password"),
+        activationkey=test_config.get("candlepin.activation_keys")[0],
+        org=test_config.get("candlepin.org"),
     )
     status_result = rhc.run("status", "--format", "json", check=False)
     assert status_result.returncode == 0
@@ -114,8 +114,8 @@ def test_rhcd_service_restart(external_candlepin, rhc, test_config):
 
     # test rhcd service restart on a connected system
     rhc.connect(
-        username=test_config.get("candlepin.username"),
-        password=test_config.get("candlepin.password"),
+        activationkey=test_config.get("candlepin.activation_keys")[0],
+        org=test_config.get("candlepin.org"),
     )
     assert rhc.is_registered
     try:
