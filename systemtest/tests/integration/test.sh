@@ -24,9 +24,14 @@ python3 -m venv venv
 pip install --upgrade pip
 pip install -r integration-tests/requirements.txt
 
-if [ -n "${SETTINGS_URL+x}" ] && curl -I "$SETTINGS_URL" > /dev/null 2>&1; then
-  [ -f ./settings.toml ] && mv ./settings.toml.bak
-  curl "$SETTINGS_URL" -o ./settings.toml
+# If SETTINGS_URL is set (most likely in .testing-farm.yaml), download the settings
+# file from the provided URL. Back up any existing settings.toml before downloading.
+if [[ -v SETTINGS_URL ]]; then
+  [ -f ./settings.toml ] && mv ./settings.toml ./settings.toml.bak
+  if ! curl -f "$SETTINGS_URL" -o ./settings.toml; then
+    echo "ERROR: Failed to download settings from: $SETTINGS_URL" >&2
+    exit 1
+  fi
 fi
 
 # Copr builds on Rhel 9 has default configuration to connect to local broker
