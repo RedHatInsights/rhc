@@ -11,8 +11,9 @@ To learn more about Red Hat Enterprise Linux Life Cycle, visit
 
 ## Reporting a Vulnerability
 
-Visit [Product Security Center](https://access.redhat.com/security/) if you
-believe you have discovered security-related problems.
+Visit [Product Security Center](https://access.redhat.com/security/) and
+[contact our security team](https://access.redhat.com/security/team/contact/)
+if you believe you have discovered security-related problems.
 
 If you are a Red Hat customer, you may also
 [contact our support](https://access.redhat.com/support/).
