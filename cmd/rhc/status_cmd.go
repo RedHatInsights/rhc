@@ -24,7 +24,6 @@ import (
 // output in machine-readable format, then we only set files in SystemStatus
 // structure and content of this structure will be printed later
 func rhsmStatus(systemStatus *SystemStatus) error {
-
 	uuid, err := rhsm.GetConsumerUUID()
 	if err != nil {
 		systemStatus.returnCode += 1
