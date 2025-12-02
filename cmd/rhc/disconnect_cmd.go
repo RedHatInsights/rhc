@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"log/slog"
 	"os"
 	"time"
 
@@ -49,6 +48,20 @@ func (disconnectResult DisconnectResult) Error() string {
 	return result
 }
 
+func (disconnectResult DisconnectResult) errorMessages() map[string]string {
+	errorMessages := make(map[string]string)
+	if disconnectResult.YggdrasilStoppedError != "" {
+		errorMessages[ServiceName] = disconnectResult.YggdrasilStoppedError
+	}
+	if disconnectResult.InsightsDisconnectedError != "" {
+		errorMessages["insights"] = disconnectResult.InsightsDisconnectedError
+	}
+	if disconnectResult.RHSMDisconnectedError != "" {
+		errorMessages["rhsm"] = disconnectResult.RHSMDisconnectedError
+	}
+	return errorMessages
+}
+
 // beforeDisconnectAction ensures the used has supplied a correct `--format` flag
 func beforeDisconnectAction(ctx *cli.Context) error {
 	err := setupFormatOption(ctx)
@@ -63,7 +76,7 @@ func beforeDisconnectAction(ctx *cli.Context) error {
 
 // disconnectService tries to stop yggdrasil.service, when it hasn't
 // been already stopped.
-func disconnectService(disconnectResult *DisconnectResult, errorMessages *map[string]LogMessage) error {
+func disconnectService(disconnectResult *DisconnectResult) error {
 	// First check if the service hasn't been already stopped
 	isInactive, err := remotemanagement.AssertYggdrasilServiceState("inactive")
 	if err != nil {
@@ -80,9 +93,6 @@ func disconnectService(disconnectResult *DisconnectResult, errorMessages *map[st
 	err = ui.Spinner(remotemanagement.DeactivateServices, ui.Indent.Small, progressMessage)
 	if err != nil {
 		errMsg := fmt.Sprintf("Cannot deactivate %s service: %v", ServiceName, err)
-		(*errorMessages)[ServiceName] = LogMessage{
-			level:   slog.LevelError,
-			message: fmt.Errorf("%v", errMsg)}
 		disconnectResult.YggdrasilStopped = false
 		disconnectResult.YggdrasilStoppedError = errMsg
 		ui.Printf(" [%v] %v\n", ui.Icons.Error, errMsg)
@@ -95,7 +105,7 @@ func disconnectService(disconnectResult *DisconnectResult, errorMessages *map[st
 
 // disconnectInsightsClient tries to unregister insights-client if the client hasn't been
 // already unregistered
-func disconnectInsightsClient(disconnectResult *DisconnectResult, errorMessages *map[string]LogMessage) error {
+func disconnectInsightsClient(disconnectResult *DisconnectResult) error {
 	isRegistered, err := datacollection.InsightsClientIsRegistered()
 	if err != nil {
 		return err
@@ -109,9 +119,6 @@ func disconnectInsightsClient(disconnectResult *DisconnectResult, errorMessages 
 	err = ui.Spinner(datacollection.UnregisterInsightsClient, ui.Indent.Small, "Disconnecting from Red Hat Insights...")
 	if err != nil {
 		errMsg := fmt.Sprintf("Cannot disconnect from Red Hat Insights: %v", err)
-		(*errorMessages)["insights"] = LogMessage{
-			level:   slog.LevelError,
-			message: fmt.Errorf("%v", errMsg)}
 		disconnectResult.InsightsDisconnected = false
 		disconnectResult.InsightsDisconnectedError = errMsg
 		ui.Printf(" [%v] %v\n", ui.Icons.Error, errMsg)
@@ -124,7 +131,7 @@ func disconnectInsightsClient(disconnectResult *DisconnectResult, errorMessages 
 
 // disconnectRHSM tries to unregister system from RHSM if the client hasn't been already
 // unregistered from RHSM
-func disconnectRHSM(disconnectResult *DisconnectResult, errorMessages *map[string]LogMessage) error {
+func disconnectRHSM(disconnectResult *DisconnectResult) error {
 	isRegistered, err := rhsm.IsRHSMRegistered()
 	if err != nil {
 		return err
@@ -142,10 +149,6 @@ func disconnectRHSM(disconnectResult *DisconnectResult, errorMessages *map[strin
 	)
 	if err != nil {
 		errMsg := fmt.Sprintf("Cannot disconnect from Red Hat Subscription Management: %v", err)
-		(*errorMessages)["rhsm"] = LogMessage{
-			level:   slog.LevelError,
-			message: fmt.Errorf("%v", errMsg)}
-
 		disconnectResult.RHSMDisconnected = false
 		disconnectResult.RHSMDisconnectedError = errMsg
 		ui.Printf(" [%v] %v\n", ui.Icons.Error, errMsg)
@@ -191,28 +194,27 @@ func disconnectAction(ctx *cli.Context) error {
 
 	var start time.Time
 	durations := make(map[string]time.Duration)
-	errorMessages := make(map[string]LogMessage)
 
 	/* 1. Deactivate yggdrasil (rhcd) service */
 	start = time.Now()
-	_ = disconnectService(&disconnectResult, &errorMessages)
+	_ = disconnectService(&disconnectResult)
 	durations[ServiceName] = time.Since(start)
 
 	/* 2. Disconnect from Red Hat Insights */
 	start = time.Now()
-	_ = disconnectInsightsClient(&disconnectResult, &errorMessages)
+	_ = disconnectInsightsClient(&disconnectResult)
 	durations["insights"] = time.Since(start)
 
 	/* 3. Unregister system from Red Hat Subscription Management */
 	start = time.Now()
-	_ = disconnectRHSM(&disconnectResult, &errorMessages)
+	_ = disconnectRHSM(&disconnectResult)
 	durations["rhsm"] = time.Since(start)
 
 	if !ui.IsOutputMachineReadable() {
 		fmt.Printf("\nManage your connected systems: https://red.ht/connector\n")
 		showTimeDuration(durations)
 
-		err = showErrorMessages("disconnect", errorMessages)
+		err = showErrorMessages("disconnect", disconnectResult.errorMessages())
 		if err != nil {
 			return err
 		}
