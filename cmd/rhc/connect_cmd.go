@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"log/slog"
 	"os"
 	"strings"
 	"time"
@@ -41,7 +40,7 @@ type ConnectResult struct {
 }
 
 // Error implement error interface for structure ConnectResult
-func (connectResult ConnectResult) Error() string {
+func (connectResult *ConnectResult) Error() string {
 	var result string
 	switch connectResult.format {
 	case "json":
@@ -56,6 +55,135 @@ func (connectResult ConnectResult) Error() string {
 		result = "error: unsupported document format: " + connectResult.format
 	}
 	return result
+}
+
+func (connectResult *ConnectResult) errorMessages() map[string]string {
+	errorMessages := make(map[string]string)
+	if connectResult.Features.Content.Error != "" {
+		errorMessages["rhsm"] = connectResult.Features.Content.Error
+	}
+	if connectResult.Features.Analytics.Error != "" {
+		errorMessages["insights"] = connectResult.Features.Analytics.Error
+	}
+	if connectResult.Features.RemoteManagement.Error != "" {
+		errorMessages[ServiceName] = connectResult.Features.RemoteManagement.Error
+	}
+	return errorMessages
+}
+
+// TryRegisterRHSM will attempt to register the system with Red Hat Subscription Management.
+// If this fails, then both RHSMConnected and Features.Content.Successful will be set to false, and the error message
+// will be stored in RHSMConnectError.
+func (connectResult *ConnectResult) TryRegisterRHSM(ctx *cli.Context) {
+	returnedMsg, err := rhsm.RegisterRHSM(ctx, features.ContentFeature.Enabled)
+	if err != nil {
+		connectResult.RHSMConnected = false
+		connectResult.RHSMConnectError = fmt.Sprintf("cannot connect to Red Hat Subscription Management: %s", err)
+		connectResult.Features.Content.Successful = false
+		ui.Printf(
+			"%s[%v] Cannot connect to Red Hat Subscription Management\n",
+			ui.Indent.Small,
+			ui.Icons.Error,
+		)
+		ui.Printf(
+			"%s[%v] Skipping generation of Red Hat repository file\n",
+			ui.Indent.Medium,
+			ui.Icons.Error,
+		)
+	} else {
+		connectResult.RHSMConnected = true
+		ui.Printf("%s[%v] %s\n", ui.Indent.Small, ui.Icons.Ok, returnedMsg)
+		if features.ContentFeature.Enabled {
+			connectResult.Features.Content.Successful = true
+			infoMsg := "Red Hat repository file generated"
+			ui.Printf("%s[%v] Content ... %s\n", ui.Indent.Medium, ui.Icons.Ok, infoMsg)
+		} else {
+			connectResult.Features.Content.Successful = false
+			ui.Printf("%s[ ] Content ... Red Hat repository file not generated\n", ui.Indent.Medium)
+		}
+	}
+}
+
+// TryRegisterInsightsClient will attempt to register the system with Red Hat Lightspeed.
+// If this fails, then Features.Analytics.Successful will be set to false, and the
+// error message will be stored in Features.Analytics.Error.
+func (connectResult *ConnectResult) TryRegisterInsightsClient() {
+	if !features.AnalyticsFeature.Enabled {
+		connectResult.Features.Analytics.Successful = false
+		ui.Printf("%s[ ] Analytics ... Connecting to Red Hat Lightspeed (formerly Insights) disabled\n", ui.Indent.Medium)
+		return
+	}
+
+	if connectResult.RHSMConnectError != "" {
+		ui.Printf(
+			"%s[%v] Skipping connection to Red Hat Lightspeed (formerly Insights)\n",
+			ui.Indent.Medium,
+			ui.Icons.Error,
+		)
+		return
+	}
+
+	err := ui.Spinner(datacollection.RegisterInsightsClient, ui.Indent.Medium, "Connecting to Red Hat Lightspeed (formerly Insights)...")
+	if err != nil {
+		connectResult.Features.Analytics.Successful = false
+		connectResult.Features.Analytics.Error = fmt.Sprintf("cannot connect to Red Hat Lightspeed (formerly Insights): %v", err)
+		ui.Printf(
+			"%s[%v] Analytics ... Cannot connect to Red Hat Lightspeed (formerly Insights)\n",
+			ui.Indent.Medium,
+			ui.Icons.Error,
+		)
+		return
+	}
+
+	connectResult.Features.Analytics.Successful = true
+	infoMsg := "Connected to Red Hat Lightspeed (formerly Insights)"
+	ui.Printf("%s[%v] Analytics ... %s\n", ui.Indent.Medium, ui.Icons.Ok, infoMsg)
+}
+
+// TryActivateServices will attempt to activate the yggdrasil service.
+// If this fails, then Features.RemoteManagement.Successful will be set to false, and the
+// error message will be stored in Features.RemoteManagement.Error.
+func (connectResult *ConnectResult) TryActivateServices() {
+	if !features.ManagementFeature.Enabled {
+		connectResult.Features.RemoteManagement.Successful = false
+		if features.ManagementFeature.Reason != "" {
+			infoMsg := fmt.Sprintf("Starting %s service disabled (%s)", ServiceName, features.ManagementFeature.Reason)
+			ui.Printf("%s[ ] Management .... %s\n", ui.Indent.Medium, infoMsg)
+		} else {
+			infoMsg := fmt.Sprintf("Starting %s service disabled", ServiceName)
+			ui.Printf("%s[ ] Management .... %s\n", ui.Indent.Medium, infoMsg)
+		}
+		return
+	}
+
+	if connectResult.RHSMConnectError != "" {
+		connectResult.Features.RemoteManagement.Successful = false
+		ui.Printf(
+			"%s[%v] Skipping activation of %v service\n",
+			ui.Indent.Medium,
+			ui.Icons.Error,
+			ServiceName,
+		)
+		return
+	}
+
+	progressMessage := fmt.Sprintf(" Activating the %v service", ServiceName)
+	err := ui.Spinner(remotemanagement.ActivateServices, ui.Indent.Medium, progressMessage)
+	if err != nil {
+		connectResult.Features.RemoteManagement.Successful = false
+		connectResult.Features.RemoteManagement.Error = fmt.Sprintf("cannot activate the %s service: %v", ServiceName, err)
+		ui.Printf(
+			"%s[%v] Remote Management ... Cannot activate the %v service\n",
+			ui.Indent.Medium,
+			ui.Icons.Error,
+			ServiceName,
+		)
+		return
+	}
+
+	connectResult.Features.RemoteManagement.Successful = true
+	infoMsg := fmt.Sprintf("Activated the %s service", ServiceName)
+	ui.Printf("%s[%v] Remote Management ... %s\n", ui.Indent.Medium, ui.Icons.Ok, infoMsg)
 }
 
 // beforeConnectAction ensures that user has supplied correct CLI options
@@ -219,141 +347,21 @@ func connectAction(ctx *cli.Context) error {
 
 	var start time.Time
 	durations := make(map[string]time.Duration)
-	errorMessages := make(map[string]LogMessage)
+
 	/* 1. Register to RHSM, because we need to get consumer certificate. This blocks following action */
 	start = time.Now()
-	var returnedMsg string
-	returnedMsg, err = rhsm.RegisterRHSM(ctx, features.ContentFeature.Enabled)
-	if err != nil {
-		connectResult.RHSMConnected = false
-		errorMessages["rhsm"] = LogMessage{
-			level: slog.LevelError,
-			message: fmt.Errorf("cannot connect to Red Hat Subscription Management: %w",
-				err)}
-		connectResult.RHSMConnectError = errorMessages["rhsm"].message.Error()
-		connectResult.Features.Content.Successful = false
-		ui.Printf(
-			"%s[%v] Cannot connect to Red Hat Subscription Management\n",
-			ui.Indent.Small,
-			ui.Icons.Error,
-		)
-		ui.Printf(
-			"%s[%v] Skipping generation of Red Hat repository file\n",
-			ui.Indent.Medium,
-			ui.Icons.Error,
-		)
-	} else {
-		connectResult.RHSMConnected = true
-		ui.Printf("%s[%v] %v\n", ui.Indent.Small, ui.Icons.Ok, returnedMsg)
-		if features.ContentFeature.Enabled {
-			connectResult.Features.Content.Successful = true
-			ui.Printf(
-				"%s[%v] Content ... Red Hat repository file generated\n",
-				ui.Indent.Medium,
-				ui.Icons.Ok,
-			)
-		} else {
-			connectResult.Features.Content.Successful = false
-			ui.Printf("%s[ ] Content ... Red Hat repository file not generated\n", ui.Indent.Medium)
-		}
-	}
+	connectResult.TryRegisterRHSM(ctx)
 	durations["rhsm"] = time.Since(start)
 
 	/* 2. Register insights-client */
-	if features.AnalyticsFeature.Enabled {
-		if errors, exist := errorMessages["rhsm"]; exist {
-			if errors.level == slog.LevelError {
-				ui.Printf(
-					"%s[%v] Skipping connection to Red Hat Lightspeed (formerly Insights)\n",
-					ui.Indent.Medium,
-					ui.Icons.Error,
-				)
-			}
-		} else {
-			start = time.Now()
-			err = ui.Spinner(datacollection.RegisterInsightsClient, ui.Indent.Medium, "Connecting to Red Hat Lightspeed (formerly Insights)...")
-			if err != nil {
-				connectResult.Features.Analytics.Successful = false
-				errorMessages["insights"] = LogMessage{
-					level:   slog.LevelError,
-					message: fmt.Errorf("cannot connect to Red Hat Lightspeed (formerly Insights): %w", err)}
-				connectResult.Features.Analytics.Error = errorMessages["insights"].message.Error()
-				ui.Printf(
-					"%s[%v] Analytics ... Cannot connect to Red Hat Lightspeed (formerly Insights)\n",
-					ui.Indent.Medium,
-					ui.Icons.Error,
-				)
-			} else {
-				connectResult.Features.Analytics.Successful = true
-				ui.Printf(
-					"%s[%v] Analytics ... Connected to Red Hat Lightspeed (formerly Insights)\n",
-					ui.Indent.Medium,
-					ui.Icons.Ok,
-				)
-			}
-			durations["insights"] = time.Since(start)
-		}
-	} else {
-		connectResult.Features.Analytics.Successful = false
-		ui.Printf("%s[ ] Analytics ... Connecting to Red Hat Lightspeed (formerly Insights) disabled\n", ui.Indent.Medium)
-	}
+	start = time.Now()
+	connectResult.TryRegisterInsightsClient()
+	durations["insights"] = time.Since(start)
 
-	if features.ManagementFeature.Enabled {
-		/* 3. Start yggdrasil (rhcd) service */
-		if rhsmErrMsg, exist := errorMessages["rhsm"]; exist && rhsmErrMsg.level == slog.LevelError {
-			connectResult.Features.RemoteManagement.Successful = false
-			ui.Printf(
-				"%s[%v] Skipping activation of %v service\n",
-				ui.Indent.Medium,
-				ui.Icons.Error,
-				ServiceName,
-			)
-		} else {
-			start = time.Now()
-			progressMessage := fmt.Sprintf(" Activating the %v service", ServiceName)
-			err = ui.Spinner(remotemanagement.ActivateServices, ui.Indent.Medium, progressMessage)
-			if err != nil {
-				connectResult.Features.RemoteManagement.Successful = false
-				errorMessages[ServiceName] = LogMessage{
-					level: slog.LevelError,
-					message: fmt.Errorf("cannot activate %s service: %w",
-						ServiceName, err)}
-
-				connectResult.Features.RemoteManagement.Error = errorMessages[ServiceName].message.Error()
-				ui.Printf(
-					"%s[%v] Remote Management ... Cannot activate the %v service\n",
-					ui.Indent.Medium,
-					ui.Icons.Error,
-					ServiceName,
-				)
-			} else {
-				connectResult.Features.RemoteManagement.Successful = true
-				ui.Printf(
-					"%s[%v] Remote Management ... Activated the %v service\n",
-					ui.Indent.Medium,
-					ui.Icons.Ok,
-					ServiceName,
-				)
-			}
-			durations[ServiceName] = time.Since(start)
-		}
-	} else {
-		connectResult.Features.RemoteManagement.Successful = false
-		if features.ManagementFeature.Reason != "" {
-			ui.Printf(
-				"%s[ ] Management .... Starting %s service disabled (%s)\n",
-				ui.Indent.Medium,
-				ServiceName,
-				features.ManagementFeature.Reason,
-			)
-		} else {
-			ui.Printf(
-				"%s[ ] Management .... Starting %s service disabled\n",
-				ui.Indent.Medium,
-				ServiceName,
-			)
-		}
-	}
+	/* 3. Start yggdrasil (rhcd) service */
+	start = time.Now()
+	connectResult.TryActivateServices()
+	durations[ServiceName] = time.Since(start)
 
 	ui.Printf("\nSuccessfully connected to Red Hat!\n")
 
@@ -365,7 +373,7 @@ func connectAction(ctx *cli.Context) error {
 		showTimeDuration(durations)
 	}
 
-	err = showErrorMessages("connect", errorMessages)
+	err = showErrorMessages("connect", connectResult.errorMessages())
 	if err != nil {
 		return err
 	}
