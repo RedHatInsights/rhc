@@ -92,7 +92,18 @@ func beforeAction(c *cli.Context) error {
 		conf.Config.LogLevel = slog.LevelInfo
 	}
 
-	slog.SetLogLoggerLevel(conf.Config.LogLevel)
+	// Configure slog to write to systemd journal if available
+	if isJournalAvailable() {
+		err := setupJournalLogging(conf.Config.LogLevel)
+		if err != nil {
+			// Fall back to default logging if journal setup fails
+			slog.Warn("failed to setup journal logging, using default logger", "error", err)
+			slog.SetLogLoggerLevel(conf.Config.LogLevel)
+		}
+	} else {
+		// Journal not available, use default logging
+		slog.SetLogLoggerLevel(conf.Config.LogLevel)
+	}
 
 	// When environment variable NO_COLOR or --no-color CLI option is set, then do not display colors
 	// and animations too. The NO_COLOR environment variable have to have value "1" or "true",

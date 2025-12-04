@@ -28,24 +28,20 @@ func showTimeDuration(durations map[string]time.Duration) {
 
 // showErrorMessages shows table with all error messages gathered during action
 func showErrorMessages(action string, errorMessages map[string]string) error {
-	if conf.Config.LogLevel > slog.LevelError || len(errorMessages) == 0 {
+	if ui.IsOutputMachineReadable() || len(errorMessages) == 0 {
 		return nil
 	}
-	if !ui.IsOutputMachineReadable() {
-		fmt.Println()
-		fmt.Printf("The following errors were encountered during %s:\n\n", action)
-		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-		_, _ = fmt.Fprintln(w, "STEP\tERROR\t")
-		for step, errMsg := range errorMessages {
-			_, _ = fmt.Fprintf(w, "%v\t%v\n", step, errMsg)
-		}
-		_ = w.Flush()
-		// Direct users to the journal for full details
-		fmt.Println()
-		fmt.Println("Please see 'journalctl -t rhc' for full details.")
-		if len(errorMessages) > 0 {
-			return cli.Exit("", 1)
-		}
+
+	fmt.Println()
+	fmt.Printf("The following errors were encountered during %s:\n\n", action)
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	_, _ = fmt.Fprintln(w, "STEP\tERROR\t")
+	for step, errMsg := range errorMessages {
+		_, _ = fmt.Fprintf(w, "%v\t%v\n", step, errMsg)
 	}
-	return nil
+	_ = w.Flush()
+	// Direct users to the journal for full details
+	fmt.Println()
+	fmt.Println("Please see 'journalctl -t rhc' for full details.")
+	return cli.Exit("", 1)
 }
