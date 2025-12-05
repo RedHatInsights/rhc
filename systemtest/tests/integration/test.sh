@@ -49,12 +49,16 @@ EOF
   fi
 }
 
-# Check for bootc/image-mode deployments which should not run dnf
-if ! command -v bootc >/dev/null || bootc status | grep -q 'type: null'; then
-  # Check for GitHub pull request ID and install build if needed.
-  # This is for the downstream PR jobs.
-  [ -z "${ghprbPullId+x}" ] || ./systemtest/copr-setup.sh
+is_bootc() {
+  command -v bootc > /dev/null && \
+  ! bootc status --format=humanreadable | grep -q 'System is not deployed via bootc'
+}
 
+if is_bootc; then
+  echo "System is deployed via bootc, skipping dnf install"
+else
+  # In most cases these should already be installed by tmt, see systemtest/plans/main.fmf
+  # This is for running this script without tmt.
   dnf --setopt install_weak_deps=False install -y \
     podman git-core python3-pip python3-pytest logrotate
 
@@ -66,14 +70,13 @@ if ! command -v bootc >/dev/null || bootc status | grep -q 'type: null'; then
     # Try to install insights-client on other Linux distributions
     dnf --setopt install_weak_deps=False install -y insights-client
   fi
-fi
 
-
-# TEST_RPMS is set in jenkins jobs after parsing CI Messages in gating Jobs.
-# If TEST_RPMS is set then install the RPM builds for gating.
-if [[ -v TEST_RPMS ]]; then
-	echo "Installing RPMs: ${TEST_RPMS}"
-	dnf -y install --allowerasing ${TEST_RPMS}
+  # TEST_RPMS is set in jenkins jobs after parsing CI Messages in gating Jobs.
+  # If TEST_RPMS is set then install the RPM builds for gating.
+  if [[ -v TEST_RPMS ]]; then
+    echo "Installing RPMs: ${TEST_RPMS}"
+    dnf -y install --allowerasing ${TEST_RPMS}
+  fi
 fi
 
 python3 -m venv venv
