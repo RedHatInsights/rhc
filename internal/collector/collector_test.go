@@ -1,6 +1,8 @@
 package collector
 
 import (
+	"io/fs"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -301,6 +303,100 @@ content_type = "application/test"
 				}
 				if !cmp.Equal(got, test.want) {
 					t.Errorf("parseConfigFromContent(%q) = %v; want %v", test.content, got, test.want)
+				}
+			}
+		})
+	}
+}
+
+type mockDirEntry struct {
+	name  string
+	isDir bool
+}
+
+func (m mockDirEntry) Name() string               { return m.name }
+func (m mockDirEntry) IsDir() bool                { return m.isDir }
+func (m mockDirEntry) Type() fs.FileMode          { return 0 }
+func (m mockDirEntry) Info() (fs.FileInfo, error) { return nil, nil }
+
+func TestGetCollectorConfigName(t *testing.T) {
+	tests := []struct {
+		name       string
+		configFile mockDirEntry
+		want       string
+		wantError  string
+	}{
+		{
+			name:       "valid toml file",
+			configFile: mockDirEntry{name: "com.redhat.advisor.toml", isDir: false},
+			want:       "com.redhat.advisor.toml",
+			wantError:  "",
+		},
+		{
+			name:       "directory with toml extension",
+			configFile: mockDirEntry{name: "com.directory.toml", isDir: true},
+			want:       "",
+			wantError:  "invalid config file /usr/lib/rhc/collector/com.directory.toml",
+		},
+		{
+			name:       "file without json extension",
+			configFile: mockDirEntry{name: "com.config.json", isDir: false},
+			want:       "",
+			wantError:  "invalid config file /usr/lib/rhc/collector/com.config.json",
+		},
+		{
+			name:       "file with toml in name but different extension",
+			configFile: mockDirEntry{name: "com.config.toml.bak", isDir: false},
+			want:       "",
+			wantError:  "invalid config file /usr/lib/rhc/collector/com.config.toml.bak",
+		},
+		{
+			name:       "file ending with toml but no dot",
+			configFile: mockDirEntry{name: "configtoml", isDir: false},
+			want:       "",
+			wantError:  "invalid config file /usr/lib/rhc/collector/configtoml",
+		},
+		{
+			name:       "directory without extension",
+			configFile: mockDirEntry{name: "config.directory", isDir: true},
+			want:       "",
+			wantError:  "invalid config file /usr/lib/rhc/collector/config.directory",
+		},
+		{
+			name:       "file starting with uppercase character",
+			configFile: mockDirEntry{name: "Config.toml", isDir: false},
+			want:       "Config.toml",
+			wantError:  "",
+		},
+		{
+			name:       "case sensitivity - uppercase extension",
+			configFile: mockDirEntry{name: "config.TOML", isDir: false},
+			want:       "",
+			wantError:  "invalid config file /usr/lib/rhc/collector/config.TOML",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got, err := getConfigFilename(test.configFile)
+
+			if test.wantError != "" {
+				if err == nil {
+					t.Errorf("getCollectorConfigName() expected error but got none")
+					return
+				}
+				if !strings.Contains(err.Error(), test.wantError) {
+					t.Errorf("getCollectorConfigName() error = %v, want error containing %q", err, test.wantError)
+				}
+				if got != test.want {
+					t.Errorf("getCollectorConfigName() = %q, want %q", got, test.want)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("getCollectorConfigName() unexpected error: %v", err)
+				}
+				if got != test.want {
+					t.Errorf("getCollectorConfigName() = %q, want %q", got, test.want)
 				}
 			}
 		})
