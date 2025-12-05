@@ -3,6 +3,9 @@ package collector
 import (
 	"fmt"
 	"log"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/BurntSushi/toml"
 )
@@ -49,6 +52,31 @@ type ingressDto struct {
 	ContentType string  `toml:"content_type"`
 }
 
+// GetCollectors returns list of available collectors from valid TOML files in ConfigDir.
+func GetCollectors() ([]string, error) {
+	configFiles, err := os.ReadDir(ConfigDir)
+	if err != nil {
+		return nil, err
+	}
+
+	var collectors []string
+	for _, configFile := range configFiles {
+		configName, err := getConfigFilename(configFile)
+		if err != nil {
+			log.Printf("Warning: %v", err)
+		} else {
+			collectorId := strings.TrimSuffix(configName, ".toml")
+			if _, err = loadConfigFromFile(collectorId); err != nil {
+				log.Printf("Warning: failed to load config from %s: %v", configName, err)
+			} else {
+				collectors = append(collectors, collectorId)
+			}
+		}
+	}
+
+	return collectors, nil
+}
+
 // GetConfig retrieves a collector configuration by its ID.
 func GetConfig(id string) (Config, error) {
 	config, err := loadConfigFromFile(id)
@@ -56,6 +84,20 @@ func GetConfig(id string) (Config, error) {
 		return Config{}, err
 	}
 	return config, nil
+}
+
+// getConfigFilename returns the filename if the file entry is a valid TOML configuration file.
+// Returns an error if the entry is not a regular file with a .toml extension.
+func getConfigFilename(configFile os.DirEntry) (string, error) {
+	if isFileToml(configFile) {
+		return configFile.Name(), nil
+	}
+	return "", fmt.Errorf("invalid config file %v", filepath.Join(ConfigDir, configFile.Name()))
+}
+
+// isFileToml returns true if the file entry is a regular file with a .toml extension.
+func isFileToml(file os.DirEntry) bool {
+	return !file.IsDir() && strings.HasSuffix(file.Name(), ".toml")
 }
 
 // parseConfigFromContent parses TOML content directly from a string into a Config.
