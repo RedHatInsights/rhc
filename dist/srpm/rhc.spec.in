@@ -37,11 +37,7 @@ Version: @VERSION@
 %global dist %{distprefix}.fc%{fedora}
 %endif
 
-%if 0%{?fedora}
-%global setup_flags -Dvendor=False
-%else
 %global setup_flags -Dvendor=True
-%endif
 
 %if %{with rhcd_compat}
 %global setup_flags %{setup_flags} -Drhcd_compatibility=True
@@ -92,11 +88,6 @@ BuildRequires:  /usr/bin/dbus-launch
 %goprep
 %else
 %autosetup
-%endif
-
-%if 0%{?fedora}
-%generate_buildrequires
-%go_generate_buildrequires
 %endif
 
 %build
