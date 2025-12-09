@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"reflect"
 	"time"
@@ -24,6 +25,8 @@ import (
 // output in machine-readable format, then we only set files in SystemStatus
 // structure and content of this structure will be printed later
 func rhsmStatus(systemStatus *SystemStatus) error {
+	slog.Info("Checking status of Red Hat Subscription Management")
+
 	uuid, err := rhsm.GetConsumerUUID()
 	if err != nil {
 		systemStatus.returnCode += 1
@@ -33,17 +36,14 @@ func rhsmStatus(systemStatus *SystemStatus) error {
 	if uuid == "" {
 		systemStatus.returnCode += 1
 		systemStatus.RHSMConnected = false
-		ui.Printf(
-			"%s[ ] Not connected to Red Hat Subscription Management\n",
-			ui.Indent.Small,
-		)
+		infoMsg := "Not connected to Red Hat Subscription Management"
+		slog.Info(infoMsg)
+		ui.Printf("%s[ ] %v\n", ui.Indent.Small, infoMsg)
 	} else {
 		systemStatus.RHSMConnected = true
-		ui.Printf(
-			"%s[%v] Connected to Red Hat Subscription Management\n",
-			ui.Indent.Small,
-			ui.Icons.Ok,
-		)
+		infoMsg := "Connected to Red Hat Subscription Management"
+		slog.Info(infoMsg)
+		ui.Printf("%s[%v] %v\n", ui.Indent.Small, ui.Icons.Ok, infoMsg)
 	}
 	return nil
 }
@@ -52,6 +52,8 @@ func rhsmStatus(systemStatus *SystemStatus) error {
 // and get the manage_repos option from the section [rhsm]. If the option is equal
 // to "1", then content is managed by subscription-manager/RHSM
 func isContentEnabled(systemStatus *SystemStatus) error {
+	slog.Info("Checking content status")
+
 	conn, err := dbus.SystemBus()
 	if err != nil {
 		return fmt.Errorf("cannot connect to system D-Bus: %w", err)
@@ -81,23 +83,19 @@ func isContentEnabled(systemStatus *SystemStatus) error {
 
 	if contentEnabled == "1" && uuid != "" {
 		systemStatus.ContentEnabled = true
-		ui.Printf(
-			"%s[%v] Content ... Red Hat repository file generated\n",
-			ui.Indent.Medium,
-			ui.Icons.Ok,
-		)
+		infoMsg := "Red Hat repository file generated"
+		slog.Info(infoMsg)
+		ui.Printf("%s[%v] Content ... %v\n", ui.Indent.Medium, ui.Icons.Ok, infoMsg)
 	} else {
 		systemStatus.ContentEnabled = false
 		if uuid != "" {
-			ui.Printf(
-				"%s[ ] Content ... Generating of Red Hat repository file disabled in rhsm.conf\n",
-				ui.Indent.Medium,
-			)
+			infoMsg := "Generating of Red Hat repository file disabled in rhsm.conf"
+			slog.Info(infoMsg)
+			ui.Printf("%s[ ] Content ... %v\n", ui.Indent.Medium, infoMsg)
 		} else {
-			ui.Printf(
-				"%s[ ] Content ... Red Hat repository file not generated\n",
-				ui.Indent.Medium,
-			)
+			infoMsg := "Red Hat repository file not generated"
+			slog.Info(infoMsg)
+			ui.Printf("%s[ ] Content ... %v\n", ui.Indent.Medium, infoMsg)
 		}
 	}
 	return nil
@@ -105,6 +103,8 @@ func isContentEnabled(systemStatus *SystemStatus) error {
 
 // insightStatus tries to print status of insights client
 func insightStatus(systemStatus *SystemStatus) error {
+	slog.Info("Checking status of Red Hat Lightspeed (formerly Insights)")
+
 	var s *spinner.Spinner
 	if ui.IsOutputRich() {
 		s = spinner.New(spinner.CharSets[9], 100*time.Millisecond)
@@ -118,19 +118,16 @@ func insightStatus(systemStatus *SystemStatus) error {
 	}
 	if isRegistered {
 		systemStatus.InsightsConnected = true
-		ui.Printf(
-			"%s[%v] Analytics ... Connected to Red Hat Lightspeed (formerly Insights)\n",
-			ui.Indent.Medium,
-			ui.Icons.Ok,
-		)
+		infoMsg := "Connected to Red Hat Lightspeed (formerly Insights)"
+		slog.Info(infoMsg)
+		ui.Printf("%s[%v] Analytics ... %v\n", ui.Indent.Medium, ui.Icons.Ok, infoMsg)
 	} else {
 		systemStatus.returnCode += 1
 		if err == nil {
 			systemStatus.InsightsConnected = false
-			ui.Printf(
-				"%s[ ] Analytics ... Not connected to Red Hat Lightspeed (formerly Insights)\n",
-				ui.Indent.Medium,
-			)
+			infoMsg := "Not connected to Red Hat Lightspeed (formerly Insights)"
+			slog.Info(infoMsg)
+			ui.Printf("%s[ ] Analytics ... %v\n", ui.Indent.Medium, infoMsg)
 		} else {
 			systemStatus.InsightsConnected = false
 			systemStatus.InsightsError = err.Error()
@@ -142,6 +139,8 @@ func insightStatus(systemStatus *SystemStatus) error {
 
 // serviceStatus tries to print status of yggdrasil.service or rhcd.service
 func serviceStatus(systemStatus *SystemStatus) error {
+	slog.Info(fmt.Sprintf("Checking status of %s service", ServiceName))
+
 	ctx := context.Background()
 	conn, err := systemd.NewSystemConnectionContext(ctx)
 	if err != nil {
@@ -161,22 +160,17 @@ func serviceStatus(systemStatus *SystemStatus) error {
 	activeState := properties["ActiveState"]
 	if activeState.(string) == "active" {
 		systemStatus.YggdrasilRunning = true
-		ui.Printf(
-			"%s[%v] Remote Management ... The %v service is active\n",
-			ui.Indent.Medium,
-			ui.Icons.Ok,
-			ServiceName,
-		)
+		infoMsg := fmt.Sprintf("The %v service is active", ServiceName)
+		slog.Info(infoMsg)
+		ui.Printf("%s[%v] Remote Management ... %v\n", ui.Indent.Medium, ui.Icons.Ok, infoMsg)
 	} else {
 		systemStatus.returnCode += 1
 		loadState := properties["LoadState"]
 		if loadState == "loaded" {
 			systemStatus.YggdrasilRunning = false
-			ui.Printf(
-				"%s[ ] Remote Management ... The %v service is inactive\n",
-				ui.Indent.Medium,
-				ServiceName,
-			)
+			warnMsg := fmt.Sprintf("The %v service is inactive but not loaded", ServiceName)
+			slog.Warn(warnMsg)
+			ui.Printf("%s[ ] Remote Management ... %v\n", ui.Indent.Medium, warnMsg)
 		} else {
 			loadError := properties["LoadError"]
 			// This part of the systemd D-Bus API is a little bit tricky. It returns
@@ -194,6 +188,7 @@ func serviceStatus(systemStatus *SystemStatus) error {
 						loadErrorString := loadErrorSlice[1].(string)
 						systemStatus.YggdrasilRunning = false
 						systemStatus.YggdrasilError = loadErrorString
+						slog.Error(loadErrorString)
 						ui.Printf(
 							"%s[%s] Remote Management ... %v\n",
 							ui.Indent.Medium,
@@ -245,6 +240,7 @@ func beforeStatusAction(ctx *cli.Context) error {
 
 	configureUI(ctx)
 
+	slog.Debug("Command 'rhc status' started")
 	return checkForUnknownArgs(ctx)
 }
 
@@ -298,10 +294,12 @@ func statusAction(ctx *cli.Context) (err error) {
 
 	systemStatus.SystemHostname = hostname
 	ui.Printf("Connection status for %v:\n\n", hostname)
+	slog.Info("Checking system connection status")
 
 	/* 1. Get Status of RHSM */
 	err = rhsmStatus(&systemStatus)
 	if err != nil {
+		slog.Error(fmt.Sprintf("Cannot detect Red Hat Subscription Management status: %v", err))
 		ui.Printf(
 			"%s[%s] Red Hat Subscription Management ... %s\n",
 			ui.Indent.Small,
@@ -313,6 +311,7 @@ func statusAction(ctx *cli.Context) (err error) {
 	/* 2. Is content enabled */
 	err = isContentEnabled(&systemStatus)
 	if err != nil {
+		slog.Error(fmt.Sprintf("Cannot detect content management status: %v", err))
 		ui.Printf(
 			"%s[%s] Content ... %s\n",
 			ui.Indent.Medium,
@@ -324,12 +323,9 @@ func statusAction(ctx *cli.Context) (err error) {
 	/* 3. Get status of insights-client */
 	err = insightStatus(&systemStatus)
 	if err != nil {
-		ui.Printf(
-			"%s[%v] Analytics ... Cannot detect Red Hat Lightspeed (formerly Insights) status: %v\n",
-			ui.Indent.Medium,
-			ui.Icons.Error,
-			err,
-		)
+		errMsg := fmt.Sprintf("Cannot detect Red Hat Lightspeed (formerly Insights) status: %v", err)
+		slog.Error(errMsg)
+		ui.Printf("%s[%v] Analytics ... %v\n", ui.Indent.Medium, ui.Icons.Error, errMsg)
 	}
 
 	/* 3. Get status of yggdrasil (rhcd) service */

@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"io"
-	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -65,17 +64,6 @@ func ConfigPath() (string, error) {
 	}
 
 	return filePath, nil
-}
-
-// hasPriorityErrors checks if the errorMessage map has any error
-// with a higher priority than the logLevel configure.
-func hasPriorityErrors(errorMessages map[string]LogMessage, level slog.Level) bool {
-	for _, logMsg := range errorMessages {
-		if logMsg.level >= level {
-			return true
-		}
-	}
-	return false
 }
 
 // checkForUnknownArgs returns an error if any unknown arguments are present.
