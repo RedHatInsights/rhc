@@ -59,6 +59,7 @@ var (
 	SysconfDir        string
 	LocalstateDir     string
 	DbusInterfacesDir string
+	LogDir            string
 )
 
 func init() {
@@ -94,6 +95,9 @@ func init() {
 	}
 	if DbusInterfacesDir == "" {
 		DbusInterfacesDir = filepath.Join(DataDir, "dbus-1", "interfaces")
+	}
+	if LogDir == "" {
+		LogDir = filepath.Join(LocalstateDir, "log")
 	}
 
 	if ShortName == "" {
