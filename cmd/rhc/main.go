@@ -92,7 +92,10 @@ func beforeAction(c *cli.Context) error {
 		conf.Config.LogLevel = slog.LevelInfo
 	}
 
-	slog.SetLogLoggerLevel(conf.Config.LogLevel)
+	if !c.Bool("generate-man-page") && !c.Bool("generate-markdown") {
+		configureFileLogging(conf.Config.LogLevel)
+		slog.Info(c.App.Name+" started", "version", Version, "pid", os.Getpid())
+	}
 
 	// When environment variable NO_COLOR or --no-color CLI option is set, then do not display colors
 	// and animations too. The NO_COLOR environment variable have to have value "1" or "true",
@@ -110,6 +113,19 @@ func beforeAction(c *cli.Context) error {
 	configureUI(c)
 
 	return nil
+}
+
+// afterAction is triggered after other actions are triggered
+func afterAction(c *cli.Context) error {
+	return closeLogFile()
+}
+
+// exitErrHandler is triggered when an action returns a cli.ExitCoder (e.g cli.Exit("error", 1))
+func exitErrHandler(c *cli.Context, err error) {
+	_ = closeLogFile()
+
+	// continue with default ExitErrHandler behavior
+	cli.HandleExitCoder(err)
 }
 
 func main() {
@@ -272,6 +288,8 @@ func main() {
 	app.BashComplete = BashComplete
 	app.Action = mainAction
 	app.Before = beforeAction
+	app.After = afterAction
+	app.ExitErrHandler = exitErrHandler
 
 	if err := app.Run(os.Args); err != nil {
 		slog.Error(err.Error())
