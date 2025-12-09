@@ -111,6 +111,8 @@ export %gomodulesmode
 %if %{with rhcd_compat}
 install --directory %{buildroot}%{_sysconfdir}/rhc
 %endif
+# Create log directory
+install --directory %{buildroot}%{_localstatedir}/log/rhc
 
 %if %{with check}
 %check
@@ -165,6 +167,7 @@ fi
 %if %{with rhcd_compat}
 %{_unitdir}/yggdrasil.service.d/rhcd.conf
 %endif
+%attr(0755,root,root) %dir %{_localstatedir}/log/rhc
 
 %changelog
 %if (0%{?fedora} || 0%{?rhel} >= 9)

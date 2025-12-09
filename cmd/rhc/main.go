@@ -21,6 +21,8 @@ const (
 	cliAPIServer = "base-url"
 )
 
+var logCleanup func() error
+
 // mainAction is triggered in the case, when no sub-command is specified
 func mainAction(c *cli.Context) error {
 	type GenerationFunc func() (string, error)
@@ -92,7 +94,10 @@ func beforeAction(c *cli.Context) error {
 		conf.Config.LogLevel = slog.LevelInfo
 	}
 
-	slog.SetLogLoggerLevel(conf.Config.LogLevel)
+	if !c.Bool("generate-man-page") && !c.Bool("generate-markdown") {
+		logCleanup = configureFileLogging(conf.Config.LogLevel)
+		slog.Info(c.App.Name+" started", "version", Version, "pid", os.Getpid())
+	}
 
 	// When environment variable NO_COLOR or --no-color CLI option is set, then do not display colors
 	// and animations too. The NO_COLOR environment variable have to have value "1" or "true",
@@ -109,6 +114,14 @@ func beforeAction(c *cli.Context) error {
 	// Set up standard output preference: colors, icons, etc.
 	configureUI(c)
 
+	return nil
+}
+
+func afterAction(c *cli.Context) error {
+	// Close log file using the cleanup function
+	if logCleanup != nil {
+		return logCleanup()
+	}
 	return nil
 }
 
@@ -272,6 +285,7 @@ func main() {
 	app.BashComplete = BashComplete
 	app.Action = mainAction
 	app.Before = beforeAction
+	app.After = afterAction
 
 	if err := app.Run(os.Args); err != nil {
 		slog.Error(err.Error())
