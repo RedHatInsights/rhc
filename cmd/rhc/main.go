@@ -2,8 +2,10 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/redhatinsights/rhc/internal/features"
@@ -19,6 +21,10 @@ const (
 	cliCertFile  = "cert-file"
 	cliKeyFile   = "key-file"
 	cliAPIServer = "base-url"
+)
+
+var (
+	logFile *os.File
 )
 
 // mainAction is triggered in the case, when no sub-command is specified
@@ -54,6 +60,33 @@ func configureUI(ctx *cli.Context) {
 		// - we're printing in JSON or other parseable format.
 		ctx.IsSet("format"),
 	)
+}
+
+// configureFileLogging sets up file-based logging to the configured log file path.
+// If the log file can't be opened, it falls back to io.Discard, effectively ignoring all log messages.
+func configureFileLogging(logLevel slog.Leveler) {
+	// Attempt to open the log file
+	// This file path typically resolves to /var/log/rhc/rhc.log
+	logFilePath := filepath.Join(LogDir, LongName, LongName+".log")
+	file, err := os.OpenFile(logFilePath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
+
+	var w io.Writer
+	if err != nil {
+		// Discard log messages if we can't open the log file
+		w = io.Discard
+		slog.Warn("unable to open log file", "error", err, "path", logFilePath)
+	} else {
+		logFile = file
+		w = logFile
+	}
+
+	// Create and set the default logger
+	h := slog.NewTextHandler(w, &slog.HandlerOptions{
+		Level: logLevel,
+	})
+
+	logger := slog.New(h)
+	slog.SetDefault(logger)
 }
 
 // beforeAction is triggered before other actions are triggered
@@ -92,7 +125,10 @@ func beforeAction(c *cli.Context) error {
 		conf.Config.LogLevel = slog.LevelInfo
 	}
 
-	slog.SetLogLoggerLevel(conf.Config.LogLevel)
+	if !c.Bool("generate-man-page") && !c.Bool("generate-markdown") {
+		configureFileLogging(conf.Config.LogLevel)
+		slog.Info(c.App.Name+" started", "version", Version, "pid", os.Getpid())
+	}
 
 	// When environment variable NO_COLOR or --no-color CLI option is set, then do not display colors
 	// and animations too. The NO_COLOR environment variable have to have value "1" or "true",
@@ -109,6 +145,14 @@ func beforeAction(c *cli.Context) error {
 	// Set up standard output preference: colors, icons, etc.
 	configureUI(c)
 
+	return nil
+}
+
+func afterAction(c *cli.Context) error {
+	// Close log file using the cleanup function
+	if logFile != nil {
+		return logFile.Close()
+	}
 	return nil
 }
 
@@ -272,6 +316,7 @@ func main() {
 	app.BashComplete = BashComplete
 	app.Action = mainAction
 	app.Before = beforeAction
+	app.After = afterAction
 
 	if err := app.Run(os.Args); err != nil {
 		slog.Error(err.Error())
