@@ -4,6 +4,10 @@ prepare:
     how: shell
     script: ./systemtest/install-test-deps.sh
 
+  - name: configure proxy for stage environment
+    how: shell
+    script: ./systemtest/configure_proxy_stage.py
+
 discover:
   - how: shell
     tests:
