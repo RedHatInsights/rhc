@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/BurntSushi/toml"
 )
@@ -15,6 +17,7 @@ const ConfigDir = "/usr/lib/rhc/collector/"
 const defaultMetaType = "ingress"
 const defaultUser = "root"
 const defaultGroup = "root"
+const compactTimestamp = "20060102150405"
 
 // Config represents the configuration for a collector instance.
 type Config struct {
@@ -52,6 +55,16 @@ type ingressDto struct {
 	ContentType string  `toml:"content_type"`
 }
 
+// GetArchive generates an archive filename and creates a compressed archive from the specified directory.
+func GetArchive(tmpDir string) (string, error) {
+	archiveName := "rhc-collector-" + time.Now().Format(compactTimestamp) + ".tar.xz"
+	err := createArchive(archiveName, tmpDir)
+	if err != nil {
+		return "", err
+	}
+	return archiveName, nil
+}
+
 // GetCollectors returns list of available collectors from valid TOML files in ConfigDir.
 func GetCollectors() ([]string, error) {
 	configFiles, err := os.ReadDir(ConfigDir)
@@ -84,6 +97,16 @@ func GetConfig(id string) (Config, error) {
 		return Config{}, err
 	}
 	return config, nil
+}
+
+// createArchive compresses a directory into a xz-compressed tar archive.
+// Returns an error if the tar command fails.
+func createArchive(archiveName, tmpDir string) error {
+	cmd := exec.Command("tar", "-cJf", archiveName, "-C", tmpDir, ".")
+	if err := cmd.Run(); err != nil {
+		return err
+	}
+	return nil
 }
 
 // getConfigFilename returns the filename if the file entry is a valid TOML configuration file.
