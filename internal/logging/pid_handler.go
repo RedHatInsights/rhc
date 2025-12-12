@@ -1,4 +1,4 @@
-package main
+package logging
 
 import (
 	"context"
@@ -6,16 +6,13 @@ import (
 	"io"
 	"log/slog"
 	"os"
-	"path/filepath"
 	"sync"
 	"time"
 )
 
-var (
-	LogFilePath string
-	pid         = os.Getpid()
-)
+var pid = os.Getpid()
 
+// PIDHandlerOptions holds the configurable options for a PIDHandler.
 type PIDHandlerOptions struct {
 	// Level reports the minimum level to log.
 	// Levels with lower levels are discarded.
@@ -29,13 +26,20 @@ type groupOrAttrs struct {
 	attrs []slog.Attr // attrs if non-empty
 }
 
+// PIDHandler is a slog.Handler that includes the process ID in each log entry.
+// It formats log records with timestamp, PID, level, message, and attributes.
+// The handler is safe for concurrent use.
 type PIDHandler struct {
 	opts PIDHandlerOptions
-	goas []groupOrAttrs
-	mu   *sync.Mutex
-	out  io.Writer
+	// preAttrs holds the groups and attributes added via WithGroup and WithAttrs.
+	// These are prepended to each log record's attributes with appropriate group prefixes.
+	preAttrs []groupOrAttrs
+	mu       *sync.Mutex
+	out      io.Writer
 }
 
+// NewPIDHandler creates a new PIDHandler that writes to out wit/quh the given options.
+// If opts is nil or opts.Level is nil, the handler defaults to slog.LevelInfo.
 func NewPIDHandler(out io.Writer, opts *PIDHandlerOptions) *PIDHandler {
 	h := &PIDHandler{out: out, mu: &sync.Mutex{}}
 	if opts != nil {
@@ -47,10 +51,16 @@ func NewPIDHandler(out io.Writer, opts *PIDHandlerOptions) *PIDHandler {
 	return h
 }
 
+// Enabled reports whether the handler handles records at the given level.
+// Enabled returns true if the level is at or above the handler's minimum level.
 func (h *PIDHandler) Enabled(ctx context.Context, level slog.Level) bool {
 	return level >= h.opts.Level.Level()
 }
 
+// Handle formats and writes a log record to the output writer.
+// Handle includes the timestamp, process ID, level, message, and all attributes
+// in the output. Groups and attributes added via WithGroup and WithAttrs are
+// also included with dot-separated prefixes for nested groups.
 func (h *PIDHandler) Handle(ctx context.Context, r slog.Record) error {
 	buf := make([]byte, 0, 1024)
 
@@ -72,14 +82,16 @@ func (h *PIDHandler) Handle(ctx context.Context, r slog.Record) error {
 	groupPrefix := ""
 
 	// Handle state from WithGroup and WithAttrs.
-	goas := h.goas
+	preAttrs := h.preAttrs
 	if r.NumAttrs() == 0 {
 		// If the record has no Attrs, remove groups at the end of the list; they are empty.
-		for len(goas) > 0 && goas[len(goas)-1].group != "" {
-			goas = goas[:len(goas)-1]
+		for len(preAttrs) > 0 && preAttrs[len(preAttrs)-1].group != "" {
+			preAttrs = preAttrs[:len(preAttrs)-1]
 		}
 	}
-	for _, goa := range goas {
+
+	// Append each attribute with a dot-separated group prefix (e.g "foo.bar=baz")
+	for _, goa := range preAttrs {
 		if goa.group != "" {
 			if groupPrefix != "" {
 				groupPrefix += "."
@@ -156,12 +168,15 @@ func (h *PIDHandler) appendAttr(buf []byte, a slog.Attr, groupPrefix string) []b
 
 func (h *PIDHandler) withGroupOrAttrs(goa groupOrAttrs) *PIDHandler {
 	h2 := *h
-	h2.goas = make([]groupOrAttrs, len(h.goas)+1)
-	copy(h2.goas, h.goas)
-	h2.goas[len(h2.goas)-1] = goa
+	h2.preAttrs = make([]groupOrAttrs, len(h.preAttrs)+1)
+	copy(h2.preAttrs, h.preAttrs)
+	h2.preAttrs[len(h2.preAttrs)-1] = goa
 	return &h2
 }
 
+// WithGroup returns a new handler with the given group name added to all attributes.
+// WithGroup returns the receiver if name is empty. All attributes added to the
+// returned handler will be prefixed with the group name followed by a dot.
 func (h *PIDHandler) WithGroup(name string) slog.Handler {
 	if name == "" {
 		return h
@@ -169,48 +184,11 @@ func (h *PIDHandler) WithGroup(name string) slog.Handler {
 	return h.withGroupOrAttrs(groupOrAttrs{group: name})
 }
 
+// WithAttrs returns a new handler with the given attributes added.
+// The attributes will be included in all log records produced by the returned handler.
 func (h *PIDHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
 	if len(attrs) == 0 {
 		return h
 	}
 	return h.withGroupOrAttrs(groupOrAttrs{attrs: attrs})
-}
-
-// configureFileLogging sets up file-based logging to the configured log file path.
-// It returns a cleanup function that should be called to close the log file.
-// If file logging cannot be established, it falls back to stderr.
-func configureFileLogging(logLevel slog.Leveler) func() error {
-	// Attempt to open the log file
-	// This file path typically resolves to /var/log/rhc/rhc.log
-	LogFilePath = filepath.Join(LogDir, LongName, LongName+".log")
-	file, err := os.OpenFile(LogFilePath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
-
-	var w io.Writer
-	var cleanup func() error
-	if err != nil {
-		// Fall back to stderr if we can't open the log file
-		w = os.Stderr
-		slog.Warn("unable to open log file, falling back to stderr", "error", err, "path", LogFilePath)
-		// Return a no-op cleanup function since we don't own stderr
-		cleanup = func() error { return nil }
-	} else {
-		w = file
-		// Return cleanup function that closes the file
-		cleanup = func() error {
-			if file != nil {
-				return file.Close()
-			}
-			return nil
-		}
-	}
-
-	// Create and set the default logger
-	h := NewPIDHandler(w, &PIDHandlerOptions{
-		Level: logLevel,
-	})
-
-	logger := slog.New(h)
-	slog.SetDefault(logger)
-
-	return cleanup
 }
