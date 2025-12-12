@@ -62,7 +62,7 @@ func ensureLogFile() (*os.File, error) {
 
 	// Attempt to open the log file
 	logFilePath := filepath.Join(logDir, LongName+".log")
-	return os.OpenFile(logFilePath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
+	return os.OpenFile(logFilePath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0640)
 }
 
 // configureFileLogging sets up file-based logging to the configured log file path.
