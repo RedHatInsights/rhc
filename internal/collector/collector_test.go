@@ -2,6 +2,8 @@ package collector
 
 import (
 	"io/fs"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -401,4 +403,75 @@ func TestGetCollectorConfigName(t *testing.T) {
 			}
 		})
 	}
+}
+
+func createTestDirWithFiles(t *testing.T, files map[string]string) string {
+	testDir := filepath.Join(t.TempDir(), "testdata")
+	if err := os.Mkdir(testDir, 0755); err != nil {
+		t.Fatalf("Failed to create test directory: %v", err)
+	}
+
+	for filePath, content := range files {
+		fullPath := filepath.Join(testDir, filePath)
+		dir := filepath.Dir(fullPath)
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			t.Fatalf("Failed to create directory %s: %v", dir, err)
+		}
+		if err := os.WriteFile(fullPath, []byte(content), 0644); err != nil {
+			t.Fatalf("Failed to create test file %s: %v", fullPath, err)
+		}
+	}
+
+	return testDir
+}
+
+func TestCreateArchive(t *testing.T) {
+	t.Run("successful archive creation", func(t *testing.T) {
+		testDir := createTestDirWithFiles(t, map[string]string{
+			"file1.txt":        "content of file 1",
+			"file2.txt":        "content of file 2",
+			"subdir/file3.txt": "content of file 3",
+		})
+		archivePath := filepath.Join(t.TempDir(), "test.tar.xz")
+
+		err := createArchive(archivePath, testDir)
+
+		if err != nil {
+			t.Errorf("createArchive() unexpected error: %v", err)
+		}
+	})
+
+	t.Run("nonexistent source directory", func(t *testing.T) {
+		tempDir := t.TempDir()
+		archivePath := filepath.Join(tempDir, "test.tar.xz")
+		nonexistentDir := filepath.Join(tempDir, "nonexistent")
+
+		err := createArchive(archivePath, nonexistentDir)
+
+		if err == nil {
+			t.Error("createArchive() expected error for nonexistent directory")
+		}
+	})
+
+	t.Run("invalid archive path", func(t *testing.T) {
+		testDir := createTestDirWithFiles(t, map[string]string{"test.txt": "test"})
+		archivePath := t.TempDir()
+
+		err := createArchive(archivePath, testDir)
+
+		if err == nil {
+			t.Error("createArchive() expected error for directory archive path")
+		}
+	})
+
+	t.Run("empty directory", func(t *testing.T) {
+		testDir := createTestDirWithFiles(t, nil)
+		archivePath := filepath.Join(t.TempDir(), "empty.tar.xz")
+
+		err := createArchive(archivePath, testDir)
+
+		if err != nil {
+			t.Errorf("createArchive() unexpected error for empty directory: %v", err)
+		}
+	})
 }
