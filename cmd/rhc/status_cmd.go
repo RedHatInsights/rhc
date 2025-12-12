@@ -25,7 +25,7 @@ import (
 // output in machine-readable format, then we only set files in SystemStatus
 // structure and content of this structure will be printed later
 func rhsmStatus(systemStatus *SystemStatus) error {
-	slog.Info("Checking status of Red Hat Subscription Management")
+	slog.Debug("Checking status of Red Hat Subscription Management")
 
 	uuid, err := rhsm.GetConsumerUUID()
 	if err != nil {
@@ -36,9 +36,9 @@ func rhsmStatus(systemStatus *SystemStatus) error {
 	if uuid == "" {
 		systemStatus.returnCode += 1
 		systemStatus.RHSMConnected = false
-		warnMsg := "Not connected to Red Hat Subscription Management"
-		slog.Warn(warnMsg)
-		ui.Printf("%s[ ] %v\n", ui.Indent.Small, warnMsg)
+		infoMsg := "Not connected to Red Hat Subscription Management"
+		slog.Info(infoMsg)
+		ui.Printf("%s[ ] %v\n", ui.Indent.Small, infoMsg)
 	} else {
 		systemStatus.RHSMConnected = true
 		infoMsg := "Connected to Red Hat Subscription Management"
@@ -52,7 +52,7 @@ func rhsmStatus(systemStatus *SystemStatus) error {
 // and get the manage_repos option from the section [rhsm]. If the option is equal
 // to "1", then content is managed by subscription-manager/RHSM
 func isContentEnabled(systemStatus *SystemStatus) error {
-	slog.Info("Checking content status")
+	slog.Debug("Checking content status")
 
 	conn, err := dbus.SystemBus()
 	if err != nil {
@@ -103,7 +103,7 @@ func isContentEnabled(systemStatus *SystemStatus) error {
 
 // insightStatus tries to print status of insights client
 func insightStatus(systemStatus *SystemStatus) error {
-	slog.Info("Checking status of Red Hat Insights")
+	slog.Debug("Checking status of Red Hat Insights")
 
 	var s *spinner.Spinner
 	if ui.IsOutputRich() {
@@ -125,9 +125,9 @@ func insightStatus(systemStatus *SystemStatus) error {
 		systemStatus.returnCode += 1
 		if err == nil {
 			systemStatus.InsightsConnected = false
-			warnMsg := "Not connected to Red Hat Insights"
-			slog.Warn(warnMsg)
-			ui.Printf("%s[ ] Analytics ... %v\n", ui.Indent.Medium, warnMsg)
+			infoMsg := "Not connected to Red Hat Insights"
+			slog.Info(infoMsg)
+			ui.Printf("%s[ ] Analytics ... %v\n", ui.Indent.Medium, infoMsg)
 		} else {
 			systemStatus.InsightsConnected = false
 			systemStatus.InsightsError = err.Error()
@@ -139,7 +139,7 @@ func insightStatus(systemStatus *SystemStatus) error {
 
 // serviceStatus tries to print status of yggdrasil.service or rhcd.service
 func serviceStatus(systemStatus *SystemStatus) error {
-	slog.Info(fmt.Sprintf("Checking status of %s service", ServiceName))
+	slog.Debug(fmt.Sprintf("Checking status of %s service", ServiceName))
 
 	ctx := context.Background()
 	conn, err := systemd.NewSystemConnectionContext(ctx)

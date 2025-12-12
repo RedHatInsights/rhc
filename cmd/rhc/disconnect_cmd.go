@@ -113,8 +113,6 @@ func disconnectService(disconnectResult *DisconnectResult) error {
 // disconnectInsightsClient tries to unregister insights-client if the client hasn't been
 // already unregistered
 func disconnectInsightsClient(disconnectResult *DisconnectResult) error {
-	slog.Info("Disconnecting from Red Hat Insights")
-
 	isRegistered, err := datacollection.InsightsClientIsRegistered()
 	if err != nil {
 		return err
@@ -126,7 +124,9 @@ func disconnectInsightsClient(disconnectResult *DisconnectResult) error {
 		ui.Printf(" [%v] %v\n", ui.Icons.Info, infoMsg)
 		return nil
 	}
-	err = ui.Spinner(datacollection.UnregisterInsightsClient, ui.Indent.Small, "Disconnecting from Red Hat Insights...")
+	infoMsg := "Disconnecting from Red Hat Insights..."
+	slog.Info(infoMsg)
+	err = ui.Spinner(datacollection.UnregisterInsightsClient, ui.Indent.Small, infoMsg)
 	if err != nil {
 		errMsg := fmt.Sprintf("Cannot disconnect from Red Hat Insights: %v", err)
 		disconnectResult.InsightsDisconnected = false
@@ -135,7 +135,7 @@ func disconnectInsightsClient(disconnectResult *DisconnectResult) error {
 		ui.Printf(" [%v] %v\n", ui.Icons.Error, errMsg)
 	} else {
 		disconnectResult.InsightsDisconnected = true
-		infoMsg := "Disconnected from Red Hat Insights"
+		infoMsg = "Disconnected from Red Hat Insights"
 		slog.Info(infoMsg)
 		ui.Printf(" [%v] %v\n", ui.Icons.Ok, infoMsg)
 	}
@@ -145,8 +145,6 @@ func disconnectInsightsClient(disconnectResult *DisconnectResult) error {
 // disconnectRHSM tries to unregister system from RHSM if the client hasn't been already
 // unregistered from RHSM
 func disconnectRHSM(disconnectResult *DisconnectResult) error {
-	slog.Info("Unregistering system from Red Hat Subscription Management")
-
 	isRegistered, err := rhsm.IsRHSMRegistered()
 	if err != nil {
 		return err
@@ -158,10 +156,12 @@ func disconnectRHSM(disconnectResult *DisconnectResult) error {
 		ui.Printf(" [%v] %v\n", ui.Icons.Info, infoMsg)
 		return nil
 	}
+	infoMsg := "Disconnecting from Red Hat Subscription Management..."
+	slog.Info(infoMsg)
 	err = ui.Spinner(
 		rhsm.Unregister,
 		ui.Indent.Small,
-		"Disconnecting from Red Hat Subscription Management...",
+		infoMsg,
 	)
 	if err != nil {
 		errMsg := fmt.Sprintf("Cannot disconnect from Red Hat Subscription Management: %v", err)
@@ -173,7 +173,7 @@ func disconnectRHSM(disconnectResult *DisconnectResult) error {
 	}
 
 	disconnectResult.RHSMDisconnected = true
-	infoMsg := "Disconnected from Red Hat Subscription Management"
+	infoMsg = "Disconnected from Red Hat Subscription Management"
 	slog.Info(infoMsg)
 	ui.Printf(" [%v] %v\n", ui.Icons.Ok, infoMsg)
 	return nil
