@@ -71,7 +71,7 @@ func configureFileLogging(logLevel slog.Leveler) func() error {
 	// Attempt to open the log file
 	// This file path typically resolves to /var/log/rhc/rhc.log
 	LogFilePath = filepath.Join(LogDir, LongName, LongName+".log")
-	file, err := os.OpenFile(LogFilePath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
+	file, err := os.OpenFile(LogFilePath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0640)
 
 	var w io.Writer
 	var cleanup func() error
