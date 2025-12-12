@@ -2,11 +2,14 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/redhatinsights/rhc/internal/features"
+	"github.com/redhatinsights/rhc/internal/logging"
 	"github.com/urfave/cli/v2"
 	"github.com/urfave/cli/v2/altsrc"
 
@@ -19,6 +22,11 @@ const (
 	cliCertFile  = "cert-file"
 	cliKeyFile   = "key-file"
 	cliAPIServer = "base-url"
+)
+
+var (
+	LogFilePath string
+	logCleanup  func() error
 )
 
 // mainAction is triggered in the case, when no sub-command is specified
@@ -54,6 +62,45 @@ func configureUI(ctx *cli.Context) {
 		// - we're printing in JSON or other parseable format.
 		ctx.IsSet("format"),
 	)
+}
+
+// configureFileLogging sets up file-based logging to the configured log file path.
+// It returns a cleanup function that should be called to close the log file.
+// If file logging cannot be established, it falls back to stderr.
+func configureFileLogging(logLevel slog.Leveler) func() error {
+	// Attempt to open the log file
+	// This file path typically resolves to /var/log/rhc/rhc.log
+	LogFilePath = filepath.Join(LogDir, LongName, LongName+".log")
+	file, err := os.OpenFile(LogFilePath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
+
+	var w io.Writer
+	var cleanup func() error
+	if err != nil {
+		// Fall back to stderr if we can't open the log file
+		w = os.Stderr
+		slog.Warn("unable to open log file, falling back to stderr", "error", err, "path", LogFilePath)
+		// Return a no-op cleanup function since we don't own stderr
+		cleanup = func() error { return nil }
+	} else {
+		w = file
+		// Return cleanup function that closes the file
+		cleanup = func() error {
+			if file != nil {
+				return file.Close()
+			}
+			return nil
+		}
+	}
+
+	// Create and set the default logger
+	h := logging.NewPIDHandler(w, &logging.PIDHandlerOptions{
+		Level: logLevel,
+	})
+
+	logger := slog.New(h)
+	slog.SetDefault(logger)
+
+	return cleanup
 }
 
 // beforeAction is triggered before other actions are triggered
@@ -92,7 +139,10 @@ func beforeAction(c *cli.Context) error {
 		conf.Config.LogLevel = slog.LevelInfo
 	}
 
-	slog.SetLogLoggerLevel(conf.Config.LogLevel)
+	if !c.Bool("generate-man-page") && !c.Bool("generate-markdown") {
+		logCleanup = configureFileLogging(conf.Config.LogLevel)
+		slog.Info(c.App.Name+" started", "version", Version, "pid", os.Getpid())
+	}
 
 	// When environment variable NO_COLOR or --no-color CLI option is set, then do not display colors
 	// and animations too. The NO_COLOR environment variable have to have value "1" or "true",
@@ -109,6 +159,14 @@ func beforeAction(c *cli.Context) error {
 	// Set up standard output preference: colors, icons, etc.
 	configureUI(c)
 
+	return nil
+}
+
+func afterAction(c *cli.Context) error {
+	// Close log file using the cleanup function
+	if logCleanup != nil {
+		return logCleanup()
+	}
 	return nil
 }
 
@@ -272,6 +330,7 @@ func main() {
 	app.BashComplete = BashComplete
 	app.Action = mainAction
 	app.Before = beforeAction
+	app.After = afterAction
 
 	if err := app.Run(os.Args); err != nil {
 		slog.Error(err.Error())
