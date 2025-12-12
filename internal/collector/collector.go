@@ -3,9 +3,12 @@ package collector
 import (
 	"fmt"
 	"log"
+	"log/slog"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/BurntSushi/toml"
 )
@@ -15,6 +18,8 @@ const ConfigDir = "/usr/lib/rhc/collector/"
 const defaultMetaType = "ingress"
 const defaultUser = "root"
 const defaultGroup = "root"
+const defaultOutputDir = "/var/tmp/rhc/"
+const compactTimestamp = "20060102150405.000"
 
 // Config represents the configuration for a collector instance.
 type Config struct {
@@ -52,6 +57,20 @@ type ingressDto struct {
 	ContentType string  `toml:"content_type"`
 }
 
+// GetArchive generates an archive filename and creates a compressed archive from the specified directory.
+func GetArchive(sourceDir, outputDir string) (string, error) {
+	if outputDir == "" {
+		outputDir = defaultOutputDir
+	}
+	archiveTimestamp := strings.ReplaceAll(time.Now().Format(compactTimestamp), ".", "")
+	archiveName := "rhc-collector-" + archiveTimestamp + ".tar.xz"
+	archivePath, err := createArchive(archiveName, filepath.Clean(sourceDir), filepath.Clean(outputDir))
+	if err != nil {
+		return "", err
+	}
+	return archivePath, nil
+}
+
 // GetCollectors returns list of available collectors from valid TOML files in ConfigDir.
 func GetCollectors() ([]string, error) {
 	configFiles, err := os.ReadDir(ConfigDir)
@@ -84,6 +103,22 @@ func GetConfig(id string) (Config, error) {
 		return Config{}, err
 	}
 	return config, nil
+}
+
+// createArchive compresses a directory into an xz-compressed tar archive.
+// Returns an error if the tar command fails.
+func createArchive(archiveName, sourceDir, outputDir string) (string, error) {
+	archivePath := filepath.Join(outputDir, archiveName)
+	cmd := exec.Command("tar", "--create", "--xz", "--file", archivePath, "--directory", sourceDir, ".")
+	stdoutStderr, err := cmd.CombinedOutput()
+	if err != nil {
+		slog.Debug("tar command failed", "output", string(stdoutStderr))
+		return "", fmt.Errorf("failed to create archive: %v", err)
+	}
+	if len(stdoutStderr) > 0 {
+		slog.Info("tar command", "output", string(stdoutStderr))
+	}
+	return archivePath, nil
 }
 
 // getConfigFilename returns the filename if the file entry is a valid TOML configuration file.
