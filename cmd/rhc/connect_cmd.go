@@ -41,7 +41,7 @@ type ConnectResult struct {
 }
 
 // Error implement error interface for structure ConnectResult
-func (connectResult ConnectResult) Error() string {
+func (connectResult *ConnectResult) Error() string {
 	var result string
 	switch connectResult.format {
 	case "json":
@@ -70,6 +70,132 @@ func (connectResult ConnectResult) errorMessages() map[string]string {
 		errorMessages[ServiceName] = connectResult.Features.RemoteManagement.Error
 	}
 	return errorMessages
+}
+
+func (connectResult *ConnectResult) TryRegisterRHSM(ctx *cli.Context) {
+	slog.Info("Registering the system with Red Hat Subscription Management")
+	returnedMsg, err := rhsm.RegisterRHSM(ctx, features.ContentFeature.Enabled)
+	if err != nil {
+		connectResult.RHSMConnected = false
+		connectResult.RHSMConnectError = fmt.Sprintf("cannot connect to Red Hat Subscription Management: %s", err)
+		connectResult.Features.Content.Successful = false
+		slog.Error(connectResult.RHSMConnectError)
+		ui.Printf(
+			"%s[%v] Cannot connect to Red Hat Subscription Management\n",
+			ui.Indent.Small,
+			ui.Icons.Error,
+		)
+		slog.Error("Skipping generation of Red Hat repository file (RHSM registration failed)")
+		ui.Printf(
+			"%s[%v] Skipping generation of Red Hat repository file\n",
+			ui.Indent.Medium,
+			ui.Icons.Error,
+		)
+	} else {
+		connectResult.RHSMConnected = true
+		slog.Info(returnedMsg)
+		ui.Printf("%s[%v] %s\n", ui.Indent.Small, ui.Icons.Ok, returnedMsg)
+		if features.ContentFeature.Enabled {
+			connectResult.Features.Content.Successful = true
+			infoMsg := "Red Hat repository file generated"
+			slog.Info(infoMsg)
+			ui.Printf("%s[%v] Content ... %s\n", ui.Indent.Medium, ui.Icons.Ok, infoMsg)
+		} else {
+			connectResult.Features.Content.Successful = false
+			slog.Warn("Red Hat repository file not generated (content feature disabled)")
+			ui.Printf("%s[ ] Content ... Red Hat repository file not generated\n", ui.Indent.Medium)
+		}
+	}
+}
+
+func (connectResult *ConnectResult) TryRegisterInsightsClient() {
+	if !features.AnalyticsFeature.Enabled {
+		connectResult.Features.Analytics.Successful = false
+		slog.Warn("Connecting to Red Hat Insights disabled (analytics feature disabled)")
+		ui.Printf("%s[ ] Analytics ... Connecting to Red Hat Insights disabled\n", ui.Indent.Medium)
+		return
+	}
+
+	if connectResult.RHSMConnectError != "" {
+		slog.Error("Skipping connection to Red Hat Insights (RHSM registration failed)", "rhsm_error", connectResult.RHSMConnectError)
+		ui.Printf(
+			"%s[%v] Skipping connection to Red Hat Insights\n",
+			ui.Indent.Medium,
+			ui.Icons.Error,
+		)
+		return
+	}
+
+	slog.Info("Connecting to Red Hat Insights")
+	err := ui.Spinner(datacollection.RegisterInsightsClient, ui.Indent.Medium, "Connecting to Red Hat Insights...")
+	if err != nil {
+		connectResult.Features.Analytics.Successful = false
+		connectResult.Features.Analytics.Error = fmt.Sprintf("cannot connect to Red Hat Insights: %v", err)
+		slog.Error(connectResult.Features.Analytics.Error)
+		ui.Printf(
+			"%s[%v] Analytics ... Cannot connect to Red Hat Insights\n",
+			ui.Indent.Medium,
+			ui.Icons.Error,
+		)
+		return
+	}
+
+	connectResult.Features.Analytics.Successful = true
+	infoMsg := "Connected to Red Hat Insights"
+	slog.Info(infoMsg)
+	ui.Printf("%s[%v] Analytics ... %s\n", ui.Indent.Medium, ui.Icons.Ok, infoMsg)
+}
+
+func (connectResult *ConnectResult) TryActivateServices() {
+	if !features.ManagementFeature.Enabled {
+		connectResult.Features.RemoteManagement.Successful = false
+		if features.ManagementFeature.Reason != "" {
+			warnMsg := fmt.Sprintf("Starting %s service disabled (%s)", ServiceName, features.ManagementFeature.Reason)
+			slog.Warn(warnMsg)
+			ui.Printf("%s[ ] Management .... %s\n", ui.Indent.Medium, warnMsg)
+		} else {
+			warnMsg := fmt.Sprintf("Starting %s service disabled", ServiceName)
+			slog.Warn(warnMsg)
+			ui.Printf("%s[ ] Management .... %s\n", ui.Indent.Medium, warnMsg)
+		}
+		return
+	}
+
+	if connectResult.RHSMConnectError != "" {
+		connectResult.Features.RemoteManagement.Successful = false
+		slog.Error(
+			fmt.Sprintf("Skipping activation of %s service (RHSM registration failed)", ServiceName),
+			"rhsm_error", connectResult.RHSMConnectError,
+		)
+		ui.Printf(
+			"%s[%v] Skipping activation of %v service\n",
+			ui.Indent.Medium,
+			ui.Icons.Error,
+			ServiceName,
+		)
+		return
+	}
+
+	slog.Info(fmt.Sprintf("Activating %s service", ServiceName))
+	progressMessage := fmt.Sprintf(" Activating the %v service", ServiceName)
+	err := ui.Spinner(remotemanagement.ActivateServices, ui.Indent.Medium, progressMessage)
+	if err != nil {
+		connectResult.Features.RemoteManagement.Successful = false
+		connectResult.Features.RemoteManagement.Error = fmt.Sprintf("cannot activate the %s service: %v", ServiceName, err)
+		slog.Error(connectResult.Features.RemoteManagement.Error)
+		ui.Printf(
+			"%s[%v] Remote Management ... Cannot activate the %v service\n",
+			ui.Indent.Medium,
+			ui.Icons.Error,
+			ServiceName,
+		)
+		return
+	}
+
+	connectResult.Features.RemoteManagement.Successful = true
+	infoMsg := fmt.Sprintf("Activated the %s service", ServiceName)
+	slog.Info(infoMsg)
+	ui.Printf("%s[%v] Remote Management ... %s\n", ui.Indent.Medium, ui.Icons.Ok, infoMsg)
 }
 
 // beforeConnectAction ensures that user has supplied correct CLI options
@@ -164,132 +290,6 @@ func beforeConnectAction(ctx *cli.Context) error {
 	return nil
 }
 
-func connectRHSM(ctx *cli.Context, connectResult *ConnectResult) {
-	slog.Info("Registering the system with Red Hat Subscription Management")
-	returnedMsg, err := rhsm.RegisterRHSM(ctx, features.ContentFeature.Enabled)
-	if err != nil {
-		connectResult.RHSMConnected = false
-		connectResult.RHSMConnectError = fmt.Sprintf("cannot connect to Red Hat Subscription Management: %s", err)
-		connectResult.Features.Content.Successful = false
-		slog.Error(connectResult.RHSMConnectError)
-		ui.Printf(
-			"%s[%v] Cannot connect to Red Hat Subscription Management\n",
-			ui.Indent.Small,
-			ui.Icons.Error,
-		)
-		slog.Error("Skipping generation of Red Hat repository file (RHSM registration failed)")
-		ui.Printf(
-			"%s[%v] Skipping generation of Red Hat repository file\n",
-			ui.Indent.Medium,
-			ui.Icons.Error,
-		)
-	} else {
-		connectResult.RHSMConnected = true
-		slog.Info(returnedMsg)
-		ui.Printf("%s[%v] %s\n", ui.Indent.Small, ui.Icons.Ok, returnedMsg)
-		if features.ContentFeature.Enabled {
-			connectResult.Features.Content.Successful = true
-			infoMsg := "Red Hat repository file generated"
-			slog.Info(infoMsg)
-			ui.Printf("%s[%v] Content ... %s\n", ui.Indent.Medium, ui.Icons.Ok, infoMsg)
-		} else {
-			connectResult.Features.Content.Successful = false
-			slog.Warn("Red Hat repository file not generated (content feature disabled)")
-			ui.Printf("%s[ ] Content ... Red Hat repository file not generated\n", ui.Indent.Medium)
-		}
-	}
-}
-
-func connectInsightsClient(connectResult *ConnectResult) {
-	if !features.AnalyticsFeature.Enabled {
-		connectResult.Features.Analytics.Successful = false
-		slog.Warn("Connecting to Red Hat Insights disabled (analytics feature disabled)")
-		ui.Printf("%s[ ] Analytics ... Connecting to Red Hat Insights disabled\n", ui.Indent.Medium)
-		return
-	}
-
-	if connectResult.RHSMConnectError != "" {
-		slog.Error("Skipping connection to Red Hat Insights (RHSM registration failed)", "rhsm_error", connectResult.RHSMConnectError)
-		ui.Printf(
-			"%s[%v] Skipping connection to Red Hat Insights\n",
-			ui.Indent.Medium,
-			ui.Icons.Error,
-		)
-		return
-	}
-
-	slog.Info("Connecting to Red Hat Insights")
-	err := ui.Spinner(datacollection.RegisterInsightsClient, ui.Indent.Medium, "Connecting to Red Hat Insights...")
-	if err != nil {
-		connectResult.Features.Analytics.Successful = false
-		connectResult.Features.Analytics.Error = fmt.Sprintf("cannot connect to Red Hat Insights: %v", err)
-		slog.Error(connectResult.Features.Analytics.Error)
-		ui.Printf(
-			"%s[%v] Analytics ... Cannot connect to Red Hat Insights\n",
-			ui.Indent.Medium,
-			ui.Icons.Error,
-		)
-		return
-	}
-
-	connectResult.Features.Analytics.Successful = true
-	infoMsg := "Connected to Red Hat Insights"
-	slog.Info(infoMsg)
-	ui.Printf("%s[%v] Analytics ... %s\n", ui.Indent.Medium, ui.Icons.Ok, infoMsg)
-}
-
-func connectService(connectResult *ConnectResult) {
-	if !features.ManagementFeature.Enabled {
-		connectResult.Features.RemoteManagement.Successful = false
-		if features.ManagementFeature.Reason != "" {
-			warnMsg := fmt.Sprintf("Starting %s service disabled (%s)", ServiceName, features.ManagementFeature.Reason)
-			slog.Warn(warnMsg)
-			ui.Printf("%s[ ] Management .... %s\n", ui.Indent.Medium, warnMsg)
-		} else {
-			warnMsg := fmt.Sprintf("Starting %s service disabled", ServiceName)
-			slog.Warn(warnMsg)
-			ui.Printf("%s[ ] Management .... %s\n", ui.Indent.Medium, warnMsg)
-		}
-		return
-	}
-
-	if connectResult.RHSMConnectError != "" {
-		connectResult.Features.RemoteManagement.Successful = false
-		slog.Error(
-			fmt.Sprintf("Skipping activation of %s service (RHSM registration failed)", ServiceName),
-			"rhsm_error", connectResult.RHSMConnectError,
-		)
-		ui.Printf(
-			"%s[%v] Skipping activation of %v service\n",
-			ui.Indent.Medium,
-			ui.Icons.Error,
-			ServiceName,
-		)
-		return
-	}
-
-	slog.Info(fmt.Sprintf("Activating %s service", ServiceName))
-	progressMessage := fmt.Sprintf(" Activating the %v service", ServiceName)
-	err := ui.Spinner(remotemanagement.ActivateServices, ui.Indent.Medium, progressMessage)
-	if err != nil {
-		connectResult.Features.RemoteManagement.Successful = false
-		connectResult.Features.RemoteManagement.Error = fmt.Sprintf("cannot activate the %s service: %v", ServiceName, err)
-		slog.Error(connectResult.Features.RemoteManagement.Error)
-		ui.Printf(
-			"%s[%v] Remote Management ... Cannot activate the %v service\n",
-			ui.Indent.Medium,
-			ui.Icons.Error,
-			ServiceName,
-		)
-		return
-	}
-
-	connectResult.Features.RemoteManagement.Successful = true
-	infoMsg := fmt.Sprintf("Activated the %s service", ServiceName)
-	slog.Info(infoMsg)
-	ui.Printf("%s[%v] Remote Management ... %s\n", ui.Indent.Medium, ui.Icons.Ok, infoMsg)
-}
-
 // connectAction tries to register system against Red Hat Subscription Management,
 // gather the profile information that the system will configure
 // connect system to Red Hat Insights, and it also tries to start rhcd service
@@ -368,17 +368,17 @@ func connectAction(ctx *cli.Context) error {
 
 	/* 1. Register to RHSM, because we need to get consumer certificate. This blocks following action */
 	start = time.Now()
-	connectRHSM(ctx, &connectResult)
+	connectResult.TryRegisterRHSM(ctx)
 	durations["rhsm"] = time.Since(start)
 
 	/* 2. Register insights-client */
 	start = time.Now()
-	connectInsightsClient(&connectResult)
+	connectResult.TryRegisterInsightsClient()
 	durations["insights"] = time.Since(start)
 
 	/* 3. Start yggdrasil (rhcd) service */
 	start = time.Now()
-	connectService(&connectResult)
+	connectResult.TryActivateServices()
 	durations[ServiceName] = time.Since(start)
 
 	slog.Info("Successfully connected to Red Hat")
