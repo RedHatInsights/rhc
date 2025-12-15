@@ -1,0 +1,11 @@
+/var/log/rhc/*.log {
+    rotate 90
+    daily
+    compress
+    dateext
+    maxage 90
+    missingok
+    notifempty
+    copytruncate
+    create 640 root root
+}
