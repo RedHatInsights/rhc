@@ -2,7 +2,6 @@ package collector
 
 import (
 	"fmt"
-	"log"
 	"log/slog"
 	"os"
 	"os/exec"
@@ -82,11 +81,11 @@ func GetCollectors() ([]string, error) {
 	for _, configFile := range configFiles {
 		configName, err := getConfigFilename(configFile)
 		if err != nil {
-			log.Printf("Warning: %v", err)
+			slog.Warn("Failed to load config", "error", err)
 		} else {
 			collectorId := strings.TrimSuffix(configName, ".toml")
 			if _, err = loadConfigFromFile(collectorId); err != nil {
-				log.Printf("Warning: failed to load config from %s: %v", configName, err)
+				slog.Warn("Failed to load config", "file", configName, "error", err)
 			} else {
 				collectors = append(collectors, collectorId)
 			}
@@ -191,7 +190,7 @@ func newConfig(id string, dto *configDto) (Config, error) {
 
 	// Emit warning if meta.feature is present but not 'analytics'
 	if dto.Meta.Feature != nil && *dto.Meta.Feature != "analytics" {
-		log.Printf("Warning: meta.feature is '%s' but expected 'analytics'", *dto.Meta.Feature)
+		slog.Warn("Unexpected meta.feature value", "actual", *dto.Meta.Feature, "expected", "analytics")
 	}
 
 	return Config{
