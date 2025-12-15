@@ -167,6 +167,7 @@ fi
 %if %{with rhcd_compat}
 %{_unitdir}/yggdrasil.service.d/rhcd.conf
 %endif
+%config(noreplace) %{_sysconfdir}/logrotate.d/rhc
 %attr(0755,root,root) %dir %{_localstatedir}/log/rhc
 
 %changelog
