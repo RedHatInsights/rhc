@@ -14,9 +14,10 @@ packages=(
   "rhc"
 )
 
-if [ "$ID" == "rhel" ]; then
+if [ "$ID" == "rhel" ] || [ "$ID" == "centos" ]; then
   packages+=(
     "insights-client"
+    "rhc"
   )
 fi
 
