@@ -1,4 +1,4 @@
-ARG IMAGE=images.paas.redhat.com/testingfarm/rhel-bootc:10.2
+ARG IMAGE=images.paas.redhat.com/testingfarm/rhel-bootc:9.8
 FROM $IMAGE
 
 COPY install-test-deps.sh /install-test-deps.sh
