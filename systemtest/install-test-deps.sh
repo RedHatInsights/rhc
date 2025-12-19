@@ -11,11 +11,12 @@ packages=(
   "podman"
   "python3-pip"
   "python3-pytest"
+  "rhc"
 )
 
 if [ "$ID" == "rhel" ]; then
   packages+=(
-    "insights-client"
+    "insights-client"    
   )
 fi
 
