@@ -3,7 +3,7 @@ set -ux
 
 source /etc/os-release
 
-# packages to install
+# dependencies to install
 packages=(
   "git-core"
   "logrotate"
@@ -14,11 +14,16 @@ packages=(
   "rhc"
 )
 
+# add insights-client if not fedora
 if [ "$ID" == "rhel" ] || [ "$ID" == "centos" ]; then
   packages+=(
     "insights-client"
-    "rhc"
   )
+fi
+
+# add rhc if not installed (eg. from packit) or TEST_RPMS is unset/blank
+if ! command -v rhc > /dev/null || [ -z "${TEST_RPMS:-}" ]; then
+  packages+=("rhc")
 fi
 
 get_image_name() {
@@ -49,4 +54,11 @@ else
   echo "info: installing dependencies"
   dnf --setopt install_weak_deps=False install -y ${packages[@]}
   echo "info: dependencies installed successfully"
+
+  # TEST_RPMS is set in jenkins jobs after parsing CI Messages in gating Jobs.
+  # If TEST_RPMS is set then install the RPM builds for gating.
+  if [[ -v TEST_RPMS ]]; then
+    echo "Installing RPMs: ${TEST_RPMS}"
+    dnf -y install --allowerasing ${TEST_RPMS}
+  fi
 fi
