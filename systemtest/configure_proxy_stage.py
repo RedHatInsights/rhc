@@ -65,6 +65,10 @@ def load_proxy_settings() -> tuple[str, str, str]:
 
 def update_rhsm_conf(host: str, port: str):
     """Update /etc/rhsm/rhsm.conf with proxy settings."""
+    if not RHSM_CONF.exists():
+        print(f"Skipping RHSM proxy configuration: {RHSM_CONF} does not exist")
+        return
+
     parser = configparser.ConfigParser()
     parser.optionxform = str  # preserve case
     parser.read(RHSM_CONF)
@@ -81,6 +85,10 @@ def update_rhsm_conf(host: str, port: str):
 
 def update_insights_conf(proxy_url: str):
     """Update /etc/insights-client/insights-client.conf with proxy setting."""
+    if not INSIGHTS_CONF.exists():
+        print(f"Skipping Insights proxy configuration: {INSIGHTS_CONF} does not exist")
+        return
+
     parser = configparser.ConfigParser()
     parser.optionxform = str  # preserve case
     parser.read(INSIGHTS_CONF)

@@ -457,6 +457,10 @@ def test_connect_with_content_template(external_candlepin, rhc, test_config, aut
     if "satellite" in test_config.environment:
         pytest.skip("Content template not supported in satellite environment")
 
+    # Skip content template tests in stage environment due to API permission issues
+    if "stage" in test_config.environment.lower():
+        pytest.skip("Content template API returns 403 Forbidden in stage environment")
+
     # Ensure system is disconnected
     with contextlib.suppress(Exception):
         rhc.disconnect()
@@ -519,6 +523,10 @@ def test_connect_with_nonexistent_content_template(
     """
     if "satellite" in test_config.environment:
         pytest.skip("Content template not supported in satellite environment")
+
+    # Skip content template tests in stage environment due to API permission issues
+    if "stage" in test_config.environment.lower():
+        pytest.skip("Content template API returns 403 Forbidden in stage environment")
 
     # Ensure system is disconnected
     with contextlib.suppress(Exception):
