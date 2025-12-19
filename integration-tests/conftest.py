@@ -11,18 +11,29 @@ def install_katello_rpm(test_config):
     if "satellite" in test_config.environment:
         # install katello rpm before register system against Satellite
         satellite_hostname = test_config.get("candlepin", "host")
-        cmd = [
-            "rpm",
-            "-Uvh",
-            "http://%s/pub/katello-ca-consumer-latest.noarch.rpm" % satellite_hostname,
-        ]
-        subprocess.check_call(cmd)
-        logger.info("installing the katello rpm")
+
+        # Try HTTPS first, then fall back to HTTP
+        for protocol in ["https", "http"]:
+            rpm_url = f"{protocol}://{satellite_hostname}/pub/katello-ca-consumer-latest.noarch.rpm"
+            cmd = ["rpm", "-Uvh", rpm_url]
+
+            try:
+                subprocess.check_call(cmd)
+                logger.info(f"Successfully installed katello RPM from {rpm_url}")
+                break
+            except subprocess.CalledProcessError as e:
+                logger.warning(f"Failed to install katello RPM from {rpm_url}: {e}")
+                if protocol == "http":  # Last attempt failed
+                    logger.error("Failed to install katello RPM with both HTTPS and HTTP")
+                    raise
     yield
     if "satellite" in test_config.environment:
-        cmd = "rpm -qa 'katello-ca-consumer*' | xargs rpm -e"
-        subprocess.check_call(cmd, shell=True)
-        logger.info("removing the katello rpm")
+        try:
+            cmd = "rpm -qa 'katello-ca-consumer*' | xargs rpm -e"
+            subprocess.check_call(cmd, shell=True)
+            logger.info("Successfully removed katello rpm")
+        except subprocess.CalledProcessError as e:
+            logger.warning(f"Failed to remove katello rpm: {e}")
 
 
 @pytest.fixture(scope="function")
