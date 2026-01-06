@@ -3,7 +3,9 @@ package ui
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/briandowns/spinner"
 	"golang.org/x/sys/unix"
@@ -99,6 +101,94 @@ func Printf(
 		return
 	}
 	fmt.Printf(format, a...)
+}
+
+// displayWidth returns the display width of a string, counting runes (not bytes).
+// This ensures UTF-8 characters like "✓" are counted as 1 character, not 3 bytes.
+func displayWidth(s string) int {
+	return utf8.RuneCountInString(s)
+}
+
+// truncateString truncates a string to the specified display width and appends "..."
+// It handles UTF-8 properly by truncating at rune boundaries.
+func truncateString(s string, maxWidth int) string {
+	if displayWidth(s) <= maxWidth {
+		return s
+	}
+	// We need to truncate to maxWidth-3 to leave room for "..."
+	targetWidth := maxWidth - 3
+	if targetWidth < 0 {
+		targetWidth = 0
+	}
+
+	// Iterate through runes to find the truncation point
+	width := 0
+	truncated := strings.Builder{}
+	for _, r := range s {
+		runeWidth := displayWidth(string(r))
+		if width+runeWidth > targetWidth {
+			break
+		}
+		truncated.WriteRune(r)
+		width += runeWidth
+	}
+	return truncated.String() + "..."
+}
+
+// PrintTable prints a left-justified table and expects the table to be a 2D slice of strings.
+// Each column is left-justified so that all values in a column align with the column header.
+// The function handles UTF-8 characters properly by using rune count for display width.
+// Rows that exceed termWidth are truncated and end with "..."
+func PrintTable(table [][]string, sep string, termWidth int) {
+	// validate table, table must include at least one row and one column
+	if len(table) == 0 || len(table[0]) == 0 {
+		return
+	}
+
+	// Calculate the display width of the separator
+	sepWidth := displayWidth(sep)
+
+	// Find the maximum display width for each column
+	columnWidths := make([]int, len(table[0]))
+	for _, row := range table {
+		for col, cell := range row {
+			cellWidth := displayWidth(cell)
+			if cellWidth > columnWidths[col] {
+				columnWidths[col] = cellWidth
+			}
+		}
+	}
+
+	// Build and print each row
+	tableOutput := ""
+	for _, row := range table {
+		rowString := ""
+		for col, cell := range row {
+			// Add the cell content
+			rowString += cell
+
+			// If not the last column, add padding and separator
+			if col < len(row)-1 {
+				cellWidth := displayWidth(cell)
+				// Padding includes separator width to ensure proper column alignment
+				// This creates consistent spacing where the separator width is accounted for
+				// in the padding calculation, then the separator is added
+				padding := columnWidths[col] - cellWidth + sepWidth
+				if padding > 0 {
+					rowString += strings.Repeat(" ", padding)
+				}
+				rowString += sep
+			}
+		}
+
+		// Truncate if the row exceeds terminal width
+		if displayWidth(rowString) > termWidth {
+			rowString = truncateString(rowString, termWidth)
+		}
+
+		tableOutput += rowString + "\n"
+	}
+	fmt.Printf("%s", tableOutput)
 }
 
 // Spinner calls a function and displays a spinner with explanatory message.
