@@ -3,7 +3,7 @@ module github.com/redhatinsights/rhc
 go 1.24.0
 
 require (
-	github.com/BurntSushi/toml v1.5.0
+	github.com/BurntSushi/toml v1.6.0
 	github.com/briandowns/spinner v1.23.2
 	github.com/coreos/go-systemd/v22 v22.6.0
 	github.com/godbus/dbus/v5 v5.2.0
