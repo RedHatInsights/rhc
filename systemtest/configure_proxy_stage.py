@@ -23,8 +23,8 @@ TARGET_ENV = "stage"
 
 RHSM_CONF = Path("/etc/rhsm/rhsm.conf")
 INSIGHTS_CONF = Path("/etc/insights-client/insights-client.conf")
-YGGDRASIL_OVERRIDE_DIR = Path("/etc/systemd/system/yggdrasil.service.d")
-YGGDRASIL_OVERRIDE = YGGDRASIL_OVERRIDE_DIR / "proxy.conf"
+RHCD_OVERRIDE_DIR = Path("/etc/systemd/system/rhcd.service.d")
+RHCD_OVERRIDE = RHCD_OVERRIDE_DIR / "proxy.conf"
 PROFILE_PROXY = Path("/etc/profile.d/proxy.sh")
 LOCAL_SETTINGS = Path(__file__).parent.parent / "settings.toml"
 
@@ -102,15 +102,15 @@ def update_insights_conf(proxy_url: str):
         parser.write(fh)
 
 
-def configure_yggdrasil_service(proxy_url: str):
-    """Create systemd override for yggdrasil with proxy environment variables."""
-    YGGDRASIL_OVERRIDE_DIR.mkdir(parents=True, exist_ok=True)
+def configure_rhcd_service(proxy_url: str):
+    """Create systemd override for rhcd with proxy environment variables."""
+    RHCD_OVERRIDE_DIR.mkdir(parents=True, exist_ok=True)
 
     override = f"""[Service]
 Environment=HTTPS_PROXY={proxy_url}
 Environment=HTTP_PROXY={proxy_url}
 """
-    YGGDRASIL_OVERRIDE.write_text(override)
+    RHCD_OVERRIDE.write_text(override)
     subprocess.run(["systemctl", "daemon-reload"], check=True)
 
 
@@ -135,7 +135,7 @@ def main() -> int:
         host, port, proxy_url = load_proxy_settings()
         update_rhsm_conf(host, port)
         update_insights_conf(proxy_url)
-        configure_yggdrasil_service(proxy_url)
+        configure_rhcd_service(proxy_url)
         configure_profile_proxy(proxy_url)
     except Exception as exc:
         print(f"Failed to configure proxy: {exc}", file=sys.stderr)
