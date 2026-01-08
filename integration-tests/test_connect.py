@@ -461,12 +461,21 @@ def test_connect_with_content_template(external_candlepin, rhc, test_config, aut
     with contextlib.suppress(Exception):
         rhc.disconnect()
 
+    # Build proxy configuration for stage environment
+    proxies = None
+    if test_config.environment == "stage":
+        proxy_host = test_config.get("noauth_proxy.host")
+        proxy_port = test_config.get("noauth_proxy.port")
+        proxy_url = f"http://{proxy_host}:{proxy_port}"
+        proxies = {"http": proxy_url, "https": proxy_url}
+
     template_name = test_config.get("rhc.template_name")
     template_repos = get_template_repos_by_name(
         template_name,
         test_config.get("candlepin.username"),
         test_config.get("candlepin.password"),
         test_config.get("rhc.template_url"),
+        proxies=proxies,
     )
 
     initial_repo_names = get_enabled_repo_names()
@@ -559,13 +568,20 @@ def get_enabled_repo_names():
     return repo_names
 
 
-def get_template_repos_by_name(template_name, username, password, template_url):
+def get_template_repos_by_name(template_name, username, password, template_url, proxies=None):
     """
     Fetch a content template by name from Red Hat Console and return
     the set of repository names in its snapshots.
+
+    Args:
+        template_name: Name of the content template to find
+        username: Username for authentication
+        password: Password for authentication
+        template_url: Base URL for the templates API
+        proxies: Optional dict of proxies, e.g. {"http": "...", "https": "..."}
     """
 
-    client = RestClient(base_url=template_url, verify=True)
+    client = RestClient(base_url=template_url, verify=True, proxies=proxies)
 
     try:
         # Get all templates and find the one matching template_name

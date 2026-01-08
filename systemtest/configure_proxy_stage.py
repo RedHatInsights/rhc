@@ -114,14 +114,6 @@ Environment=HTTP_PROXY={proxy_url}
     subprocess.run(["systemctl", "daemon-reload"], check=True)
 
 
-def configure_profile_proxy(proxy_url: str):
-    """Add proxy env vars to /etc/profile.d for future shell sessions."""
-    content = f"""export HTTPS_PROXY={proxy_url}
-export HTTP_PROXY={proxy_url}
-"""
-    PROFILE_PROXY.write_text(content)
-
-
 def main() -> int:
     env_value = os.environ.get(ENV_VAR, "").lower()
     if env_value != TARGET_ENV:
@@ -136,7 +128,6 @@ def main() -> int:
         update_rhsm_conf(host, port)
         update_insights_conf(proxy_url)
         configure_yggdrasil_service(proxy_url)
-        configure_profile_proxy(proxy_url)
     except Exception as exc:
         print(f"Failed to configure proxy: {exc}", file=sys.stderr)
         return 1
