@@ -1,7 +1,6 @@
 import pytest
 import subprocess
 import logging
-import os
 
 logger = logging.getLogger(__name__)
 
@@ -34,45 +33,3 @@ def install_katello_rpm(test_config):
             logger.info("Successfully removed katello rpm")
         except subprocess.CalledProcessError as e:
             logger.warning(f"Failed to remove katello rpm: {e}")
-
-@pytest.fixture(scope="function")
-def yggdrasil_proxy_config():
-    """
-    Fixture to manage rhcd service proxy configuration.
-    Automatically cleans up proxy configuration after test completion.
-    """
-    service_name = "rhcd"
-    override_dir = f"/etc/systemd/system/{service_name}.service.d"
-    override_file = f"{override_dir}/proxy.conf"
-
-    def _configure_proxy(proxy_url):
-        """Configure rhcd service with proxy environment variables"""
-        try:
-            # Create systemd override with environment variables
-            os.makedirs(override_dir, exist_ok=True)
-            override_content = f"""[Service]
-Environment=HTTPS_PROXY={proxy_url}
-Environment=HTTP_PROXY={proxy_url}
-"""
-            with open(override_file, "w") as f:
-                f.write(override_content)
-
-            subprocess.run(["systemctl", "daemon-reload"], check=True)
-            logger.info(f"rhcd service configured with proxy: {proxy_url}")
-            return True
-
-        except Exception as e:
-            logger.error(f"Error configuring rhcd proxy: {e}")
-            return False
-
-    # Yield the configuration function
-    yield _configure_proxy
-
-    # Teardown: Clean up rhcd proxy configuration
-    try:
-        if os.path.exists(override_file):
-            os.remove(override_file)
-            subprocess.run(["systemctl", "daemon-reload"], check=True)
-
-    except Exception as e:
-        logger.error(f"Error during rhcd proxy cleanup: {e}")
