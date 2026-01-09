@@ -4,4 +4,5 @@ FROM $IMAGE
 COPY install-test-deps.sh /install-test-deps.sh
 RUN sh /install-test-deps.sh
 RUN touch /test-deps-installed
+RUN rm -r /var/log /var/cache /var/lib/dnf /var/roothome /var/lib/rhsm
 RUN bootc container lint
