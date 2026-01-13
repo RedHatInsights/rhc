@@ -25,7 +25,7 @@ func TestPrintTable(t *testing.T) {
 			},
 			sep:       "  ",
 			termWidth: 80,
-			want:      "FEATURE            CONFIG  STATE\nremote-management  ✓     ✓\n",
+			want:      "FEATURE            CONFIG  STATE\nremote-management  ✓       ✓\n",
 		},
 		{
 			description: "simple table 2",
@@ -35,7 +35,7 @@ func TestPrintTable(t *testing.T) {
 			},
 			sep:       "  ",
 			termWidth: 80,
-			want:      "FEATURE  CONFIG  STATE\nremote   ✓     ✓\n",
+			want:      "FEATURE  CONFIG  STATE\nremote   ✓       ✓\n",
 		},
 		{
 			description: "empty table",
@@ -64,6 +64,41 @@ func TestPrintTable(t *testing.T) {
 			termWidth: 30,
 			want: "VERY_LONG_COLUMN_NAME      ...\n" +
 				"this is a very long value t...\n",
+		},
+		{
+			description: "wide characters (emojis)",
+			input: [][]string{
+				{"ICON", "NAME"},
+				{"🚀", "rocket"},
+				{"⭐", "star"},
+			},
+			sep:       "  ",
+			termWidth: 80,
+			want:      "ICON  NAME\n🚀    rocket\n⭐    star\n",
+		},
+		{
+			description: "wide characters (CJK)",
+			input: [][]string{
+				{"CHAR", "NAME"},
+				{"中", "Chinese"},
+				{"文", "Character"},
+				{"A", "ASCII"},
+			},
+			sep:       "  ",
+			termWidth: 80,
+			want:      "CHAR  NAME\n中    Chinese\n文    Character\nA     ASCII\n",
+		},
+		{
+			description: "mixed narrow and wide characters",
+			input: [][]string{
+				{"SYMBOL", "DESCRIPTION"},
+				{"✓", "checkmark (narrow)"},
+				{"🚀", "rocket (wide)"},
+				{"→", "arrow (narrow)"},
+			},
+			sep:       "  ",
+			termWidth: 80,
+			want:      "SYMBOL  DESCRIPTION\n✓       checkmark (narrow)\n🚀      rocket (wide)\n→       arrow (narrow)\n",
 		},
 	}
 

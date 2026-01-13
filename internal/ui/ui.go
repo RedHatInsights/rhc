@@ -5,10 +5,10 @@ import (
 	"os"
 	"strings"
 	"time"
-	"unicode/utf8"
 
 	"github.com/briandowns/spinner"
 	"golang.org/x/sys/unix"
+	"golang.org/x/text/width"
 )
 
 const (
@@ -103,14 +103,26 @@ func Printf(
 	fmt.Printf(format, a...)
 }
 
-// displayWidth returns the display width of a string, counting runes (not bytes).
-// This ensures UTF-8 characters like "✓" are counted as 1 character, not 3 bytes.
+// displayWidth returns the display width of a string in terminal columns.
+// It properly handles wide characters (CJK, emojis) that take 2 columns,
+// while narrow characters (ASCII, most symbols) take 1 column.
 func displayWidth(s string) int {
-	return utf8.RuneCountInString(s)
+	w := 0
+	for _, r := range s {
+		kind := width.LookupRune(r).Kind()
+		switch kind {
+		case width.EastAsianWide, width.EastAsianFullwidth:
+			w += 2
+		default:
+			w += 1
+		}
+	}
+	return w
 }
 
 // truncateString truncates a string to the specified display width and appends "..."
-// It handles UTF-8 properly by truncating at rune boundaries.
+// It handles UTF-8 properly by truncating at rune boundaries and accounts for
+// wide characters that take 2 display columns.
 func truncateString(s string, maxWidth int) string {
 	if displayWidth(s) <= maxWidth {
 		return s
@@ -122,31 +134,29 @@ func truncateString(s string, maxWidth int) string {
 	}
 
 	// Iterate through runes to find the truncation point
-	width := 0
+	currentWidth := 0
 	truncated := strings.Builder{}
 	for _, r := range s {
 		runeWidth := displayWidth(string(r))
-		if width+runeWidth > targetWidth {
+		if currentWidth+runeWidth > targetWidth {
 			break
 		}
 		truncated.WriteRune(r)
-		width += runeWidth
+		currentWidth += runeWidth
 	}
 	return truncated.String() + "..."
 }
 
 // PrintTable prints a left-justified table and expects the table to be a 2D slice of strings.
 // Each column is left-justified so that all values in a column align with the column header.
-// The function handles UTF-8 characters properly by using rune count for display width.
+// The function properly handles UTF-8 characters including wide characters (CJK, emojis)
+// that take 2 display columns, ensuring proper alignment regardless of character width.
 // Rows that exceed termWidth are truncated and end with "..."
 func PrintTable(table [][]string, sep string, termWidth int) {
 	// validate table, table must include at least one row and one column
 	if len(table) == 0 || len(table[0]) == 0 {
 		return
 	}
-
-	// Calculate the display width of the separator
-	sepWidth := displayWidth(sep)
 
 	// Find the maximum display width for each column
 	columnWidths := make([]int, len(table[0]))
@@ -170,13 +180,12 @@ func PrintTable(table [][]string, sep string, termWidth int) {
 			// If not the last column, add padding and separator
 			if col < len(row)-1 {
 				cellWidth := displayWidth(cell)
-				// Padding includes separator width to ensure proper column alignment
-				// This creates consistent spacing where the separator width is accounted for
-				// in the padding calculation, then the separator is added
-				padding := columnWidths[col] - cellWidth + sepWidth
+				// Padding fills the gap between cell width and column width
+				padding := columnWidths[col] - cellWidth
 				if padding > 0 {
 					rowString += strings.Repeat(" ", padding)
 				}
+				// Add separator after all columns except the last
 				rowString += sep
 			}
 		}
