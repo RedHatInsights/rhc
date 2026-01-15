@@ -84,6 +84,7 @@ func beforeAction(c *cli.Context) error {
 	conf.Config = conf.Conf{
 		CertFile: c.String(cliCertFile),
 		KeyFile:  c.String(cliKeyFile),
+		Features: conf.Features{},
 	}
 
 	logLevelStr := c.String(cliLogLevel)
@@ -93,6 +94,17 @@ func beforeAction(c *cli.Context) error {
 	}
 
 	slog.SetLogLoggerLevel(conf.Config.LogLevel)
+
+	// Load features from drop-in config file and set them in conf.Config
+	// TODO: When drop-in configuration is fully supported, manually loading features
+	// may be unnecessary.
+	featuresConfig, err := features.GetFeaturesFromFiles("/etc/rhc/config.toml.d/01-features.toml")
+	if err != nil {
+		slog.Warn(fmt.Sprintf("failed to get features from drop-in config file: %s", err.Error()))
+	}
+	if featuresConfig != nil {
+		conf.Config.Features = *featuresConfig
+	}
 
 	// When environment variable NO_COLOR or --no-color CLI option is set, then do not display colors
 	// and animations too. The NO_COLOR environment variable have to have value "1" or "true",

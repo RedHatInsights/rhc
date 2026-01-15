@@ -3,8 +3,11 @@ package features
 import (
 	"fmt"
 	"log/slog"
+	"os"
 	"strings"
 
+	"github.com/BurntSushi/toml"
+	"github.com/redhatinsights/rhc/internal/conf"
 	"github.com/urfave/cli/v2"
 )
 
@@ -69,7 +72,7 @@ var ContentFeature = RhcFeature{
 // AnalyticsFeature allows to enable/disable collecting data for Red Hat Insights
 var AnalyticsFeature = RhcFeature{
 	ID:          "analytics",
-	Requires:    []*RhcFeature{},
+	Requires:    []*RhcFeature{&ContentFeature},
 	Enabled:     func() bool { return true }(),
 	Description: "Enable data collection for Red Hat Insights",
 	EnableFunc: func(ctx *cli.Context) error {
@@ -99,8 +102,89 @@ var ManagementFeature = RhcFeature{
 	},
 }
 
-// CheckFeatureInput checks input of enabled and disabled features
-func CheckFeatureInput(enabledFeaturesIDs *[]string, disabledFeaturesIDs *[]string) error {
+// GetFeaturesFromFiles loads features from a drop-in configuration file.
+// TODO: When drop-in configuration is fully supported, remove or update this method 
+// to support loading features from multiple drop-in files.
+func GetFeaturesFromFiles(featuresFilePath string) (*conf.Features, error) {
+	if _, err := os.Stat(featuresFilePath); err != nil {
+		slog.Debug(fmt.Sprintf("features config file not found: \"%s\"", featuresFilePath))
+		return nil, nil
+	}
+
+	var tempConf conf.Conf
+	if _, err := toml.DecodeFile(featuresFilePath, &tempConf); err != nil {
+		return nil, fmt.Errorf("failed to parse features from drop-in config file: \"%s\": %w", featuresFilePath, err)
+	}
+	
+	return &tempConf.Features, nil
+}
+
+// ConsolidateSelectedFeatures gathers the features values from the drop-in 
+// configuration file and CLI flags to resolve dependencies between features.
+// CLI flags always take precedence over config file values.
+func ConsolidateSelectedFeatures(config *conf.Conf, enabledFeaturesIDs *[]string, disabledFeaturesIDs *[]string) error {
+	if config == nil {
+		return fmt.Errorf("failed to consolidate selected features: config is nil")
+	}
+	
+	enabledFeatureSet := map[string]bool{}
+	disabledFeatureSet := map[string]bool{}
+
+	// First, load features from config file
+	if config.Features.Content != nil {
+		if *config.Features.Content {
+			enabledFeatureSet[ContentFeature.ID] = true
+		} else {
+			disabledFeatureSet[ContentFeature.ID] = true
+		}
+	}
+	if config.Features.Analytics != nil {
+		if *config.Features.Analytics {
+			enabledFeatureSet[AnalyticsFeature.ID] = true
+		} else {
+			disabledFeatureSet[AnalyticsFeature.ID] = true
+		}
+	}
+	if config.Features.Management != nil {
+		if *config.Features.Management {
+			enabledFeatureSet[ManagementFeature.ID] = true
+		} else {
+			disabledFeatureSet[ManagementFeature.ID] = true
+		}
+	}
+
+	// Then, if a feature is enabled from CLI flags, remove it from disabled set 
+	// and add it to enabled set. This is because the feature is explicitly enabled 
+	// in CLI flags, overriding the config file value. Similarly, the opposite 
+	// is done for disabled features from CLI flags.
+	for _, feature := range *enabledFeaturesIDs {
+		delete(disabledFeatureSet, feature)
+		enabledFeatureSet[feature] = true
+	}
+	for _, feature := range *disabledFeaturesIDs {
+		delete(enabledFeatureSet, feature)
+		disabledFeatureSet[feature] = true
+	}
+
+	// Create a consolidated list of enabled and disabled features from the
+	// sets of config and CLI flags. At this point, we don't know if the combination
+	// of enabled and disabled features is valid or not, so we need to check the validity 
+	// in the ValidateSelectedFeatures function.
+	*enabledFeaturesIDs = []string{}
+	*disabledFeaturesIDs = []string{}
+	for feature := range enabledFeatureSet {
+		*enabledFeaturesIDs = append(*enabledFeaturesIDs, feature)
+	}
+	for feature := range disabledFeatureSet {
+		*disabledFeaturesIDs = append(*disabledFeaturesIDs, feature)
+	}
+
+	return nil
+}
+
+// ValidateSelectedFeatures checks the validity of selected enabled and disabled features and handles
+// the dependency resolution between features.
+func ValidateSelectedFeatures(enabledFeaturesIDs *[]string, disabledFeaturesIDs *[]string) error {
 	// First check disabled features: check only correctness of IDs
 	for _, featureId := range *disabledFeaturesIDs {
 		isKnown := false
