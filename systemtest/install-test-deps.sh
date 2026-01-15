@@ -11,6 +11,7 @@ packages=(
   "podman"
   "python3-pip"
   "python3-pytest"
+  "python3-tomli"
   "rhc"
 )
 
