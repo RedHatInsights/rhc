@@ -67,7 +67,12 @@ def check_rhcd_journalctl_logs(
         return str_to_check not in logs
 
 
-def prepare_args_for_connect(test_config, auth: str = None, credentials: dict = None):
+def prepare_args_for_connect(
+    test_config,
+    auth: str = None,
+    credentials: dict = None,
+    content_template: str = None,
+):
     """Method to create arguments to be passed in 'rhc connect' command
     This method expects either auth type or custom credentials
     """
@@ -102,5 +107,8 @@ def prepare_args_for_connect(test_config, auth: str = None, credentials: dict = 
                     test_config.get("candlepin.org"),
                 ]
             )
+
+    if content_template:
+        args.extend(["--content-template", content_template])
 
     return args

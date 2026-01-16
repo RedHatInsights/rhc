@@ -1,8 +1,19 @@
 import pytest
 import subprocess
 import logging
+import distro
 
 logger = logging.getLogger(__name__)
+
+
+@pytest.hookimpl(trylast=True)
+def pytest_configure(config):
+    if distro.id() == "rhel" or distro.id() == "centos":
+        pytest.rhel_version = distro.version()
+        pytest.rhel_major_version = distro.major_version()
+    else:
+        pytest.rhel_version = "unknown"
+        pytest.rhel_major_version = "unknown"
 
 
 @pytest.fixture(scope="session", autouse=True)
