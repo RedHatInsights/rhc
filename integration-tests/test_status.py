@@ -20,7 +20,7 @@ def test_status_connected(external_candlepin, rhc, test_config):
     :title: Verify RHC status command output when the host is connected
     :description:
         Test the output of the 'rhc status' command when the host is connected
-        to Subscription Management and Red Hat Insights.
+        to Subscription Management and Red Hat Lightspeed.
     :tags: Tier 1
     :steps:
         1.  Connect the system using 'rhc connect'.
@@ -35,7 +35,7 @@ def test_status_connected(external_candlepin, rhc, test_config):
         3.  The 'rhc status' command executes successfully.
         4.  The exit code is 0.
         5.  The output contains "Connected to Red Hat Subscription Management",
-            "Connected to Red Hat Insights", "Red Hat repository file generated",
+            "Connected to Red Hat Lightspeed (formerly Insights)", "Red Hat repository file generated",
             and "The yggdrasil service is active".
     """
 
@@ -48,7 +48,7 @@ def test_status_connected(external_candlepin, rhc, test_config):
     assert status_result.returncode == 0
     assert "Connected to Red Hat Subscription Management" in status_result.stdout
     assert "Red Hat repository file generated" in status_result.stdout
-    assert "Connected to Red Hat Insights" in status_result.stdout
+    assert "Connected to Red Hat Lightspeed (formerly Insights)" in status_result.stdout
     assert "The yggdrasil service is active" in status_result.stdout
 
 
@@ -58,7 +58,7 @@ def test_status_connected_format_json(external_candlepin, rhc, test_config):
     :title: Verify RHC status command output in JSON format when the host is connected
     :description:
         Test the output of the 'rhc status --format json' command when the host is
-        connected to Subscription Management and Insights, verifying the output
+        connected to Subscription Management and Lightspeed, verifying the output
         is valid JSON and contains expected data.
     :tags:
     :steps:
@@ -150,7 +150,7 @@ def test_status_disconnected(rhc):
     :title: Verify RHC status command output when the host is disconnected
     :description:
         This test verifies the output of the 'rhc status' command when the host
-        is disconnected from Red Hat Subscription Management and Red Hat Insights,
+        is disconnected from Red Hat Subscription Management and Red Hat Lightspeed,
         and the yggdrasil service is inactive.
     :reference: https://issues.redhat.com/browse/CCT-525
     :tags: Tier 1
@@ -164,7 +164,7 @@ def test_status_disconnected(rhc):
         2.  The command executes.
         3.  The exit code is not 0.
         4.  The status command output contains "Not connected to Red Hat Subscription Management",
-            "Red Hat repository file not generated", "Not connected to Red Hat Insights",
+            "Red Hat repository file not generated", "Not connected to Red Hat Lightspeed (formerly Insights)",
             and a message indicating that the yggdrasil service is inactive.
     """
 
@@ -174,7 +174,7 @@ def test_status_disconnected(rhc):
     assert status_result.returncode != 0
     assert "Not connected to Red Hat Subscription Management" in status_result.stdout
     assert "Red Hat repository file not generated" in status_result.stdout
-    assert "Not connected to Red Hat Insights" in status_result.stdout
+    assert "Not connected to Red Hat Lightspeed (formerly Insights)" in status_result.stdout
     assert "The yggdrasil service is inactive" in status_result.stdout
 
 
@@ -212,7 +212,7 @@ def test_status_connected_rhsm_masked(external_candlepin, rhc, test_config):
         3.  The command executes and fails.
         4.  The exit code is not 0 because there were errors.
         5.  The status command output contains "Could not activate remote peer",
-            "Connected to Red Hat Insights", and a message indicating
+            "Connected to Red Hat Lightspeed (formerly Insights)", and a message indicating
             that the yggdrasil service is active.
         6.  The 'rhsm.service' is unmasked.
     """
@@ -232,7 +232,7 @@ def test_status_connected_rhsm_masked(external_candlepin, rhc, test_config):
     assert "Could not activate remote peer" in status_result.stdout
 
     # Test other features
-    assert "Connected to Red Hat Insights" in status_result.stdout
+    assert "Connected to Red Hat Lightspeed (formerly Insights)" in status_result.stdout
     assert yggdrasil_service_is_active()
     assert "The yggdrasil service is active" in status_result.stdout
 
@@ -262,7 +262,7 @@ def test_status_disconnected_rhsm_masked(rhc):
         3.  The command executes and fails.
         4.  The exit code is not 0.
         5.  The status command output contains "Could not activate remote peer",
-            "Not connected to Red Hat Insights", and a message indicating
+            "Not connected to Red Hat Lightspeed (formerly Insights)", and a message indicating
             that the yggdrasil service is inactive.
         6.  The 'rhsm.service' is unmasked.
     """
@@ -275,7 +275,7 @@ def test_status_disconnected_rhsm_masked(rhc):
     status_result = rhc.run("status", check=False)
     assert status_result.returncode != 0
     assert "Could not activate remote peer" in status_result.stdout
-    assert "Not connected to Red Hat Insights" in status_result.stdout
+    assert "Not connected to Red Hat Lightspeed (formerly Insights)" in status_result.stdout
     assert "The yggdrasil service is inactive" in status_result.stdout
 
 
@@ -385,7 +385,7 @@ def test_status_connected_yggdrasil_masked(external_candlepin, rhc, test_config)
         3.  The command executes and fails.
         4.  The exit code is not 0.
         5.  The output contains "Connected to Red Hat Subscription Management",
-            "Connected to Red Hat Insights", "Red Hat repository file generated",
+            "Connected to Red Hat Lightspeed (formerly Insights)", "Red Hat repository file generated",
             "Unit yggdrasil.service is masked"
         6.  The 'yggdrasil.service' is unmasked.
     """
@@ -406,7 +406,7 @@ def test_status_connected_yggdrasil_masked(external_candlepin, rhc, test_config)
     assert "Connected to Red Hat Subscription Management" in status_result.stdout
     assert "Red Hat repository file generated" in status_result.stdout
     # Insights
-    assert "Connected to Red Hat Insights" in status_result.stdout
+    assert "Connected to Red Hat Lightspeed (formerly Insights)" in status_result.stdout
     # yggdrasil
     assert not yggdrasil_service_is_active()
     assert "Unit yggdrasil.service is masked" in status_result.stdout
@@ -421,7 +421,7 @@ def test_status_connected_yggdrasil_masked_format_json(external_candlepin, rhc, 
         and yggdrasil service is masked
     :description:
         Test the output of the 'rhc status --format json' command when the host is
-        connected to Subscription Management and Insights, but the yggdrasil.service
+        connected to Subscription Management and Lightspeed, but the yggdrasil.service
         was masked. Verify that the command exit code is not zero and the output
         is valid JSON and contains expected data.
     :tags:
