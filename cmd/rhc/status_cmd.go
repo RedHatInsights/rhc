@@ -110,7 +110,7 @@ func insightStatus(systemStatus *SystemStatus) error {
 	if ui.IsOutputRich() {
 		s = spinner.New(spinner.CharSets[9], 100*time.Millisecond)
 		s.Prefix = ui.Indent.Medium + "["
-		s.Suffix = "] Checking Red Hat Insights..."
+		s.Suffix = "] Checking Red Hat Lightspeed (formerly Insights)..."
 		s.Start()
 	}
 	isRegistered, err := datacollection.InsightsClientIsRegistered()
@@ -120,7 +120,7 @@ func insightStatus(systemStatus *SystemStatus) error {
 	if isRegistered {
 		systemStatus.InsightsConnected = true
 		ui.Printf(
-			"%s[%v] Analytics ... Connected to Red Hat Insights\n",
+			"%s[%v] Analytics ... Connected to Red Hat Lightspeed (formerly Insights)\n",
 			ui.Indent.Medium,
 			ui.Icons.Ok,
 		)
@@ -129,7 +129,7 @@ func insightStatus(systemStatus *SystemStatus) error {
 		if err == nil {
 			systemStatus.InsightsConnected = false
 			ui.Printf(
-				"%s[ ] Analytics ... Not connected to Red Hat Insights\n",
+				"%s[ ] Analytics ... Not connected to Red Hat Lightspeed (formerly Insights)\n",
 				ui.Indent.Medium,
 			)
 		} else {
@@ -252,7 +252,7 @@ func beforeStatusAction(ctx *cli.Context) error {
 // statusAction tries to print status of system. It means that it gives
 // answer on following questions:
 // 1. Is system registered to Red Hat Subscription Management?
-// 2. Is system connected to Red Hat Insights?
+// 2. Is system connected to Red Hat Lightspeed?
 // 3. Is yggdrasil.service (rhcd.service) running?
 // Status can be printed as human-readable text or machine-readable JSON document.
 // Format is influenced by --format json CLI option stored in CLI context
@@ -326,7 +326,7 @@ func statusAction(ctx *cli.Context) (err error) {
 	err = insightStatus(&systemStatus)
 	if err != nil {
 		ui.Printf(
-			"%s[%v] Analytics ... Cannot detect Red Hat Insights status: %v\n",
+			"%s[%v] Analytics ... Cannot detect Red Hat Lightspeed (formerly Insights) status: %v\n",
 			ui.Indent.Medium,
 			ui.Icons.Error,
 			err,

@@ -40,7 +40,7 @@ def test_rhc_disconnect(external_candlepin, rhc, test_config, output_format):
         4.  The exit code is 0.
         5.  The system is unregistered and the yggdrasil service is inactive.
         6.  For text output, stdout contains "Deactivated the yggdrasil service",
-            "Disconnected from Red Hat Insights", and "Disconnected from Red Hat Subscription Management".
+            "Disconnected from Red Hat Lightspeed (formerly Insights)", and "Disconnected from Red Hat Subscription Management".
             For JSON output, comprehensive validation is performed on the response values.
     """
 
@@ -62,7 +62,7 @@ def test_rhc_disconnect(external_candlepin, rhc, test_config, output_format):
     if output_format is None:
         # plain text checks
         assert "Deactivated the yggdrasil service" in disconnect_result.stdout
-        assert "Disconnected from Red Hat Insights" in disconnect_result.stdout
+        assert "Disconnected from Red Hat Lightspeed (formerly Insights)" in disconnect_result.stdout
         assert (
             "Disconnected from Red Hat Subscription Management"
             in disconnect_result.stdout
@@ -100,7 +100,7 @@ def test_disconnect_when_already_disconnected(rhc, output_format):
         3.  The exit code 0
         4.  The system is unregistered.
         5.  For text output, stdout contains "The yggdrasil service is already inactive",
-            "Already disconnected from Red Hat Insights",
+            "Already disconnected from Red Hat Lightspeed (formerly Insights)",
             and "Already disconnected from Red Hat Subscription Management".
             For JSON output, comprehensive validation is performed on the response structure and values.
     """
@@ -118,7 +118,7 @@ def test_disconnect_when_already_disconnected(rhc, output_format):
     if output_format is None:
         # plain text checks
         assert "The yggdrasil service is already inactive" in disconnect_result.stdout
-        assert "Already disconnected from Red Hat Insights" in disconnect_result.stdout
+        assert "Already disconnected from Red Hat Lightspeed (formerly Insights)" in disconnect_result.stdout
         assert (
             "Already disconnected from Red Hat Subscription Management"
             in disconnect_result.stdout
