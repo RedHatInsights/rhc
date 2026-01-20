@@ -11,3 +11,5 @@ rhc.spec
 /SRPMS
 settings.toml
 .secrets.toml
+/rhc*.tar.*
+/vendor/
