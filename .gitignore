@@ -2,10 +2,12 @@
 /rhc.1.gz
 /USAGE.md
 rhc.spec
-BUILD
-BUILDROOT
-RPMS
-SOURCES
-SRPMS
+!/rhc.spec
+/_build/
+/BUILD
+/BUILDROOT
+/RPMS
+/SOURCES
+/SRPMS
 settings.toml
 .secrets.toml
