@@ -36,13 +36,22 @@ def check_yggdrasil_journalctl_logs(
 
 def prepare_args_for_connect(
     test_config,
-    auth: str = None,
+    auth: str = "activation-key",
     credentials: dict = None,
     output_format: str = None,
     content_template: str = None,
 ):
-    """Method to create arguments to be passed in 'rhc connect' command
-    This method expects either auth type or custom credentials
+    """Method to create arguments to be passed in 'rhc connect' command.
+
+    This method expects either auth type or custom credentials.
+
+    Args:
+        test_config: Test configuration object
+        auth: Authentication method. Default is "activation-key" (preferred).
+              Use "basic" only when specifically testing username/password auth.
+        credentials: Custom credentials dict (overrides auth parameter)
+        output_format: Output format (e.g., "json")
+        content_template: Content template name
     """
     args = []
     if credentials:
