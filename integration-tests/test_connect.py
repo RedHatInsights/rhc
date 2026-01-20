@@ -417,8 +417,8 @@ def test_connect_proxy(
     yggdrasil_proxy_config(proxy_url)
 
     rhc.connect(
-        username=test_config.get("candlepin.username"),
-        password=test_config.get("candlepin.password"),
+        activationkey=test_config.get("candlepin.activation_keys")[0],
+        org=test_config.get("candlepin.org"),
     )
     # validate the connection
     assert rhc.is_registered
@@ -763,7 +763,7 @@ def test_connect_with_feature_enabled_disabled_combinations(
     with contextlib.suppress(Exception):
         rhc.disconnect()
 
-    command_args = prepare_args_for_connect(test_config, auth="basic", output_format="json")
+    command_args = prepare_args_for_connect(test_config, auth="activation-key", output_format="json")
 
     # Add --enable-feature flags for enabled features
     for feature in enabled_features:
