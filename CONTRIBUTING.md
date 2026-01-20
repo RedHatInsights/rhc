@@ -1,27 +1,36 @@
-# Prerequisites
+# CONTRIBUTING
 
-Currently `rhc` is written under the assumption that it is running on a Red Hat
-Enterprise Linux distribution. It will likely work on other RHEL-compatible
-distributions, but may require additional packages or adjustments in order to
-fully function.
+## Prerequisites
 
-# Building
+`rhc` is written under the assumption it is running on Red Hat Enterprise Linux,
+CentOS Stream or Fedora. Only RHEL is officially supported.
 
-It is possible to build `rhc` binary simply by running:
+## Building
 
+The easiest way to create a development build of `rhc` is to call `go build` directly:
+
+```shell
+$ go build ./cmd/rhc
 ```
-meson setup builddir
-meson compile -C builddir
+
+## Packaging
+
+```shell
+$ sudo dnf copr enable @go-sig/go-vendor-tools-dev
+$ sudo dnf install go-vendor-tools
+$ # Create source code and vendor tarballs
+$ #  Alternatively, you can download already release tarball by calling `spectool -g rhc.spec`
+$ make archive
+$ # Prepare source RPM
+$ make srpm
+$ # Build binary RPMs
+$ mock -r fedora-43-x86_64 ~/rpmbuild/SRPMS/rhc-*.src.rpm
 ```
 
-The resulting binary will be in the `builddir` directory.
+You can create an RPM package using [packit](https://packit.dev/docs/cli) CLI too:
 
-If you want to install `rhc` into system, then it is recommended to create
-RPM package and install rhc using package manager like dnf. You can
-create RPM package using [packit](https://packit.dev/docs/cli) CLI too:
-
-```
-packit build locally
+```shell
+$ packit build locally
 ```
 
 # Remote Debugging
