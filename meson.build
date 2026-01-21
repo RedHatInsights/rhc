@@ -1,4 +1,4 @@
-project('rhc', version : '0.3.7', meson_version : '>= 0.56.0')
+project('rhc', version : '0.3.8', meson_version : '>= 0.56.0')
 
 go = find_program('go')
 systemd = dependency('systemd', version: '>=239')
