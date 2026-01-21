@@ -26,19 +26,6 @@ var (
 	// Version is the version as described by git.
 	Version string
 
-	// ShortName is used as a prefix to binary file names.
-	ShortName string
-
-	// LongName is used in file and directory names.
-	LongName string
-
-	// TopicPrefix is used as a prefix to all MQTT topics in the client.
-	TopicPrefix string
-
-	// Provider is used when constructing user-facing string output to identify
-	// the agency providing the connection broker.
-	Provider string
-
 	// ServiceName us used for manipulating of yggdrasil service
 	// It can be branded to rhcd on RHEL
 	ServiceName string
@@ -96,18 +83,6 @@ func init() {
 		DbusInterfacesDir = filepath.Join(DataDir, "dbus-1", "interfaces")
 	}
 
-	if ShortName == "" {
-		ShortName = "rhc"
-	}
-	if LongName == "" {
-		LongName = "rhc"
-	}
-	if TopicPrefix == "" {
-		TopicPrefix = "rhc"
-	}
-	if Provider == "" {
-		Provider = "Red Hat"
-	}
 	if ServiceName == "" {
 		ServiceName = "yggdrasil"
 	}
