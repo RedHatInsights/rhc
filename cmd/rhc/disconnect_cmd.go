@@ -187,7 +187,7 @@ func disconnectAction(ctx *cli.Context) error {
 		}
 	}
 
-	ui.Printf("Disconnecting %v from %v.\nThis might take a few seconds.\n\n", hostname, Provider)
+	ui.Printf("Disconnecting %v from Red Hat.\nThis might take a few seconds.\n\n", hostname)
 
 	var start time.Time
 	durations := make(map[string]time.Duration)
