@@ -84,6 +84,7 @@ func beforeAction(c *cli.Context) error {
 	conf.Config = conf.Conf{
 		CertFile: c.String(cliCertFile),
 		KeyFile:  c.String(cliKeyFile),
+		Features: conf.Features{},
 	}
 
 	logLevelStr := c.String(cliLogLevel)
@@ -95,6 +96,17 @@ func beforeAction(c *cli.Context) error {
 	if !c.Bool("generate-man-page") && !c.Bool("generate-markdown") {
 		configureFileLogging(conf.Config.LogLevel)
 		slog.Info(c.App.Name+" started", "version", Version, "pid", os.Getpid())
+	}
+
+	// Load features from drop-in config file and set them in conf.Config
+	// TODO: When drop-in configuration is fully supported, manually loading features
+	// may be unnecessary.
+	featuresConfig, err := features.GetFeaturesFromFile("/etc/rhc/config.toml.d/01-features.toml")
+	if err != nil {
+		slog.Warn(fmt.Sprintf("failed to get features from drop-in config file: %s", err.Error()))
+	}
+	if featuresConfig != nil {
+		conf.Config.Features = *featuresConfig
 	}
 
 	// When environment variable NO_COLOR or --no-color CLI option is set, then do not display colors

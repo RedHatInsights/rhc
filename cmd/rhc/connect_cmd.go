@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/redhatinsights/rhc/internal/conf"
 	"github.com/redhatinsights/rhc/internal/features"
 	"github.com/redhatinsights/rhc/internal/rhsm"
 	"github.com/urfave/cli/v2"
@@ -281,7 +282,14 @@ func beforeConnectAction(ctx *cli.Context) error {
 		}
 	}
 
-	err = features.CheckFeatureInput(&enabledFeatures, &disabledFeatures)
+	// Consolidate the features values from the drop-in configuration file and CLI flags
+	consolidatedEnabledFeatures, consolidatedDisabledFeatures, err := features.ConsolidateSelectedFeatures(&conf.Config, enabledFeatures, disabledFeatures)
+	if err != nil {
+		return cli.Exit(err.Error(), ExitCodeUsage)
+	}
+
+	// Validate the selected features and their dependencies
+	err = features.ValidateSelectedFeatures(&consolidatedEnabledFeatures, &consolidatedDisabledFeatures)
 	if err != nil {
 		return cli.Exit(err.Error(), ExitCodeUsage)
 	}
