@@ -1,26 +1,26 @@
-package http
+package httpapi
 
 import (
 	"crypto/tls"
 	"fmt"
 	"net/http"
+	"time"
 )
+
+// FIXME: Make uploadTimeout configurable
+const uploadTimeout = 60 * time.Second
 
 type Client struct {
 	client http.Client
 }
 
-func NewHTTPClient(tlsConfig *tls.Config) *Client {
-
-	// Create a httpClient with the configured tlsConfig.
-	// Use the DefaultTransport, as it has some configuration by default.
-	client := http.Client{
-		Transport: http.DefaultTransport.(*http.Transport).Clone(),
-	}
-	client.Transport.(*http.Transport).TLSClientConfig = tlsConfig.Clone()
-
-	return &Client{
-		client: client,
+// NewHTTPClient returns an HTTP client configured with TLS certificates for secure uploads.
+func NewHTTPClient(tlsConfig *tls.Config) *http.Client {
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.TLSClientConfig = tlsConfig.Clone()
+	return &http.Client{
+		Timeout:   uploadTimeout,
+		Transport: transport,
 	}
 }
 
