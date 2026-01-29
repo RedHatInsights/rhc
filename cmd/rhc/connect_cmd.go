@@ -337,7 +337,7 @@ func connectAction(ctx *cli.Context) error {
 		}
 	}
 
-	ui.Printf("Connecting %v to %v.\nThis might take a few seconds.\n\n", hostname, Provider)
+	ui.Printf("Connecting %v to Red Hat.\nThis might take a few seconds.\n\n", hostname)
 
 	var featuresStr []string
 	for _, feature := range features.KnownFeatures {
