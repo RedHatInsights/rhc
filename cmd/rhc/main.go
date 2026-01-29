@@ -130,10 +130,10 @@ func exitErrHandler(c *cli.Context, err error) {
 
 func main() {
 	app := cli.NewApp()
-	app.Name = ShortName
+	app.Name = "rhc"
 	app.Version = Version
-	app.Usage = "control the system's connection to " + Provider
-	app.Description = "The " + app.Name + " command controls the system's connection to " + Provider + ".\n\n" +
+	app.Usage = "control the system's connection to Red Hat"
+	app.Description = "The " + app.Name + " command controls the system's connection to Red Hat.\n\n" +
 		"To connect the system using an activation key:\n" +
 		"\t" + app.Name + " connect --organization ID --activation-key KEY\n\n" +
 		"To connect the system using a username and password:\n" +
@@ -239,9 +239,9 @@ func main() {
 					Aliases: []string{"f"},
 				},
 			},
-			Usage:       "Connects the system to " + Provider,
+			Usage:       "Connects the system to Red Hat",
 			UsageText:   fmt.Sprintf("%v connect [command options]", app.Name),
-			Description: fmt.Sprintf("The connect command connects the system to Red Hat Subscription Management, Red Hat Lightspeed (formerly Insights) and %v and activates the %v service that enables %v to interact with the system. For details visit: https://red.ht/connector", Provider, ServiceName, Provider),
+			Description: fmt.Sprintf("The connect command connects the system to Red Hat Subscription Management, Red Hat Lightspeed (formerly Insights) and Red Hat and activates the %v service that enables Red Hat to interact with the system. For details visit: https://red.ht/connector", ServiceName),
 			Before:      beforeConnectAction,
 			Action:      connectAction,
 		},
@@ -254,9 +254,9 @@ func main() {
 					Aliases: []string{"f"},
 				},
 			},
-			Usage:       "Disconnects the system from " + Provider,
+			Usage:       "Disconnects the system from Red Hat",
 			UsageText:   fmt.Sprintf("%v disconnect", app.Name),
-			Description: fmt.Sprintf("The disconnect command disconnects the system from Red Hat Subscription Management, Red Hat Lightspeed (formerly Insights) and %v and deactivates the %v service. %v will no longer be able to interact with the system.", Provider, ServiceName, Provider),
+			Description: fmt.Sprintf("The disconnect command disconnects the system from Red Hat Subscription Management, Red Hat Lightspeed (formerly Insights) and Red Hat and deactivates the %v service. Red Hat will no longer be able to interact with the system.", ServiceName),
 			Before:      beforeDisconnectAction,
 			Action:      disconnectAction,
 		},
@@ -265,7 +265,7 @@ func main() {
 			Hidden:      true,
 			Usage:       "Prints canonical facts about the system.",
 			UsageText:   fmt.Sprintf("%v canonical-facts", app.Name),
-			Description: fmt.Sprintf("The canonical-facts command prints data that uniquely identifies the system in the %v inventory service. Use only as directed for debugging purposes.", Provider),
+			Description: "The canonical-facts command prints data that uniquely identifies the system in the Red Hat inventory service. Use only as directed for debugging purposes.",
 			Action:      canonicalFactAction,
 		},
 		{
@@ -277,9 +277,9 @@ func main() {
 					Aliases: []string{"f"},
 				},
 			},
-			Usage:       "Prints status of the system's connection to " + Provider,
+			Usage:       "Prints status of the system's connection to Red Hat",
 			UsageText:   fmt.Sprintf("%v status", app.Name),
-			Description: fmt.Sprintf("The status command prints the state of the connection to Red Hat Subscription Management, Red Hat Lightspeed (formerly Insights) and %v.", Provider),
+			Description: "The status command prints the state of the connection to Red Hat Subscription Management, Red Hat Lightspeed (formerly Insights) and Red Hat.",
 			Before:      beforeStatusAction,
 			Action:      statusAction,
 		},
