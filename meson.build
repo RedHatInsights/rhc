@@ -10,8 +10,6 @@ endif
 
 goldflags = get_option('goldflags')
 goldflags += ' -X "main.Version=' + meson.project_version() + '"'
-goldflags += ' -X "main.ShortName=rhc"'
-goldflags += ' -X "main.LongName=rhc"'
 goldflags += ' -X "main.PrefixDir=' + get_option('prefix') + '"'
 goldflags += ' -X "main.BinDir=' + get_option('bindir') + '"'
 goldflags += ' -X "main.SbinDir=' + get_option('sbindir') + '"'
