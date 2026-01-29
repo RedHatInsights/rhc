@@ -58,7 +58,7 @@ func BashComplete(c *cli.Context) {
 
 func ConfigPath() (string, error) {
 	// default config file path in `/etc/rhc/config.toml`
-	filePath := filepath.Join("/etc", LongName, "config.toml")
+	filePath := filepath.Join("/etc", "rhc", "config.toml")
 
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		return "", nil
