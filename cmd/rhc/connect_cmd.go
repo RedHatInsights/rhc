@@ -353,7 +353,7 @@ func connectAction(ctx *cli.Context) error {
 				}
 			}
 			featuresStr = append(featuresStr, "["+ui.Icons.Ok+"]"+feature.ID)
-			slog.Info(fmt.Sprintf("Feature '%s' marked enabled", feature.ID))
+			slog.Debug(fmt.Sprintf("Feature '%s' marked enabled", feature.ID))
 		} else {
 			if ui.IsOutputMachineReadable() {
 				switch feature.ID {
@@ -366,7 +366,7 @@ func connectAction(ctx *cli.Context) error {
 				}
 			}
 			featuresStr = append(featuresStr, "[ ]"+feature.ID)
-			slog.Info(fmt.Sprintf("Feature '%s' marked disabled", feature.ID))
+			slog.Debug(fmt.Sprintf("Feature '%s' marked disabled", feature.ID))
 		}
 	}
 	featuresListStr := strings.Join(featuresStr, ", ")
