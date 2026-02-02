@@ -92,7 +92,7 @@ func (disconnectResult *DisconnectResult) TryDeactivateServices() error {
 	} else {
 		disconnectResult.YggdrasilStopped = true
 		infoMsg := fmt.Sprintf("Deactivated the %s service", ServiceName)
-		slog.Info(infoMsg)
+		slog.Debug(infoMsg)
 		ui.Printf(" [%v] %v\n", ui.Icons.Ok, infoMsg)
 	}
 	return nil
@@ -122,7 +122,7 @@ func (disconnectResult *DisconnectResult) TryUnregisterInsightsClient() error {
 		ui.Printf(" [%v] %v\n", ui.Icons.Error, errMsg)
 	} else {
 		disconnectResult.InsightsDisconnected = true
-		slog.Info("Disconnected from Red Hat Lightspeed")
+		slog.Debug("Disconnected from Red Hat Lightspeed")
 		ui.Printf(" [%v] %v\n", ui.Icons.Ok, "Disconnected from Red Hat Lightspeed (formerly Insights)")
 	}
 	return nil
@@ -160,7 +160,7 @@ func (disconnectResult *DisconnectResult) TryUnregisterRHSM() error {
 
 	disconnectResult.RHSMDisconnected = true
 	infoMsg := "Disconnected from Red Hat Subscription Management"
-	slog.Info(infoMsg)
+	slog.Debug(infoMsg)
 	ui.Printf(" [%v] %v\n", ui.Icons.Ok, infoMsg)
 	return nil
 }

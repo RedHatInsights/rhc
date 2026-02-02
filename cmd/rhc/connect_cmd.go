@@ -96,7 +96,7 @@ func (connectResult *ConnectResult) TryRegisterRHSM(ctx *cli.Context) {
 		)
 	} else {
 		connectResult.RHSMConnected = true
-		slog.Info(returnedMsg)
+		slog.Debug(returnedMsg)
 		ui.Printf("%s[%v] %s\n", ui.Indent.Small, ui.Icons.Ok, returnedMsg)
 		if features.ContentFeature.Enabled {
 			connectResult.Features.Content.Successful = true
@@ -146,7 +146,7 @@ func (connectResult *ConnectResult) TryRegisterInsightsClient() {
 	}
 
 	connectResult.Features.Analytics.Successful = true
-	slog.Info("Connected to Red Hat Lightspeed")
+	slog.Debug("Connected to Red Hat Lightspeed")
 	ui.Printf("%s[%v] Analytics ... Connected to Red Hat Lightspeed (formerly Insights)\n", ui.Indent.Medium, ui.Icons.Ok)
 }
 
@@ -201,7 +201,7 @@ func (connectResult *ConnectResult) TryActivateServices() {
 
 	connectResult.Features.RemoteManagement.Successful = true
 	infoMsg := fmt.Sprintf("Activated the %s service", ServiceName)
-	slog.Info(infoMsg)
+	slog.Debug(infoMsg)
 	ui.Printf("%s[%v] Remote Management ... %s\n", ui.Indent.Medium, ui.Icons.Ok, infoMsg)
 }
 
