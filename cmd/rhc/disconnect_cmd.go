@@ -101,17 +101,16 @@ func (disconnectResult *DisconnectResult) TryDeactivateServices() error {
 // TryUnregisterInsightsClient tries to unregister insights-client if the client hasn't been
 // already unregistered
 func (disconnectResult *DisconnectResult) TryUnregisterInsightsClient() error {
-	slog.Info("Disconnecting from Red Hat Lightspeed (formerly Insights)")
+	slog.Info("Disconnecting from Red Hat Lightspeed")
 
 	isRegistered, err := datacollection.InsightsClientIsRegistered()
 	if err != nil {
 		return err
 	}
 	if !isRegistered {
-		infoMsg := "Already disconnected from Red Hat Lightspeed (formerly Insights)"
 		disconnectResult.InsightsDisconnected = true
-		slog.Info(infoMsg)
-		ui.Printf(" [%v] %v\n", ui.Icons.Info, infoMsg)
+		slog.Info("Already disconnected from Red Hat Lightspeed")
+		ui.Printf(" [%v] %v\n", ui.Icons.Info, "Already disconnected from Red Hat Lightspeed (formerly Insights)")
 		return nil
 	}
 	err = ui.Spinner(datacollection.UnregisterInsightsClient, ui.Indent.Small, "Disconnecting from Red Hat Lightspeed (formerly Insights)...")
@@ -119,13 +118,12 @@ func (disconnectResult *DisconnectResult) TryUnregisterInsightsClient() error {
 		errMsg := fmt.Sprintf("Cannot disconnect from Red Hat Lightspeed (formerly Insights): %v", err)
 		disconnectResult.InsightsDisconnected = false
 		disconnectResult.InsightsDisconnectedError = errMsg
-		slog.Error(errMsg)
+		slog.Error(fmt.Sprintf("Cannot disconnect from Red Hat Lightspeed: %v", err))
 		ui.Printf(" [%v] %v\n", ui.Icons.Error, errMsg)
 	} else {
 		disconnectResult.InsightsDisconnected = true
-		infoMsg := "Disconnected from Red Hat Lightspeed (formerly Insights)"
-		slog.Info(infoMsg)
-		ui.Printf(" [%v] %v\n", ui.Icons.Ok, infoMsg)
+		slog.Info("Disconnected from Red Hat Lightspeed")
+		ui.Printf(" [%v] %v\n", ui.Icons.Ok, "Disconnected from Red Hat Lightspeed (formerly Insights)")
 	}
 	return nil
 }

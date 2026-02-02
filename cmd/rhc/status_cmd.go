@@ -103,7 +103,7 @@ func isContentEnabled(systemStatus *SystemStatus) error {
 
 // insightStatus tries to print status of insights client
 func insightStatus(systemStatus *SystemStatus) error {
-	slog.Info("Checking status of Red Hat Lightspeed (formerly Insights)")
+	slog.Info("Checking status of Red Hat Lightspeed")
 
 	var s *spinner.Spinner
 	if ui.IsOutputRich() {
@@ -118,16 +118,14 @@ func insightStatus(systemStatus *SystemStatus) error {
 	}
 	if isRegistered {
 		systemStatus.InsightsConnected = true
-		infoMsg := "Connected to Red Hat Lightspeed (formerly Insights)"
-		slog.Info(infoMsg)
-		ui.Printf("%s[%v] Analytics ... %v\n", ui.Indent.Medium, ui.Icons.Ok, infoMsg)
+		slog.Info("Connected to Red Hat Lightspeed")
+		ui.Printf("%s[%v] Analytics ... Connected to Red Hat Lightspeed (formerly Insights)\n", ui.Indent.Medium, ui.Icons.Ok)
 	} else {
 		systemStatus.returnCode += 1
 		if err == nil {
 			systemStatus.InsightsConnected = false
-			infoMsg := "Not connected to Red Hat Lightspeed (formerly Insights)"
-			slog.Info(infoMsg)
-			ui.Printf("%s[ ] Analytics ... %v\n", ui.Indent.Medium, infoMsg)
+			slog.Info("Not connected to Red Hat Lightspeed")
+			ui.Printf("%s[ ] Analytics ... Not connected to Red Hat Lightspeed (formerly Insights)\n", ui.Indent.Medium)
 		} else {
 			systemStatus.InsightsConnected = false
 			systemStatus.InsightsError = err.Error()
@@ -323,9 +321,12 @@ func statusAction(ctx *cli.Context) (err error) {
 	/* 3. Get status of insights-client */
 	err = insightStatus(&systemStatus)
 	if err != nil {
-		errMsg := fmt.Sprintf("Cannot detect Red Hat Lightspeed (formerly Insights) status: %v", err)
-		slog.Error(errMsg)
-		ui.Printf("%s[%v] Analytics ... %v\n", ui.Indent.Medium, ui.Icons.Error, errMsg)
+		slog.Error(fmt.Sprintf("Cannot detect Red Hat Lightspeed status: %v", err))
+		ui.Printf("%s[%v] Analytics ... Cannot detect Red Hat Lightspeed (formerly Insights) status: %v\n",
+			ui.Indent.Medium,
+			ui.Icons.Error,
+			err,
+		)
 	}
 
 	/* 3. Get status of yggdrasil (rhcd) service */
