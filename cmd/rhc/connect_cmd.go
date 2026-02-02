@@ -88,7 +88,7 @@ func (connectResult *ConnectResult) TryRegisterRHSM(ctx *cli.Context) {
 			ui.Indent.Small,
 			ui.Icons.Error,
 		)
-		slog.Warn("Skipping generation of Red Hat repository file (RHSM registration failed)")
+		slog.Warn("Skipping generation of redhat.repo (RHSM registration failed)")
 		ui.Printf(
 			"%s[%v] Skipping generation of Red Hat repository file\n",
 			ui.Indent.Medium,
@@ -100,12 +100,11 @@ func (connectResult *ConnectResult) TryRegisterRHSM(ctx *cli.Context) {
 		ui.Printf("%s[%v] %s\n", ui.Indent.Small, ui.Icons.Ok, returnedMsg)
 		if features.ContentFeature.Enabled {
 			connectResult.Features.Content.Successful = true
-			infoMsg := "Red Hat repository file generated"
-			slog.Info(infoMsg)
-			ui.Printf("%s[%v] Content ... %s\n", ui.Indent.Medium, ui.Icons.Ok, infoMsg)
+			slog.Info("redhat.repo has been generated")
+			ui.Printf("%s[%v] Content ... Red Hat repository file generated\n", ui.Indent.Medium, ui.Icons.Ok)
 		} else {
 			connectResult.Features.Content.Successful = false
-			slog.Info("Red Hat repository file not generated (content feature disabled)")
+			slog.Info("redhat.repo not generated (content feature disabled)")
 			ui.Printf("%s[ ] Content ... Red Hat repository file not generated\n", ui.Indent.Medium)
 		}
 	}
