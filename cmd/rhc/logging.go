@@ -87,6 +87,9 @@ func configureFileLogging(logLevel slog.Leveler) {
 
 	logger := slog.New(h)
 	slog.SetDefault(logger)
+
+	// write empty line to separate log entries between runs of the program
+	_, _ = fmt.Fprintln(logFile)
 }
 
 // closeLogFile syncs and then closes the log file.
@@ -94,9 +97,6 @@ func closeLogFile() error {
 	if logFile == nil {
 		return nil
 	}
-
-	// write empty line to separate log entries between runs of the program
-	_, _ = fmt.Fprintln(logFile)
 
 	syncErr := logFile.Sync()
 
