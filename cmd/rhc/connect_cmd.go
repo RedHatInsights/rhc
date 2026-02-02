@@ -116,13 +116,13 @@ func (connectResult *ConnectResult) TryRegisterRHSM(ctx *cli.Context) {
 func (connectResult *ConnectResult) TryRegisterInsightsClient() {
 	if !features.AnalyticsFeature.Enabled {
 		connectResult.Features.Analytics.Successful = false
-		slog.Info("Connecting to Red Hat Lightspeed (formerly Insights) disabled (analytics feature disabled)")
+		slog.Info("Connecting to Red Hat Lightspeed disabled (analytics feature disabled)")
 		ui.Printf("%s[ ] Analytics ... Connecting to Red Hat Lightspeed (formerly Insights) disabled\n", ui.Indent.Medium)
 		return
 	}
 
 	if connectResult.RHSMConnectError != "" {
-		slog.Warn("Skipping connection to Red Hat Lightspeed (formerly Insights) (RHSM registration failed)", "rhsm_error", connectResult.RHSMConnectError)
+		slog.Warn("Skipping connection to Red Hat Lightspeed (RHSM registration failed)", "rhsm_error", connectResult.RHSMConnectError)
 		ui.Printf(
 			"%s[%v] Skipping connection to Red Hat Lightspeed (formerly Insights)\n",
 			ui.Indent.Medium,
@@ -131,12 +131,12 @@ func (connectResult *ConnectResult) TryRegisterInsightsClient() {
 		return
 	}
 
-	slog.Info("Connecting to Red Hat Lightspeed (formerly Insights)")
+	slog.Info("Connecting to Red Hat Lightspeed")
 	err := ui.Spinner(datacollection.RegisterInsightsClient, ui.Indent.Medium, "Connecting to Red Hat Lightspeed (formerly Insights)...")
 	if err != nil {
 		connectResult.Features.Analytics.Successful = false
 		connectResult.Features.Analytics.Error = fmt.Sprintf("cannot connect to Red Hat Lightspeed (formerly Insights): %v", err)
-		slog.Error(connectResult.Features.Analytics.Error)
+		slog.Error(fmt.Sprintf("cannot connect to Red Hat Lightspeed: %v", err))
 		ui.Printf(
 			"%s[%v] Analytics ... Cannot connect to Red Hat Lightspeed (formerly Insights)\n",
 			ui.Indent.Medium,
@@ -146,9 +146,8 @@ func (connectResult *ConnectResult) TryRegisterInsightsClient() {
 	}
 
 	connectResult.Features.Analytics.Successful = true
-	infoMsg := "Connected to Red Hat Lightspeed (formerly Insights)"
-	slog.Info(infoMsg)
-	ui.Printf("%s[%v] Analytics ... %s\n", ui.Indent.Medium, ui.Icons.Ok, infoMsg)
+	slog.Info("Connected to Red Hat Lightspeed")
+	ui.Printf("%s[%v] Analytics ... Connected to Red Hat Lightspeed (formerly Insights)\n", ui.Indent.Medium, ui.Icons.Ok)
 }
 
 // TryActivateServices will attempt to activate the yggdrasil service.
