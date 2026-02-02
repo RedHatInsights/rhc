@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -89,4 +90,25 @@ func setupFormatOption(ctx *cli.Context) error {
 		)
 		return cli.Exit(err, ExitCodeDataErr)
 	}
+}
+
+// getFullCommandName uses ctx.Lineage() to reconstruct the full command name including parent commands,
+// excluding flags and arguments
+func getFullCommandName(ctx *cli.Context) string {
+	var commandParts []string
+	for _, c := range ctx.Lineage() {
+		if c.Command != nil {
+			commandParts = append([]string{c.Command.Name}, commandParts...)
+		}
+	}
+
+	return strings.Join(commandParts, " ")
+}
+
+// logCommandStart logs the start of a command execution. This should be called at the beginning
+// of each command's Action function to ensure the full command name (including all subcommands)
+// is properly logged.
+func logCommandStart(ctx *cli.Context) {
+	fullCommandName := getFullCommandName(ctx)
+	slog.Info(fmt.Sprintf("Command '%s' started", fullCommandName))
 }

@@ -167,8 +167,6 @@ func (disconnectResult *DisconnectResult) TryUnregisterRHSM() error {
 
 // beforeDisconnectAction ensures the user has supplied a correct `--format` flag
 func beforeDisconnectAction(ctx *cli.Context) error {
-	slog.Debug("Command 'rhc disconnect' started")
-
 	err := setupFormatOption(ctx)
 	if err != nil {
 		return err
@@ -182,6 +180,8 @@ func beforeDisconnectAction(ctx *cli.Context) error {
 // disconnectAction tries to stop (yggdrasil) rhcd service, disconnect from Red Hat Lightspeed,
 // and finally it unregisters system from Red Hat Subscription Management
 func disconnectAction(ctx *cli.Context) error {
+	logCommandStart(ctx)
+
 	var disconnectResult DisconnectResult
 	disconnectResult.format = ctx.String("format")
 

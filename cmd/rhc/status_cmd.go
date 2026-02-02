@@ -238,7 +238,6 @@ func beforeStatusAction(ctx *cli.Context) error {
 
 	configureUI(ctx)
 
-	slog.Debug("Command 'rhc status' started")
 	return checkForUnknownArgs(ctx)
 }
 
@@ -250,6 +249,8 @@ func beforeStatusAction(ctx *cli.Context) error {
 // Status can be printed as human-readable text or machine-readable JSON document.
 // Format is influenced by --format json CLI option stored in CLI context
 func statusAction(ctx *cli.Context) (err error) {
+	logCommandStart(ctx)
+
 	var systemStatus SystemStatus
 	var machineReadablePrintFunc func(systemStatus *SystemStatus) error
 

@@ -211,8 +211,6 @@ func (connectResult *ConnectResult) TryActivateServices() {
 // message and error code. The exit codes are defined in the
 // constants.go module
 func beforeConnectAction(ctx *cli.Context) error {
-	slog.Debug("Command 'rhc connect' started")
-
 	// First check if machine-readable format is used
 	err := setupFormatOption(ctx)
 	if err != nil {
@@ -303,6 +301,8 @@ func beforeConnectAction(ctx *cli.Context) error {
 // gather the profile information that the system will configure
 // connect system to Red Hat Lightspeed, and it also tries to start rhcd service
 func connectAction(ctx *cli.Context) error {
+	logCommandStart(ctx)
+
 	var connectResult ConnectResult
 	connectResult.format = ctx.String("format")
 
