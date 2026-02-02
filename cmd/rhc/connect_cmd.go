@@ -220,6 +220,7 @@ func beforeConnectAction(ctx *cli.Context) error {
 	configureUI(ctx)
 
 	// When machine is already connected, then return error
+	slog.Info("Checking system connection status")
 	uuid, err := rhsm.GetConsumerUUID()
 	if err != nil {
 		return cli.Exit(
@@ -228,6 +229,7 @@ func beforeConnectAction(ctx *cli.Context) error {
 		)
 	}
 	if uuid != "" {
+		slog.Info("Consumer UUID is set, system is already connected")
 		return cli.Exit("this system is already connected", ExitCodeUsage)
 	}
 
