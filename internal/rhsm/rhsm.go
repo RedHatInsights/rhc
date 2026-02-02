@@ -110,6 +110,7 @@ func registerUsernamePassword(username, password, organization string, environme
 
 	locale := localization.GetLocale()
 
+	slog.Debug("Opening private D-Bus UNIX socket")
 	var privateDbusSocketURI string
 	if err := registerServer.Call(
 		"com.redhat.RHSM1.RegisterServer.Start",
@@ -117,20 +118,25 @@ func registerUsernamePassword(username, password, organization string, environme
 		locale).Store(&privateDbusSocketURI); err != nil {
 		return orgs, err
 	}
-	defer registerServer.Call(
-		"com.redhat.RHSM1.RegisterServer.Stop",
-		dbus.FlagNoReplyExpected,
-		locale)
+	defer func() {
+		slog.Debug("Closing private UNIX socket", "socket", privateDbusSocketURI)
+		registerServer.Call(
+			"com.redhat.RHSM1.RegisterServer.Stop",
+			dbus.FlagNoReplyExpected,
+			locale)
+	}()
 
+	slog.Debug("Connecting to private D-Bus UNIX socket", "socket", privateDbusSocketURI)
 	privConn, err := dbus.Dial(privateDbusSocketURI)
 	if err != nil {
 		return orgs, err
 	}
 	defer func() {
+		slog.Debug("Closing connection to private D-Bus UNIX socket", "socket", privateDbusSocketURI)
 		err = privConn.Close()
 		if err != nil {
-			slog.Error(
-				"unable to close connection to private dbus socket",
+			slog.Warn(
+				"Unable to close connection to private D-Bus UNIX socket",
 				"socket", privateDbusSocketURI,
 				"err", err,
 			)
@@ -150,6 +156,7 @@ func registerUsernamePassword(username, password, organization string, environme
 
 	options["enable_content"] = fmt.Sprintf("%v", enableContent)
 
+	slog.Debug("Calling method com.redhat.RHSM1.Register.Register")
 	if err := privConn.Object(
 		"com.redhat.RHSM1",
 		"/com/redhat/RHSM1/Register").Call(
@@ -174,6 +181,8 @@ func registerUsernamePassword(username, password, organization string, environme
 		// When organization was not specified, and it is required to specify it, then
 		// try to get list of available organizations
 		if organization == "" && dbusError.Exception == "OrgNotSpecifiedException" {
+			slog.Debug("Organization was not specified, retrieving list of available organizations")
+			slog.Debug("Calling method com.redhat.RHSM1.Register.GetOrgs")
 			var s string
 			orgsCall := privConn.Object(
 				"com.redhat.RHSM1",
@@ -202,7 +211,6 @@ func registerUsernamePassword(username, password, organization string, environme
 }
 
 func registerActivationKey(orgID string, activationKeys []string, environments []string, enableContent bool) error {
-
 	conn, err := dbus.SystemBus()
 	if err != nil {
 		return err
@@ -220,6 +228,7 @@ func registerActivationKey(orgID string, activationKeys []string, environments [
 
 	locale := localization.GetLocale()
 
+	slog.Debug("Opening private D-Bus UNIX socket")
 	var privateDbusSocketURI string
 	if err := registerServer.Call(
 		"com.redhat.RHSM1.RegisterServer.Start",
@@ -227,20 +236,25 @@ func registerActivationKey(orgID string, activationKeys []string, environments [
 		locale).Store(&privateDbusSocketURI); err != nil {
 		return err
 	}
-	defer registerServer.Call(
-		"com.redhat.RHSM1.RegisterServer.Stop",
-		dbus.FlagNoReplyExpected,
-		locale)
+	defer func() {
+		slog.Debug("Closing private D-Bus UNIX socket", "socket", privateDbusSocketURI)
+		registerServer.Call(
+			"com.redhat.RHSM1.RegisterServer.Stop",
+			dbus.FlagNoReplyExpected,
+			locale)
+	}()
 
+	slog.Debug("Connecting to private D-Bus UNIX socket", "socket", privateDbusSocketURI)
 	privConn, err := dbus.Dial(privateDbusSocketURI)
 	if err != nil {
 		return err
 	}
 	defer func() {
+		slog.Debug("Closing connection to private D-Bus UNIX socket", "socket", privateDbusSocketURI)
 		err = privConn.Close()
 		if err != nil {
-			slog.Error(
-				"unable to close connection to private dbus socket",
+			slog.Warn(
+				"Unable to close connection to private D-Bus UNIX socket",
 				"socket", privateDbusSocketURI,
 				"err", err,
 			)
@@ -259,6 +273,7 @@ func registerActivationKey(orgID string, activationKeys []string, environments [
 
 	options["enable_content"] = fmt.Sprintf("%v", enableContent)
 
+	slog.Debug("Calling method com.redhat.RHSM1.Register.RegisterWithActivationKeys")
 	if err := privConn.Object(
 		"com.redhat.RHSM1",
 		"/com/redhat/RHSM1/Register").Call(
@@ -291,6 +306,7 @@ func Unregister() error {
 
 	locale := localization.GetLocale()
 
+	slog.Debug("Calling method com.redhat.RHSM1.Unregister.Unregister")
 	err = conn.Object(
 		"com.redhat.RHSM1",
 		"/com/redhat/RHSM1/Unregister").Call(
@@ -382,12 +398,14 @@ func RegisterRHSM(ctx *cli.Context, enableContent bool) (string, error) {
 
 		var err error
 		if len(activationKeys) > 0 {
+			slog.Debug("Registering system with activation keys")
 			err = registerActivationKey(
 				organization,
 				ctx.StringSlice("activation-key"),
 				contentTemplates,
 				enableContent)
 		} else {
+			slog.Debug("Registering system with username and password")
 			var orgs []string
 			if organization != "" {
 				_, err = registerUsernamePassword(username, password, organization, contentTemplates, enableContent)
@@ -427,6 +445,7 @@ func RegisterRHSM(ctx *cli.Context, enableContent bool) (string, error) {
 					}
 
 					// Try to register once again with given organization
+					slog.Debug("Re-attempting registration with username, password and organization")
 					_, err = registerUsernamePassword(username, password, organization, contentTemplates, enableContent)
 				}
 			}
@@ -443,12 +462,15 @@ func RegisterRHSM(ctx *cli.Context, enableContent bool) (string, error) {
 
 // IsRHSMRegistered returns true, when system is registered
 func IsRHSMRegistered() (bool, error) {
+	slog.Debug("Checking if system is registered to Red Hat Subscription Management")
 	uuid, err := GetConsumerUUID()
 	if err != nil {
 		return false, err
 	}
 	if uuid != "" {
+		slog.Debug("Consumer UUID is set, system is registered")
 		return true, nil
 	}
+	slog.Debug("Consumer UUID is not set, system is not registered")
 	return false, nil
 }

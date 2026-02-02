@@ -4,17 +4,20 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os/exec"
 	"strings"
 )
 
 func RegisterInsightsClient() error {
+	slog.Debug("Executing /usr/bin/insights-client --register")
 	cmd := exec.Command("/usr/bin/insights-client", "--register")
 
 	return cmd.Run()
 }
 
 func UnregisterInsightsClient() error {
+	slog.Debug("Executing /usr/bin/insights-client --unregister")
 	cmd := exec.Command("/usr/bin/insights-client", "--unregister")
 
 	return cmd.Run()
@@ -26,6 +29,7 @@ func UnregisterInsightsClient() error {
 // an error value.
 func InsightsClientIsRegistered() (bool, error) {
 	var errBuffer bytes.Buffer
+	slog.Debug("Executing /usr/bin/insights-client --status")
 	cmd := exec.Command("/usr/bin/insights-client", "--status")
 	cmd.Stderr = &errBuffer
 
