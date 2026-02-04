@@ -1,11 +1,13 @@
 package collector
 
 import (
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -14,6 +16,10 @@ import (
 
 // ConfigDir is the default directory path where collector configuration files are stored.
 const ConfigDir = "/usr/lib/rhc/collector/"
+
+// TimerDir is the default directory path where information about collectors execution are stored.
+const TimerDir = "/var/cache/rhc/collectors/"
+
 const defaultMetaType = "ingress"
 const defaultUser = "root"
 const defaultGroup = "root"
@@ -54,6 +60,35 @@ type ingressDto struct {
 	User        *string `toml:"user,omitempty"`
 	Group       *string `toml:"group,omitempty"`
 	ContentType string  `toml:"content_type"`
+}
+
+// Timer represents the execution timing information for a collector.
+type Timer struct {
+	// ID is the unique identifier for the collector.
+	ID string
+	// LastStarted is the timestamp when the collector was last started.
+	LastStarted time.Time
+	// LastFinished is the timestamp when the collector last finished execution.
+	LastFinished time.Time
+	// ExitCode is the exit code from the last execution (0 indicates success).
+	ExitCode int
+}
+
+// startedEventDto represents a collector start event for JSON serialization.
+type startedEventDto struct {
+	Timestamp int64 `json:"timestamp"`
+}
+
+// finishedEventDto represents a collector finish event for JSON serialization.
+type finishedEventDto struct {
+	Timestamp int64 `json:"timestamp"`
+	ExitCode  int   `json:"exit_code"`
+}
+
+// timerDto represents the complete timer data structure for JSON serialization.
+type timerDto struct {
+	LastStarted  *startedEventDto  `json:"last_started"`
+	LastFinished *finishedEventDto `json:"last_finished"`
 }
 
 // GetArchive generates an archive filename and creates a compressed archive from the specified directory.
@@ -102,6 +137,101 @@ func GetConfig(id string) (Config, error) {
 		return Config{}, err
 	}
 	return config, nil
+}
+
+// ReadTimerCache loads timer data from the cache for the specified collector ID.
+func ReadTimerCache(id string) (*Timer, error) {
+	id, err := validateID(id)
+	if err != nil {
+		return nil, err
+	}
+	timer, err := loadTimerFromFile(id)
+	if err != nil {
+		return nil, err
+	}
+	return &timer, nil
+}
+
+// WriteTimerCache saves timer data to the cache for the specified collector ID.
+func WriteTimerCache(id string, timer Timer) error {
+	id, err := validateID(id)
+	if err != nil {
+		return err
+	}
+	dto := timerDto{}
+	if !timer.LastStarted.IsZero() {
+		dto.LastStarted = &startedEventDto{
+			Timestamp: timer.LastStarted.Unix(),
+		}
+	}
+	if !timer.LastFinished.IsZero() {
+		dto.LastFinished = &finishedEventDto{
+			Timestamp: timer.LastFinished.Unix(),
+			ExitCode:  timer.ExitCode,
+		}
+	}
+	return writeTimerToFile(id, dto)
+}
+
+// validateID validates and sanitizes a collector ID.
+// Returns the sanitized ID and an error if validation fails.
+func validateID(id string) (string, error) {
+	re := regexp.MustCompile(`^[a-z0-9]+\.[a-z0-9]+(\.[a-z0-9]+)*$`)
+	if !re.MatchString(id) {
+		slog.Debug("Invalid collector ID", "id", id)
+		return "", fmt.Errorf("invalid collector ID %q", id)
+	}
+	return filepath.Base(id), nil
+}
+
+// writeTimerToFile marshals a timerDto to JSON and writes it to the cache file.
+// Returns an error if JSON marshaling fails or the file cannot be written.
+func writeTimerToFile(id string, dto timerDto) error {
+	jsonData, err := json.Marshal(dto)
+	if err != nil {
+		return err
+	}
+	err = os.MkdirAll(TimerDir, 0755)
+	if err != nil {
+		slog.Debug("Failed to create timer cache directory", "error", err)
+		return err
+	}
+	err = os.WriteFile(filepath.Join(TimerDir, id+".json"), jsonData, 0644)
+	if err != nil {
+		slog.Debug("Failed to write timer cache", "id", id, "error", err)
+		return err
+	}
+	return nil
+}
+
+// loadTimerFromFile reads timer data from the cache file and converts it to a Timer struct.
+// Returns an error if the file cannot be read or the timer data is invalid.
+func loadTimerFromFile(id string) (Timer, error) {
+	timerData, err := os.ReadFile(filepath.Join(TimerDir, id+".json"))
+	if err != nil {
+		return Timer{}, err
+	}
+	timer, err := newTimer(id, timerData)
+	return timer, err
+}
+
+// newTimer creates a Timer struct from JSON timer data.
+// Returns an error if the JSON data cannot be unmarshalled.
+func newTimer(id string, timerData []byte) (Timer, error) {
+	var t timerDto
+	if err := json.Unmarshal(timerData, &t); err != nil {
+		return Timer{}, err
+	}
+
+	timer := Timer{ID: id}
+	if t.LastStarted != nil {
+		timer.LastStarted = time.Unix(t.LastStarted.Timestamp, 0)
+	}
+	if t.LastFinished != nil {
+		timer.LastFinished = time.Unix(t.LastFinished.Timestamp, 0)
+		timer.ExitCode = t.LastFinished.ExitCode
+	}
+	return timer, nil
 }
 
 // createArchive compresses a directory into an xz-compressed tar archive.
