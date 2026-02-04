@@ -11,6 +11,7 @@ import sys
 import urllib.error
 import urllib.request
 from pathlib import Path
+from typing import Tuple
 
 try:
     import tomllib  # Python 3.11+
@@ -29,7 +30,7 @@ PROFILE_PROXY = Path("/etc/profile.d/proxy.sh")
 LOCAL_SETTINGS = Path(__file__).parent.parent / "settings.toml"
 
 
-def load_proxy_settings() -> tuple[str, str, str]:
+def load_proxy_settings() -> Tuple[str, str, str]:
     """Load noauth_proxy host/port from local settings.toml or SETTINGS_URL."""
     if LOCAL_SETTINGS.exists():
         with LOCAL_SETTINGS.open("rb") as fh:
