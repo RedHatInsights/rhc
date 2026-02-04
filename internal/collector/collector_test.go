@@ -339,31 +339,31 @@ func TestGetCollectorConfigName(t *testing.T) {
 			name:       "directory with toml extension",
 			configFile: mockDirEntry{name: "com.directory.toml", isDir: true},
 			want:       "",
-			wantError:  "invalid config file /usr/lib/rhc/collector/com.directory.toml",
+			wantError:  "invalid config file /usr/lib/rhc/collectors/com.directory.toml",
 		},
 		{
 			name:       "file without json extension",
 			configFile: mockDirEntry{name: "com.config.json", isDir: false},
 			want:       "",
-			wantError:  "invalid config file /usr/lib/rhc/collector/com.config.json",
+			wantError:  "invalid config file /usr/lib/rhc/collectors/com.config.json",
 		},
 		{
 			name:       "file with toml in name but different extension",
 			configFile: mockDirEntry{name: "com.config.toml.bak", isDir: false},
 			want:       "",
-			wantError:  "invalid config file /usr/lib/rhc/collector/com.config.toml.bak",
+			wantError:  "invalid config file /usr/lib/rhc/collectors/com.config.toml.bak",
 		},
 		{
 			name:       "file ending with toml but no dot",
 			configFile: mockDirEntry{name: "configtoml", isDir: false},
 			want:       "",
-			wantError:  "invalid config file /usr/lib/rhc/collector/configtoml",
+			wantError:  "invalid config file /usr/lib/rhc/collectors/configtoml",
 		},
 		{
 			name:       "directory without extension",
 			configFile: mockDirEntry{name: "config.directory", isDir: true},
 			want:       "",
-			wantError:  "invalid config file /usr/lib/rhc/collector/config.directory",
+			wantError:  "invalid config file /usr/lib/rhc/collectors/config.directory",
 		},
 		{
 			name:       "file starting with uppercase character",
@@ -375,7 +375,7 @@ func TestGetCollectorConfigName(t *testing.T) {
 			name:       "case sensitivity - uppercase extension",
 			configFile: mockDirEntry{name: "config.TOML", isDir: false},
 			want:       "",
-			wantError:  "invalid config file /usr/lib/rhc/collector/config.TOML",
+			wantError:  "invalid config file /usr/lib/rhc/collectors/config.TOML",
 		},
 	}
 
