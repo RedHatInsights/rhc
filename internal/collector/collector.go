@@ -15,7 +15,7 @@ import (
 )
 
 // ConfigDir is the default directory path where collector configuration files are stored.
-const ConfigDir = "/usr/lib/rhc/collector/"
+const ConfigDir = "/usr/lib/rhc/collectors/"
 
 // TimerDir is the default directory path where information about collectors execution are stored.
 const TimerDir = "/var/cache/rhc/collectors/"
