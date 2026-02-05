@@ -295,6 +295,71 @@ func main() {
 			Before:      beforeStatusAction,
 			Action:      statusAction,
 		},
+		{
+			Name:        "configure",
+			Usage:       "Configure the system's connection to " + Provider,
+			UsageText:   fmt.Sprintf("%v configure", app.Name),
+			Description: fmt.Sprintf("The configure command allows you to set up the system's connection to %v.", Provider),
+			Subcommands: []*cli.Command{
+				{
+					Name:        "features",
+					Usage:       "Configure the system's connection to " + Provider + " features",
+					UsageText:   fmt.Sprintf("%v configure features", app.Name),
+					Description: "The features command allows you to enable or disable " + Provider + " features.",
+					Subcommands: []*cli.Command{
+						{
+							Name:        "enable",
+							Usage:       "Enable given feature(s)",
+							UsageText:   fmt.Sprintf("%v configure features enable FEATURE", app.Name),
+							Description: "Enable given feature(s).",
+							Args:        true,
+							ArgsUsage:   "FEATURE...",
+							Flags: []cli.Flag{
+								&cli.StringFlag{
+									Name:    "format",
+									Usage:   "print output in machine-readable format (supported formats: \"json\")",
+									Aliases: []string{"f"},
+								},
+							},
+							Before: beforeEnableFeaturesAction,
+							Action: enableFeaturesAction,
+						},
+						{
+							Name:        "disable",
+							Usage:       "Disable given feature(s)",
+							UsageText:   fmt.Sprintf("%v configure features disable FEATURE", app.Name),
+							Description: "Disable given feature(s).",
+							Args:        true,
+							ArgsUsage:   "FEATURE...",
+							Flags: []cli.Flag{
+								&cli.StringFlag{
+									Name:    "format",
+									Usage:   "print output in machine-readable format (supported formats: \"json\")",
+									Aliases: []string{"f"},
+								},
+							},
+							Before: beforeDisableFeaturesAction,
+							Action: disableFeaturesAction,
+						},
+						{
+							Name:        "show",
+							Usage:       "Show features state",
+							UsageText:   fmt.Sprintf("%v configure features show", app.Name),
+							Description: "Show features configured for the system.",
+							Flags: []cli.Flag{
+								&cli.StringFlag{
+									Name:    "format",
+									Usage:   "show features in machine-readable format (supported formats: \"json\")",
+									Aliases: []string{"f"},
+								},
+							},
+							Before: beforeShowFeaturesAction,
+							Action: showFeaturesAction,
+						},
+					},
+				},
+			},
+		},
 	}
 	app.EnableBashCompletion = true
 	app.BashComplete = BashComplete
