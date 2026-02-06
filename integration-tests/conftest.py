@@ -77,3 +77,78 @@ Environment=HTTP_PROXY={proxy_url}
 
     except Exception as e:
         logger.error(f"Error during yggdrasil proxy cleanup: {e}")
+
+
+@pytest.fixture(scope="function")
+def features_config_file():
+    """
+    Fixture to manage the RHC features drop-in configuration file.
+    Creates the config directory and file, and cleans up after test completion.
+
+    Usage:
+        def test_example(features_config_file):
+            features_config_file.write('features = { "content" = true }')
+            # ... run test ...
+            # Cleanup happens automatically after test
+
+    The fixture provides:
+        - write(content: str): Write TOML content to the config file
+        - remove(): Remove the config file if it exists
+        - path: The path to the config file
+        - dir: The path to the config directory
+    """
+    RHC_CONFIG_DIR = "/etc/rhc/config.toml.d"
+    RHC_FEATURES_CONFIG_FILE = f"{RHC_CONFIG_DIR}/01-features.toml"
+    class FeaturesConfigManager:
+        def __init__(self):
+            self.dir = RHC_CONFIG_DIR
+            self.path = RHC_FEATURES_CONFIG_FILE
+            self._dir_existed = os.path.exists(self.dir)
+            self._file_existed = os.path.exists(self.path)
+            self._original_content = None
+            if self._file_existed:
+                with open(self.path, "r") as f:
+                    self._original_content = f.read()
+
+        def write(self, content: str):
+            """Write the features configuration file with the given TOML content"""
+            os.makedirs(self.dir, exist_ok=True)
+            with open(self.path, "w") as f:
+                f.write(content)
+            logger.info(f"Created features config file: {self.path}")
+
+        def remove(self):
+            """Remove the features configuration file if it exists"""
+            if os.path.exists(self.path):
+                os.remove(self.path)
+                logger.info(f"Removed features config file: {self.path}")
+
+        def cleanup(self):
+            """Restore original state of config file and directory"""
+            if self._file_existed and self._original_content is not None:
+                # Restore original content
+                with open(self.path, "w") as f:
+                    f.write(self._original_content)
+                logger.info(f"Restored original features config file: {self.path}")
+            elif os.path.exists(self.path):
+                # File was created by test, remove it
+                os.remove(self.path)
+                logger.info(f"Removed test-created features config file: {self.path}")
+
+            # Only remove directory if it didn't exist before and is now empty
+            if not self._dir_existed and os.path.exists(self.dir):
+                try:
+                    os.rmdir(self.dir)
+                    logger.info(f"Removed test-created config directory: {self.dir}")
+                except OSError:
+                    # Directory not empty, leave it
+                    pass
+
+    manager = FeaturesConfigManager()
+    yield manager
+
+    # Teardown: Restore original state
+    try:
+        manager.cleanup()
+    except Exception as e:
+        logger.error(f"Error during features config cleanup: {e}")
