@@ -153,10 +153,12 @@ func (c *Conn) GetUnitState(name string) (string, error) {
 // waitForState checks the unit state, waiting until it matches the given state,
 // or the timeout occurs.
 func (c *Conn) waitForState(unit string, wantState string, timeout time.Duration) error {
+	slog.Debug("waiting for unit state", "unit", unit, "wantState", wantState, "timeout", timeout)
 	after := time.After(timeout)
 	for {
 		select {
 		case <-after:
+			slog.Debug("timed out waiting for unit state", "unit", unit, "wantState", wantState)
 			return fmt.Errorf("timed out waiting %v for unit state '%v'", timeout, wantState)
 		default:
 			state, err := c.GetUnitState(unit)
@@ -166,7 +168,7 @@ func (c *Conn) waitForState(unit string, wantState string, timeout time.Duration
 			if state == wantState {
 				return nil
 			} else {
-				slog.Debug("got unit state", "state", state)
+				time.Sleep(100 * time.Millisecond)
 			}
 		}
 	}
