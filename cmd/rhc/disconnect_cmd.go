@@ -133,10 +133,11 @@ func (disconnectResult *DisconnectResult) TryUnregisterInsightsClient() error {
 func (disconnectResult *DisconnectResult) TryUnregisterRHSM() error {
 	slog.Info("Unregistering system from Red Hat Subscription Management")
 
-	isRegistered, err := rhsm.IsRHSMRegistered()
+	isRegistered, err := rhsm.IsSystemRegistered()
 	if err != nil {
 		return err
 	}
+
 	if !isRegistered {
 		infoMsg := "Already disconnected from Red Hat Subscription Management"
 		disconnectResult.RHSMDisconnected = true
