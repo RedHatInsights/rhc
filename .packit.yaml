@@ -1,34 +1,36 @@
-upstream_package_name: rhc
-downstream_package_name: rhc
-specfile_path: builddir/dist/srpm/rhc.spec
+specfile_path: rhc.spec
+
+# List of files to synchronize from GitHub upstream to Fedora downstream
+files_to_sync:
+  - dnf5.spec
+  - .packit.yml
 
 srpm_build_deps:
   - gawk
-  - git-core
   - golang
-  - meson
+  - dbus-x11
   - "pkgconfig(bash-completion)"
   - "pkgconfig(dbus-1)"
-  - "pkgconfig(systemd)"
-  - "rpm_macro(forgemeta)"
   - rpm-build
+  - "go-vendor-tools"
 
+# Hooks to overwrite default Packit behavior
 actions:
-  post-upstream-clone:
-    - meson setup builddir -Dbuild_srpm=True -Dvendor=True --wipe
-    - meson compile tarball -C builddir
+  # Extract version from the .spec file
   get-current-version:
-    - awk '/^Version:/ {print $2;}' builddir/dist/srpm/rhc.spec
+    - bash -c 'rpmspec --query --queryformat "%{version}\n" rhc.spec'
+  # Packit expects a single archive to be created
+  #  https://packit.dev/docs/configuration/examples#custom-archive-creation-for-srpm
   create-archive:
-    - bash -c 'echo builddir/dist/srpm/rhc-*.tar.*'
-  fix-spec-file:
-    - echo 'nothing to fix'
+    - make archive
+    - bash -c "ls -1 ./rhc-*.tar.gz | head -n 1"
 
 jobs:
   - job: copr_build
     trigger: pull_request
     additional_repos:
       - "copr://@yggdrasil/latest"
+      - "copr://@go-sig/go-vendor-tools-dev"
     targets:
       - centos-stream-10-aarch64
       - centos-stream-10-x86_64
@@ -47,6 +49,7 @@ jobs:
     trigger: commit
     additional_repos:
       - "copr://@yggdrasil/latest"
+      - "copr://@go-sig/go-vendor-tools-dev"
     branch: main
     owner: "@yggdrasil"
     project: latest
