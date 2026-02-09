@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 )
@@ -338,31 +339,31 @@ func TestGetCollectorConfigName(t *testing.T) {
 			name:       "directory with toml extension",
 			configFile: mockDirEntry{name: "com.directory.toml", isDir: true},
 			want:       "",
-			wantError:  "invalid config file /usr/lib/rhc/collector/com.directory.toml",
+			wantError:  "invalid config file /usr/lib/rhc/collectors/com.directory.toml",
 		},
 		{
 			name:       "file without json extension",
 			configFile: mockDirEntry{name: "com.config.json", isDir: false},
 			want:       "",
-			wantError:  "invalid config file /usr/lib/rhc/collector/com.config.json",
+			wantError:  "invalid config file /usr/lib/rhc/collectors/com.config.json",
 		},
 		{
 			name:       "file with toml in name but different extension",
 			configFile: mockDirEntry{name: "com.config.toml.bak", isDir: false},
 			want:       "",
-			wantError:  "invalid config file /usr/lib/rhc/collector/com.config.toml.bak",
+			wantError:  "invalid config file /usr/lib/rhc/collectors/com.config.toml.bak",
 		},
 		{
 			name:       "file ending with toml but no dot",
 			configFile: mockDirEntry{name: "configtoml", isDir: false},
 			want:       "",
-			wantError:  "invalid config file /usr/lib/rhc/collector/configtoml",
+			wantError:  "invalid config file /usr/lib/rhc/collectors/configtoml",
 		},
 		{
 			name:       "directory without extension",
 			configFile: mockDirEntry{name: "config.directory", isDir: true},
 			want:       "",
-			wantError:  "invalid config file /usr/lib/rhc/collector/config.directory",
+			wantError:  "invalid config file /usr/lib/rhc/collectors/config.directory",
 		},
 		{
 			name:       "file starting with uppercase character",
@@ -374,7 +375,7 @@ func TestGetCollectorConfigName(t *testing.T) {
 			name:       "case sensitivity - uppercase extension",
 			configFile: mockDirEntry{name: "config.TOML", isDir: false},
 			want:       "",
-			wantError:  "invalid config file /usr/lib/rhc/collector/config.TOML",
+			wantError:  "invalid config file /usr/lib/rhc/collectors/config.TOML",
 		},
 	}
 
@@ -486,4 +487,305 @@ func TestCreateArchive(t *testing.T) {
 			t.Errorf("createArchive() archive file does not exist at path: %s", archivePath)
 		}
 	})
+}
+
+func TestNewTimer(t *testing.T) {
+	tests := []struct {
+		description string
+		id          string
+		timerData   string
+		want        Timer
+		wantError   string
+	}{
+		{
+			description: "valid timer data",
+			id:          "test.collector",
+			timerData: `{
+				"last_started": {
+					"timestamp": 1609459200
+				},
+				"last_finished": {
+					"timestamp": 1609462800,
+					"exit_code": 0
+				}
+			}`,
+			want: Timer{
+				ID:           "test.collector",
+				LastStarted:  time.Unix(1609459200, 0),
+				LastFinished: time.Unix(1609462800, 0),
+				ExitCode:     0,
+			},
+		},
+		{
+			description: "valid timer with non-zero exit code",
+			id:          "test.collector.error",
+			timerData: `{
+				"last_started": {
+					"timestamp": 1609459200
+				},
+				"last_finished": {
+					"timestamp": 1609462800,
+					"exit_code": 1
+				}
+			}`,
+			want: Timer{
+				ID:           "test.collector.error",
+				LastStarted:  time.Unix(1609459200, 0),
+				LastFinished: time.Unix(1609462800, 0),
+				ExitCode:     1,
+			},
+		},
+		{
+			description: "invalid JSON",
+			id:          "test.invalid",
+			timerData:   `{"last_started": {"timestamp": 1609459200`,
+			wantError:   "unexpected end of JSON input",
+		},
+		{
+			description: "missing last_started",
+			id:          "test.missing.started",
+			timerData: `{
+				"last_finished": {
+					"timestamp": 1609462800,
+					"exit_code": 0
+				}
+			}`,
+			want: Timer{
+				ID:           "test.missing.started",
+				LastStarted:  time.Time{}, // Zero value
+				LastFinished: time.Unix(1609462800, 0),
+				ExitCode:     0,
+			},
+		},
+		{
+			description: "missing last_finished",
+			id:          "test.missing.finished",
+			timerData: `{
+				"last_started": {
+					"timestamp": 1609459200
+				}
+			}`,
+			want: Timer{
+				ID:           "test.missing.finished",
+				LastStarted:  time.Unix(1609459200, 0),
+				LastFinished: time.Time{}, // Zero value
+				ExitCode:     0,
+			},
+		},
+		{
+			description: "empty JSON object",
+			id:          "test.empty",
+			timerData:   "{}",
+			want: Timer{
+				ID:           "test.empty",
+				LastStarted:  time.Time{}, // Zero value
+				LastFinished: time.Time{}, // Zero value
+				ExitCode:     0,
+			},
+		},
+		{
+			description: "missing timestamp in last_started",
+			id:          "test.missing.started.timestamp",
+			timerData: `{
+				"last_started": {
+				},
+				"last_finished": {
+					"timestamp": 1609462800,
+					"exit_code": 0
+				}
+			}`,
+			want: Timer{
+				ID:           "test.missing.started.timestamp",
+				LastStarted:  time.Unix(0, 0),
+				LastFinished: time.Unix(1609462800, 0),
+				ExitCode:     0,
+			},
+		},
+		{
+			description: "missing timestamp in last_finished",
+			id:          "test.missing.finished.timestamp",
+			timerData: `{
+				"last_started": {
+					"timestamp": 1609459200
+				},
+				"last_finished": {
+					"exit_code": 1
+				}
+			}`,
+			want: Timer{
+				ID:           "test.missing.finished.timestamp",
+				LastStarted:  time.Unix(1609459200, 0),
+				LastFinished: time.Unix(0, 0),
+				ExitCode:     1,
+			},
+		},
+		{
+			description: "negative timestamp in last_started",
+			id:          "test.negative.started.timestamp",
+			timerData: `{
+				"last_started": {
+					"timestamp": -1000
+				},
+				"last_finished": {
+					"timestamp": 1609462800,
+					"exit_code": 0
+				}
+			}`,
+			want: Timer{
+				ID:           "test.negative.started.timestamp",
+				LastStarted:  time.Unix(-1000, 0),
+				LastFinished: time.Unix(1609462800, 0),
+				ExitCode:     0,
+			},
+		},
+		{
+			description: "negative timestamp in last_finished",
+			id:          "test.negative.finished.timestamp",
+			timerData: `{
+				"last_started": {
+					"timestamp": 1609459200
+				},
+				"last_finished": {
+					"timestamp": -5000,
+					"exit_code": 0
+				}
+			}`,
+			want: Timer{
+				ID:           "test.negative.finished.timestamp",
+				LastStarted:  time.Unix(1609459200, 0),
+				LastFinished: time.Unix(-5000, 0),
+				ExitCode:     0,
+			},
+		},
+		{
+			description: "invalid timestamp type in last_started",
+			id:          "test.invalid.started.timestamp.type",
+			timerData: `{
+				"last_started": {
+					"timestamp": "invalid"
+				},
+				"last_finished": {
+					"timestamp": 1609462800,
+					"exit_code": 0
+				}
+			}`,
+			wantError: "json: cannot unmarshal string into Go struct field startedEventDto.last_started.timestamp of type int64",
+		},
+		{
+			description: "invalid timestamp type in last_finished",
+			id:          "test.invalid.finished.timestamp.type",
+			timerData: `{
+				"last_started": {
+					"timestamp": 1609459200
+				},
+				"last_finished": {
+					"timestamp": "invalid",
+					"exit_code": 0
+				}
+			}`,
+			wantError: "json: cannot unmarshal string into Go struct field finishedEventDto.last_finished.timestamp of type int64",
+		},
+		{
+			description: "invalid exit_code type in last_finished",
+			id:          "test.invalid.finished.exit_code.type",
+			timerData: `{
+				"last_started": {
+					"timestamp": 1609459200
+				},
+				"last_finished": {
+					"timestamp": 1609462800,
+					"exit_code": "invalid"
+				}
+			}`,
+			wantError: "json: cannot unmarshal string into Go struct field finishedEventDto.last_finished.exit_code of type int",
+		},
+		{
+			description: "null last_started event object",
+			id:          "test.null.started",
+			timerData: `{
+				"last_started": null,
+				"last_finished": {
+					"timestamp": 1609462800,
+					"exit_code": 0
+				}
+			}`,
+			want: Timer{
+				ID:           "test.null.started",
+				LastStarted:  time.Time{}, // Zero value
+				LastFinished: time.Unix(1609462800, 0),
+				ExitCode:     0,
+			},
+		},
+		{
+			description: "null last_finished event object",
+			id:          "test.null.finished",
+			timerData: `{
+				"last_started": {
+					"timestamp": 1609459200
+				},
+				"last_finished": null
+			}`,
+			want: Timer{
+				ID:           "test.null.finished",
+				LastStarted:  time.Unix(1609459200, 0),
+				LastFinished: time.Time{}, // Zero value
+				ExitCode:     0,
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.description, func(t *testing.T) {
+			got, err := newTimer(test.id, []byte(test.timerData))
+
+			if test.wantError != "" {
+				if err == nil {
+					t.Errorf("newTimer() expected error but got none")
+					return
+				}
+				if !strings.Contains(err.Error(), test.wantError) {
+					t.Errorf("newTimer() error = %v, want error containing %q", err, test.wantError)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("newTimer(%q, %q) got unexpected error: %v", test.id, test.timerData, err)
+				}
+				if !cmp.Equal(got, test.want) {
+					t.Errorf("newTimer() = %v; want %v", got, test.want)
+				}
+			}
+		})
+	}
+}
+
+func TestValidateID(t *testing.T) {
+	valid := [5]string{"com.redhat", "com.redhat.advisor", "org.example.collector.v1", "a.b", "v1.example2.collector3"}
+	for _, id := range valid {
+		t.Run("valid_"+id, func(t *testing.T) {
+			gotId, err := validateID(id)
+			if err != nil {
+				t.Errorf("validateCollectorID(%q) got unexpected error: %v", id, err)
+			}
+			if id != gotId {
+				t.Errorf("validateCollectorID(%q) = %q; want %q", id, gotId, id)
+			}
+		})
+	}
+
+	invalid := [13]string{
+		"", "...", "org", "single.", "two..dots", "com.red-hat.advisor", ".invalid.id",
+		"Com.RedHat.Advisor", "com.red_hat.advisor", "com.red@hat.advisor", "com.red hat.advisor",
+		"/absolute/path/com.redhat.advisor", "relativepath/com.redhat.id",
+	}
+	for _, id := range invalid {
+		t.Run("invalid_"+id, func(t *testing.T) {
+			gotId, err := validateID(id)
+			if err == nil {
+				t.Errorf("validateCollectorID(%q) expected error but got none", id)
+			}
+			if gotId != "" {
+				t.Errorf("validateCollectorID(%q) = %q; want empty string", id, gotId)
+			}
+		})
+	}
 }
