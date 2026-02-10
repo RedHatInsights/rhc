@@ -52,7 +52,7 @@ func (disconnectResult *DisconnectResult) Error() string {
 func (disconnectResult *DisconnectResult) errorMessages() map[string]string {
 	errorMessages := make(map[string]string)
 	if disconnectResult.YggdrasilStoppedError != "" {
-		errorMessages[ServiceName] = disconnectResult.YggdrasilStoppedError
+		errorMessages["yggdrasil"] = disconnectResult.YggdrasilStoppedError
 	}
 	if disconnectResult.InsightsDisconnectedError != "" {
 		errorMessages["insights"] = disconnectResult.InsightsDisconnectedError
@@ -66,7 +66,7 @@ func (disconnectResult *DisconnectResult) errorMessages() map[string]string {
 // TryDeactivateServices tries to stop yggdrasil.service, when it hasn't
 // been already stopped.
 func (disconnectResult *DisconnectResult) TryDeactivateServices() error {
-	slog.Info(fmt.Sprintf("Deactivating the %s service", ServiceName))
+	slog.Info("Deactivating the yggdrasil service")
 
 	// First check if the service hasn't been already stopped
 	isInactive, err := remotemanagement.AssertYggdrasilServiceState("inactive")
@@ -74,25 +74,25 @@ func (disconnectResult *DisconnectResult) TryDeactivateServices() error {
 		return err
 	}
 	if isInactive {
-		infoMsg := fmt.Sprintf("The %s service is already inactive", ServiceName)
+		infoMsg := "The yggdrasil service is already inactive"
 		disconnectResult.YggdrasilStopped = true
 		slog.Info(infoMsg)
 		ui.Printf(" [%v] %v\n", ui.Icons.Info, infoMsg)
 		return nil
 	}
 	// When the service is not inactive, then try to get this service to this state
-	progressMessage := fmt.Sprintf("Deactivating the %v service", ServiceName)
+	progressMessage := "Deactivating the yggdrasil service"
 	err = ui.Spinner(remotemanagement.DeactivateServices, ui.Indent.Small, progressMessage)
 	if err != nil {
-		errMsg := fmt.Sprintf("Cannot deactivate %s service: %v", ServiceName, err)
+		errMsg := fmt.Sprintf("Cannot deactivate yggdrasil service: %v", err)
 		disconnectResult.YggdrasilStopped = false
 		disconnectResult.YggdrasilStoppedError = errMsg
 		slog.Error(errMsg)
 		ui.Printf(" [%v] %v\n", ui.Icons.Error, errMsg)
 	} else {
 		disconnectResult.YggdrasilStopped = true
-		infoMsg := fmt.Sprintf("Deactivated the %s service", ServiceName)
-		slog.Debug(infoMsg)
+		infoMsg := "Deactivated the yggdrasil service"
+		slog.Info(infoMsg)
 		ui.Printf(" [%v] %v\n", ui.Icons.Ok, infoMsg)
 	}
 	return nil
@@ -221,7 +221,7 @@ func disconnectAction(ctx *cli.Context) error {
 	/* 1. Deactivate yggdrasil (rhcd) service */
 	start = time.Now()
 	_ = disconnectResult.TryDeactivateServices()
-	durations[ServiceName] = time.Since(start)
+	durations["yggdrasil"] = time.Since(start)
 
 	/* 2. Disconnect from Red Hat Lightspeed */
 	start = time.Now()
