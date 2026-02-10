@@ -22,13 +22,11 @@ func ensureLogDirectory() (string, error) {
 	isRootUser := os.Getuid() == 0
 
 	if isRootUser {
-		// This path resolves to /var/log/rhc
-		logDir := filepath.Join(LogDir, LongName)
-		err := os.Mkdir(logDir, 0755)
+		err := os.Mkdir(LogDir, 0755)
 		if err != nil && !os.IsExist(err) {
 			return "", err
 		}
-		return logDir, nil
+		return LogDir, nil
 	}
 
 	// Get $HOME and check if it exists
@@ -42,7 +40,7 @@ func ensureLogDirectory() (string, error) {
 	}
 
 	// This path resolves to ~/.local/state/rhc
-	logDir := filepath.Join(homeDir, ".local", "state", LongName)
+	logDir := filepath.Join(homeDir, ".local", "state", "rhc")
 
 	// Unlike Mkdir, MkdirAll will not return an error if the path already exists
 	if err = os.MkdirAll(logDir, 0700); err != nil {
@@ -61,7 +59,7 @@ func ensureLogFile() (*os.File, error) {
 	}
 
 	// Attempt to open the log file
-	logFilePath := filepath.Join(logDir, LongName+".log")
+	logFilePath := filepath.Join(logDir, "rhc.log")
 	return os.OpenFile(logFilePath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0640)
 }
 

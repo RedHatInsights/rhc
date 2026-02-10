@@ -67,7 +67,7 @@ func (connectResult *ConnectResult) errorMessages() map[string]string {
 		errorMessages["insights"] = connectResult.Features.Analytics.Error
 	}
 	if connectResult.Features.RemoteManagement.Error != "" {
-		errorMessages[ServiceName] = connectResult.Features.RemoteManagement.Error
+		errorMessages["yggdrasil"] = connectResult.Features.RemoteManagement.Error
 	}
 	return errorMessages
 }
@@ -157,11 +157,11 @@ func (connectResult *ConnectResult) TryActivateServices() {
 	if !features.ManagementFeature.Enabled {
 		connectResult.Features.RemoteManagement.Successful = false
 		if features.ManagementFeature.Reason != "" {
-			infoMsg := fmt.Sprintf("Starting %s service disabled (%s)", ServiceName, features.ManagementFeature.Reason)
+			infoMsg := fmt.Sprintf("Starting yggdrasil service disabled (%s)", features.ManagementFeature.Reason)
 			slog.Info(infoMsg)
 			ui.Printf("%s[ ] Management .... %s\n", ui.Indent.Medium, infoMsg)
 		} else {
-			infoMsg := fmt.Sprintf("Starting %s service disabled", ServiceName)
+			infoMsg := "Starting yggdrasil service disabled"
 			slog.Info(infoMsg)
 			ui.Printf("%s[ ] Management .... %s\n", ui.Indent.Medium, infoMsg)
 		}
@@ -171,36 +171,33 @@ func (connectResult *ConnectResult) TryActivateServices() {
 	if connectResult.RHSMConnectError != "" {
 		connectResult.Features.RemoteManagement.Successful = false
 		slog.Warn(
-			fmt.Sprintf("Skipping activation of %s service (RHSM registration failed)", ServiceName),
+			"Skipping activation of yggdrasil service (RHSM registration failed)",
 			"rhsm_error", connectResult.RHSMConnectError,
 		)
 		ui.Printf(
-			"%s[%v] Skipping activation of %v service\n",
+			"%s[%v] Skipping activation of yggdrasil service\n",
 			ui.Indent.Medium,
 			ui.Icons.Error,
-			ServiceName,
 		)
 		return
 	}
 
-	slog.Info(fmt.Sprintf("Activating %s service", ServiceName))
-	progressMessage := fmt.Sprintf(" Activating the %v service", ServiceName)
-	err := ui.Spinner(remotemanagement.ActivateServices, ui.Indent.Medium, progressMessage)
+	slog.Info("Activating yggdrasil service")
+	err := ui.Spinner(remotemanagement.ActivateServices, ui.Indent.Medium, " Activating the yggdrasil service")
 	if err != nil {
 		connectResult.Features.RemoteManagement.Successful = false
-		connectResult.Features.RemoteManagement.Error = fmt.Sprintf("cannot activate the %s service: %v", ServiceName, err)
+		connectResult.Features.RemoteManagement.Error = fmt.Sprintf("cannot activate the yggdrasil service: %v", err)
 		slog.Error(connectResult.Features.RemoteManagement.Error)
 		ui.Printf(
-			"%s[%v] Remote Management ... Cannot activate the %v service\n",
+			"%s[%v] Remote Management ... Cannot activate the yggdrasil service\n",
 			ui.Indent.Medium,
 			ui.Icons.Error,
-			ServiceName,
 		)
 		return
 	}
 
 	connectResult.Features.RemoteManagement.Successful = true
-	infoMsg := fmt.Sprintf("Activated the %s service", ServiceName)
+	infoMsg := "Activated the yggdrasil service"
 	slog.Debug(infoMsg)
 	ui.Printf("%s[%v] Remote Management ... %s\n", ui.Indent.Medium, ui.Icons.Ok, infoMsg)
 }
@@ -388,7 +385,7 @@ func connectAction(ctx *cli.Context) error {
 	/* 3. Start yggdrasil (rhcd) service */
 	start = time.Now()
 	connectResult.TryActivateServices()
-	durations[ServiceName] = time.Since(start)
+	durations["yggdrasil"] = time.Since(start)
 
 	ui.Printf("\nSuccessfully connected to Red Hat!\n")
 

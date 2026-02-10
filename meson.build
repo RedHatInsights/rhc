@@ -10,17 +10,7 @@ endif
 
 goldflags = get_option('goldflags')
 goldflags += ' -X "main.Version=' + meson.project_version() + '"'
-goldflags += ' -X "main.PrefixDir=' + get_option('prefix') + '"'
-goldflags += ' -X "main.BinDir=' + get_option('bindir') + '"'
-goldflags += ' -X "main.SbinDir=' + get_option('sbindir') + '"'
-goldflags += ' -X "main.LibexecDir=' + get_option('libexecdir') + '"'
-goldflags += ' -X "main.SysconfDir=' + get_option('sysconfdir') + '"'
-goldflags += ' -X "main.DataDir=' + get_option('datadir') + '"'
-goldflags += ' -X "main.DatarootDir=' + get_option('datadir') + '"'
-goldflags += ' -X "main.ManDir=' + get_option('mandir') + '"'
-goldflags += ' -X "main.DocDir=' + get_option('prefix') / 'doc' + '"'
-goldflags += ' -X "main.LocalstateDir=' + get_option('localstatedir') + '"'
-goldflags += ' -X "main.ServiceName=yggdrasil"'
+goldflags += ' -X "main.LogDir=/var/log/rhc/"'
 
 gobuildflags = get_option('gobuildflags')
 

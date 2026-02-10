@@ -137,7 +137,7 @@ func insightStatus(systemStatus *SystemStatus) error {
 
 // serviceStatus tries to print status of yggdrasil.service or rhcd.service
 func serviceStatus(systemStatus *SystemStatus) error {
-	slog.Info(fmt.Sprintf("Checking status of %s service", ServiceName))
+	slog.Info("Checking status of yggdrasil service")
 
 	ctx := context.Background()
 	conn, err := systemd.NewSystemConnectionContext(ctx)
@@ -147,7 +147,7 @@ func serviceStatus(systemStatus *SystemStatus) error {
 		return fmt.Errorf("unable to connect to systemd: %s", err)
 	}
 	defer conn.Close()
-	unitName := ServiceName + ".service"
+	unitName := "yggdrasil.service"
 	properties, err := conn.GetUnitPropertiesContext(ctx, unitName)
 	if err != nil {
 		systemStatus.YggdrasilRunning = false
@@ -158,7 +158,7 @@ func serviceStatus(systemStatus *SystemStatus) error {
 	activeState := properties["ActiveState"]
 	if activeState.(string) == "active" {
 		systemStatus.YggdrasilRunning = true
-		infoMsg := fmt.Sprintf("The %v service is active", ServiceName)
+		infoMsg := "The yggdrasil service is active"
 		slog.Info(infoMsg)
 		ui.Printf("%s[%v] Remote Management ... %v\n", ui.Indent.Medium, ui.Icons.Ok, infoMsg)
 	} else {
@@ -166,7 +166,7 @@ func serviceStatus(systemStatus *SystemStatus) error {
 		loadState := properties["LoadState"]
 		if loadState == "loaded" {
 			systemStatus.YggdrasilRunning = false
-			warnMsg := fmt.Sprintf("The %v service is inactive but not loaded", ServiceName)
+			warnMsg := "The yggdrasil service is inactive but not loaded"
 			slog.Warn(warnMsg)
 			ui.Printf("%s[ ] Remote Management ... %v\n", ui.Indent.Medium, warnMsg)
 		} else {
