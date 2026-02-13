@@ -373,7 +373,12 @@ func RegisterRHSM(ctx *cli.Context, enableContent bool) (string, error) {
 				password = ""
 				scanner := bufio.NewScanner(os.Stdin)
 				fmt.Print("Username: ")
-				_ = scanner.Scan()
+				if !scanner.Scan() {
+					if err := scanner.Err(); err != nil {
+						return "Unable to read username", cli.Exit(err, 1)
+					}
+					return "Unable to read username", cli.Exit(fmt.Errorf("unexpected end of input"), 1)
+				}
 				username = strings.TrimSpace(scanner.Text())
 			}
 			if password == "" {
@@ -435,7 +440,12 @@ func RegisterRHSM(ctx *cli.Context, enableContent bool) (string, error) {
 					}
 					_ = writer.Flush()
 					fmt.Print("\nOrganization: ")
-					_ = scanner.Scan()
+					if !scanner.Scan() {
+						if err := scanner.Err(); err != nil {
+							return "Unable to read organization", cli.Exit(err, 1)
+						}
+						return "Unable to read organization", cli.Exit(fmt.Errorf("unexpected end of input"), 1)
+					}
 					organization = strings.TrimSpace(scanner.Text())
 					fmt.Printf("\n")
 
