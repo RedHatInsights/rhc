@@ -234,7 +234,6 @@ func disconnectAction(ctx *cli.Context) error {
 	durations["rhsm"] = time.Since(start)
 
 	if !ui.IsOutputMachineReadable() {
-		fmt.Printf("\nManage your connected systems: https://red.ht/connector\n")
 		showTimeDuration(durations)
 
 		err = showErrorMessages("disconnect", disconnectResult.errorMessages())
