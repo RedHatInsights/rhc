@@ -22,6 +22,14 @@ import (
 
 const EnvTypeContentTemplate = "content-template"
 
+func IsRegistered() bool {
+	if uuid, err := GetConsumerUUID(); err != nil || uuid == "" {
+		return false
+	}
+	return true
+}
+
+// GetConsumerUUID returns UUID of the consumer (system) registered against Red Hat Subscription Management
 func GetConsumerUUID() (string, error) {
 	conn, err := dbus.SystemBus()
 	if err != nil {
@@ -40,6 +48,67 @@ func GetConsumerUUID() (string, error) {
 		return "", UnpackDBusError(err)
 	}
 	return uuid, nil
+}
+
+// IsContentManagementEnabled returns true if content management is enabled for the system in rhsm.conf
+func IsContentManagementEnabled() (bool, error) {
+	conn, err := dbus.SystemBus()
+	if err != nil {
+		return false, fmt.Errorf("cannot connect to system D-Bus: %w", err)
+	}
+
+	locale := localization.GetLocale()
+
+	config := conn.Object("com.redhat.RHSM1", "/com/redhat/RHSM1/Config")
+
+	var contentEnabled string
+	if err := config.Call(
+		"com.redhat.RHSM1.Config.Get",
+		0,
+		"rhsm.manage_repos",
+		locale).Store(&contentEnabled); err != nil {
+		slog.Warn(fmt.Sprintf("Failed to get rhsm.manage_repos config: %v", err))
+		return false, UnpackDBusError(err)
+	}
+
+	return contentEnabled == "1", nil
+}
+
+// SetContentManagement tries to enable or disable content management for the system in rhsm.conf
+func SetContentManagement(enabled bool) error {
+	conn, err := dbus.SystemBus()
+	if err != nil {
+		return fmt.Errorf("cannot connect to system D-Bus: %w", err)
+	}
+
+	locale := localization.GetLocale()
+
+	config := conn.Object("com.redhat.RHSM1", "/com/redhat/RHSM1/Config")
+
+	enabledStr := "1"
+	if !enabled {
+		enabledStr = "0"
+	}
+
+	if err := config.Call(
+		"com.redhat.RHSM1.Config.Set",
+		0,
+		"rhsm.manage_repos",
+		enabledStr,
+		locale).Err; err != nil {
+		slog.Warn(fmt.Sprintf("Failed to set rhsm.manage_repos config: %v", err))
+		return UnpackDBusError(err)
+	}
+
+	return nil
+}
+
+func EnableContentManagement() error {
+	return SetContentManagement(true)
+}
+
+func DisableContentManagement() error {
+	return SetContentManagement(false)
 }
 
 // Organization is structure containing information about RHSM organization (sometimes called owner)
@@ -148,6 +217,9 @@ func registerUsernamePassword(username, password, organization string, environme
 
 	}
 
+	// NOTE: We needn't call D-Bus method com.redhat.RHSM1.Config.Set and
+	// set manage_repos to 1 or 0, because it is done automatically by
+	// com.redhat.RHSM1.Register.Register D-Bus method.
 	options["enable_content"] = fmt.Sprintf("%v", enableContent)
 
 	if err := privConn.Object(
