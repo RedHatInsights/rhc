@@ -2,8 +2,8 @@ specfile_path: rhc.spec
 
 # List of files to synchronize from GitHub upstream to Fedora downstream
 files_to_sync:
-  - dnf5.spec
-  - .packit.yml
+  - rhc.spec
+  - .packit.yaml
 
 srpm_build_deps:
   - gawk
@@ -29,43 +29,41 @@ jobs:
   - job: copr_build
     trigger: pull_request
     additional_repos:
-      - "copr://@yggdrasil/latest"
       - "copr://@go-sig/go-vendor-tools-dev"
     targets:
-      - centos-stream-10-aarch64
-      - centos-stream-10-x86_64
-      - centos-stream-10-ppc64le
-      - centos-stream-10-s390x
-      - fedora-all-aarch64
-      - fedora-all-x86_64
-      - fedora-all-ppc64le
-      - fedora-all-s390x
-      - rhel-10-aarch64
-      - rhel-10-x86_64
-      - rhel-10-ppc64le
-      - rhel-10-s390x
+      fedora-all-aarch64: {}
+      fedora-all-x86_64: {}
+      fedora-all-ppc64le: {}
+      fedora-all-s390x: {}
+      rhel+epel-10-aarch64:
+        distros: [CentOS-Stream-10, RHEL-10]
+      rhel+epel-10-x86_64:
+        distros: [CentOS-Stream-10, RHEL-10]
+      rhel+epel-10-ppc64le:
+        distros: [CentOS-Stream-10, RHEL-10]
+      rhel+epel-10-s390x:
+        distros: [CentOS-Stream-10, RHEL-10]
 
   - job: copr_build
     trigger: commit
     additional_repos:
-      - "copr://@yggdrasil/latest"
       - "copr://@go-sig/go-vendor-tools-dev"
     branch: main
     owner: "@yggdrasil"
     project: latest
     targets:
-      - centos-stream-10-aarch64
-      - centos-stream-10-x86_64
-      - centos-stream-10-ppc64le
-      - centos-stream-10-s390x
-      - fedora-all-aarch64
-      - fedora-all-x86_64
-      - fedora-all-ppc64le
-      - fedora-all-s390x
-      - rhel-10-aarch64
-      - rhel-10-x86_64
-      - rhel-10-s390x
-      - rhel-10-ppc64le
+      fedora-all-aarch64: {}
+      fedora-all-x86_64: {}
+      fedora-all-ppc64le: {}
+      fedora-all-s390x: {}
+      rhel+epel-10-aarch64:
+        distros: [CentOS-Stream-10, RHEL-10]
+      rhel+epel-10-x86_64:
+        distros: [CentOS-Stream-10, RHEL-10]
+      rhel+epel-10-ppc64le:
+        distros: [CentOS-Stream-10, RHEL-10]
+      rhel+epel-10-s390x:
+        distros: [CentOS-Stream-10, RHEL-10]
 
   - job: tests
     trigger: pull_request
@@ -73,14 +71,10 @@ jobs:
     targets:
       - centos-stream-10-aarch64
       - centos-stream-10-x86_64
+      - centos-stream-10-ppc64le
+      - centos-stream-10-s390x
     labels:
       - unit
-    tf_extra_params:
-      environments:
-        - artifacts:
-            - type: repository-file
-              id: https://copr.fedorainfracloud.org/coprs/g/yggdrasil/latest/repo/centos-stream-$releasever/group_yggdrasil-latest-centos-stream-$releasever.repo
-
   - job: tests
     trigger: pull_request
     identifier: "unit/fedora"
@@ -89,12 +83,6 @@ jobs:
       - fedora-rawhide
     labels:
       - unit
-    tf_extra_params:
-      environments:
-        - artifacts:
-            - type: repository-file
-              id: https://copr.fedorainfracloud.org/coprs/g/yggdrasil/latest/repo/fedora-$releasever/group_yggdrasil-latest-fedora-$releasever.repo
-
   - job: tests
     trigger: pull_request
     identifier: "unit/rhel"
@@ -106,9 +94,6 @@ jobs:
       - unit
     tf_extra_params:
       environments:
-        - artifacts:
-            - type: repository-file
-              id: https://copr.fedorainfracloud.org/coprs/g/yggdrasil/latest/repo/rhel-$releasever/group_yggdrasil-latest-rhel-$releasever.repo
           settings:
             provisioning:
               tags:
