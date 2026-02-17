@@ -9,7 +9,6 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/godbus/dbus/v5"
 	"github.com/redhatinsights/rhc/internal/rhsm"
 	"github.com/urfave/cli/v2"
 
@@ -17,7 +16,6 @@ import (
 	systemd "github.com/coreos/go-systemd/v22/dbus"
 
 	"github.com/redhatinsights/rhc/internal/datacollection"
-	"github.com/redhatinsights/rhc/internal/localization"
 	"github.com/redhatinsights/rhc/internal/ui"
 )
 
@@ -54,24 +52,10 @@ func rhsmStatus(systemStatus *SystemStatus) error {
 func isContentEnabled(systemStatus *SystemStatus) error {
 	slog.Info("Checking content status")
 
-	conn, err := dbus.SystemBus()
+	contentEnabled, err := rhsm.IsContentManagementEnabled()
 	if err != nil {
-		return fmt.Errorf("cannot connect to system D-Bus: %w", err)
-	}
-
-	locale := localization.GetLocale()
-
-	config := conn.Object("com.redhat.RHSM1", "/com/redhat/RHSM1/Config")
-
-	var contentEnabled string
-	if err := config.Call(
-		"com.redhat.RHSM1.Config.Get",
-		0,
-		"rhsm.manage_repos",
-		locale).Store(&contentEnabled); err != nil {
 		systemStatus.returnCode += 1
 		systemStatus.ContentError = err.Error()
-		return rhsm.UnpackDBusError(err)
 	}
 
 	uuid, err := rhsm.GetConsumerUUID()
@@ -81,7 +65,7 @@ func isContentEnabled(systemStatus *SystemStatus) error {
 		return fmt.Errorf("unable to get consumer UUID: %s", err)
 	}
 
-	if contentEnabled == "1" && uuid != "" {
+	if contentEnabled && uuid != "" {
 		systemStatus.ContentEnabled = true
 		infoMsg := "Red Hat repository file generated"
 		slog.Info(infoMsg)

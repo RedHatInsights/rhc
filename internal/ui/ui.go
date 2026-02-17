@@ -10,10 +10,12 @@ import (
 )
 
 const (
-	colorGreen  = "\u001B[32m"
-	colorYellow = "\u001B[33m"
-	colorRed    = "\u001B[31m"
-	colorReset  = "\u001B[0m"
+	ColorGreen  = "\x1b[0032m"
+	ColorYellow = "\x1b[0033m"
+	ColorRed    = "\x1b[0031m"
+	ColorGrey   = "\x1b[0090m"
+	DefaultText = "\x1b[0039m"
+	ColorReset  = "\x1b[0000m"
 )
 
 var Indent = indent{
@@ -27,13 +29,16 @@ type indent struct {
 }
 
 type icons struct {
-	Ok    string
-	Info  string
-	Error string
+	Ok       string
+	Info     string
+	Error    string
+	Enabled  string
+	Disabled string
 }
 
 var Icons icons
 var isOutputRich bool
+var isColored bool
 var isOutputMachineReadable bool
 
 func init() {
@@ -60,20 +65,32 @@ func ConfigureOutput(rich bool, colored bool, machine bool) {
 	if machine {
 		isOutputMachineReadable = true
 		isOutputRich = false
+		isColored = false
 	}
 	if rich {
 		isOutputRich = true
+	} else {
+		isOutputRich = false
+	}
+	if colored {
+		isColored = true
+	} else {
+		isColored = false
 	}
 
 	Icons = icons{
-		Ok:    "✓",
-		Info:  "●",
-		Error: "𐄂",
+		Ok:       "✓",
+		Info:     "●",
+		Error:    "𐄂",
+		Enabled:  "✓",
+		Disabled: "x",
 	}
 	if rich && colored {
-		Icons.Ok = colorGreen + Icons.Ok + colorReset
-		Icons.Info = colorYellow + Icons.Info + colorReset
-		Icons.Error = colorRed + Icons.Error + colorReset
+		Icons.Ok = ColorGreen + Icons.Ok + ColorReset
+		Icons.Info = ColorYellow + Icons.Info + ColorReset
+		Icons.Error = ColorRed + Icons.Error + ColorReset
+		Icons.Enabled = ColorGreen + Icons.Enabled + ColorReset
+		Icons.Disabled = ColorRed + Icons.Disabled + ColorReset
 	}
 }
 
@@ -87,6 +104,11 @@ func IsOutputMachineReadable() bool {
 // supporting animations and colors.
 func IsOutputRich() bool {
 	return isOutputRich
+}
+
+// IsOutputColored returns true when the output should be displayed with colors.
+func IsOutputColored() bool {
+	return isColored
 }
 
 // Printf acts as a no-op if the output is machine-readable.
