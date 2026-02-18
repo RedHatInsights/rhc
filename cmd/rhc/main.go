@@ -84,7 +84,6 @@ func beforeAction(c *cli.Context) error {
 	conf.Config = conf.Conf{
 		CertFile: c.String(cliCertFile),
 		KeyFile:  c.String(cliKeyFile),
-		Features: conf.Features{},
 	}
 
 	logLevelStr := c.String(cliLogLevel)
@@ -98,15 +97,22 @@ func beforeAction(c *cli.Context) error {
 		slog.Info(c.App.Name+" started", "version", Version, "pid", os.Getpid())
 	}
 
-	// Load features from drop-in config file and set them in conf.Config
-	// TODO: When drop-in configuration is fully supported, manually loading features
-	// may be unnecessary.
-	featuresConfig, err := features.GetFeaturesFromFile("/etc/rhc/config.toml.d/01-features.toml")
+	// Load features from the preference file
+	featPrefs, err := features.GetFeaturesFromFile(features.RhcConnectFeaturesPreferencesPath)
 	if err != nil {
 		slog.Warn(fmt.Sprintf("failed to get features from drop-in config file: %s", err.Error()))
 	}
-	if featuresConfig != nil {
-		conf.Config.Features = *featuresConfig
+	if featPrefs != nil {
+		conf.ConnectFeaturesPreferences = *featPrefs
+	} else {
+		slog.Info(fmt.Sprintf("No features preferences found in preferences file %s; using defaults.",
+			features.RhcConnectFeaturesPreferencesPath))
+		enabled := true
+		conf.ConnectFeaturesPreferences = conf.ConnectFeaturesPrefs{
+			Content:          &enabled,
+			Analytics:        &enabled,
+			RemoteManagement: &enabled,
+		}
 	}
 
 	// When environment variable NO_COLOR or --no-color CLI option is set, then do not display colors
@@ -342,10 +348,10 @@ func main() {
 							Action: disableFeaturesAction,
 						},
 						{
-							Name:        "show",
-							Usage:       "Show features state",
+							Name:        "status",
+							Usage:       "Show features status",
 							UsageText:   fmt.Sprintf("%v configure features show", app.Name),
-							Description: "Show features configured for the system.",
+							Description: "Show features preference/state for the system.",
 							Flags: []cli.Flag{
 								&cli.StringFlag{
 									Name:    "format",
@@ -353,8 +359,8 @@ func main() {
 									Aliases: []string{"f"},
 								},
 							},
-							Before: beforeShowFeaturesAction,
-							Action: showFeaturesAction,
+							Before: beforeStatusFeaturesAction,
+							Action: statusFeaturesAction,
 						},
 					},
 				},
