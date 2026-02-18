@@ -57,8 +57,8 @@ msgstr ""
 #: cmd/rhc/connect_cmd.go:127
 msgid "%s[%v] Skipping connection to Red Hat Lightspeed (formerly Insights)\n"
 msgstr ""
-"%s[%v] Ignorando a conexão com o Red Hat Lightspeed (anteriormente Insights)"
-"\n"
+"%s[%v] Ignorando a conexão com o Red Hat Lightspeed (anteriormente "
+"Insights)\n"
 
 #: cmd/rhc/connect_cmd.go:138
 msgid "cannot connect to Red Hat Lightspeed (formerly Insights): %v"
@@ -81,8 +81,8 @@ msgstr ""
 msgid ""
 "%s[%v] Analytics ... Connected to Red Hat Lightspeed (formerly Insights)\n"
 msgstr ""
-"%s[%v] Analytics ... Conectado ao Red Hat Lightspeed (anteriormente Insights)"
-"\n"
+"%s[%v] Analytics ... Conectado ao Red Hat Lightspeed (anteriormente "
+"Insights)\n"
 
 #: cmd/rhc/connect_cmd.go:160
 #, c-format
