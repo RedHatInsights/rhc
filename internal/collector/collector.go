@@ -1,9 +1,15 @@
 package collector
 
 import (
+	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
+	"mime/multipart"
+	"net/http"
+	"net/textproto"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -25,6 +31,7 @@ const defaultUser = "root"
 const defaultGroup = "root"
 const defaultOutputDir = "/var/tmp/rhc/"
 const compactTimestamp = "20060102150405.000"
+const uploadTimeout = 60 * time.Second
 
 // Config represents the configuration for a collector instance.
 type Config struct {
@@ -60,6 +67,27 @@ type ingressDto struct {
 	User        *string `toml:"user,omitempty"`
 	Group       *string `toml:"group,omitempty"`
 	ContentType string  `toml:"content_type"`
+}
+
+// ArchiveDto represents an archive file with its path and MIME content type.
+type ArchiveDto struct {
+	// Path is a path to the archive file.
+	Path string
+	// ContentType is the MIME type of the archive (e.g., "application/vnd.redhat.advisor.collection").
+	ContentType string
+}
+
+// ServiceConfig represents the configuration for an upload service endpoint.
+type ServiceConfig struct {
+	URL           string
+	CertPath      string
+	ClientKeyPath string
+}
+
+// multipartData encapsulates a multipart form buffer and its content type.
+type multipartData struct {
+	Buffer      *bytes.Buffer
+	ContentType string
 }
 
 // Timer represents the execution timing information for a collector.
@@ -139,6 +167,31 @@ func GetConfig(id string) (Config, error) {
 	return config, nil
 }
 
+// UploadArchive uploads an archive file to the Red Hat Console ingress service.
+func UploadArchive(archive ArchiveDto, config ServiceConfig) error {
+	slog.Info("Uploading archive", slog.String("archive", archive.Path), slog.String("url", config.URL))
+
+	formData, err := createMultipartForm(archive)
+	if err != nil {
+		return err
+	}
+	tlsConfig, err := loadClientCertificate(config)
+	if err != nil {
+		return err
+	}
+	client := getHTTPClient(tlsConfig)
+	req, err := createUploadRequest(formData, config)
+	if err != nil {
+		return err
+	}
+	if err := sendUploadRequest(client, req); err != nil {
+		return err
+	}
+
+	slog.Info("Successfully uploaded archive", slog.String("archive", archive.Path))
+	return nil
+}
+
 // ReadTimerCache loads timer data from the cache for the specified collector ID.
 func ReadTimerCache(id string) (*Timer, error) {
 	id, err := validateID(id)
@@ -171,6 +224,113 @@ func WriteTimerCache(id string, timer Timer) error {
 		}
 	}
 	return writeTimerToFile(id, dto)
+}
+
+// sendUploadRequest executes an HTTP request and validates the response status.
+// Returns an error if the request fails or status is not 2xx.
+func sendUploadRequest(client *http.Client, req *http.Request) error {
+	resp, err := client.Do(req)
+	if err != nil {
+		slog.Debug("Failed to upload archive", "error", err)
+		return err
+	}
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			slog.Debug("Failed to close response body", "error", closeErr)
+		}
+	}()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		slog.Debug("Failed to upload archive", "error", err)
+		return err
+	}
+	slog.Debug("Response body", slog.String("body", string(body)), slog.String("status", resp.Status))
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		slog.Debug("Failed to upload archive", "status code", resp.StatusCode, "response", string(body))
+		return fmt.Errorf("upload failed with status code: %d", resp.StatusCode)
+	}
+	return nil
+}
+
+// createUploadRequest creates an HTTP POST request for uploading multipart form data.
+// Returns an error if request creation fails.
+func createUploadRequest(formData multipartData, config ServiceConfig) (*http.Request, error) {
+	req, err := http.NewRequest("POST", config.URL, formData.Buffer)
+	if err != nil {
+		slog.Debug("Failed to create request", "error", err)
+		return nil, err
+	}
+	req.Header.Set("Content-Type", formData.ContentType)
+	req.Header.Set("Accept", "application/json")
+	return req, nil
+}
+
+// createMultipartForm creates a multipart form data buffer from an archive file.
+// Returns an error if the file cannot be opened or encoded.
+func createMultipartForm(archive ArchiveDto) (multipartData, error) {
+	buffer := new(bytes.Buffer)
+	writer := multipart.NewWriter(buffer)
+
+	archiveHeader := make(textproto.MIMEHeader)
+	archiveHeader.Set(
+		"Content-Disposition",
+		fmt.Sprintf(`form-data; name="%s"; filename="%s"`, "file", filepath.Base(archive.Path)),
+	)
+	archiveHeader.Set("Content-Type", archive.ContentType)
+	archiveField, err := writer.CreatePart(archiveHeader)
+	if err != nil {
+		slog.Debug("Failed to create archive field", "error", err)
+		return multipartData{}, err
+	}
+	archiveFile, err := os.Open(archive.Path)
+	if err != nil {
+		slog.Debug("Failed to open archive", "error", err)
+		return multipartData{}, err
+	}
+	defer func() {
+		if closeErr := archiveFile.Close(); closeErr != nil {
+			slog.Debug("Failed to close archive file", "error", closeErr)
+		}
+	}()
+	if _, err = io.Copy(archiveField, archiveFile); err != nil {
+		slog.Debug("Failed to copy archive", "error", err)
+		return multipartData{}, err
+	}
+	if err := writer.Close(); err != nil {
+		slog.Debug("Failed to close multipart writer", "error", err)
+		return multipartData{}, fmt.Errorf("failed to close multipart writer: %w", err)
+	}
+
+	return multipartData{
+		Buffer:      buffer,
+		ContentType: writer.FormDataContentType(),
+	}, nil
+}
+
+// getHTTPClient returns an HTTP client configured with TLS certificates for secure uploads.
+func getHTTPClient(tlsConfig *tls.Config) *http.Client {
+	return &http.Client{
+		Timeout: uploadTimeout,
+		Transport: &http.Transport{
+			TLSClientConfig: tlsConfig,
+		},
+	}
+}
+
+// loadClientCertificate loads X.509 client certificates from the provided service configuration.
+// Returns an error if files cannot be read or parsed.
+func loadClientCertificate(config ServiceConfig) (*tls.Config, error) {
+	if _, err := os.Stat(config.CertPath); os.IsNotExist(err) {
+		slog.Debug("No TLS certificate found", "error", err)
+		return nil, fmt.Errorf("certificate file not found: %w", err)
+	}
+	cert, err := tls.LoadX509KeyPair(config.CertPath, config.ClientKeyPath)
+	if err != nil {
+		slog.Debug("Failed to load client certificate", "error", err)
+		return nil, fmt.Errorf("failed to load client certificate: %w", err)
+	}
+	return &tls.Config{Certificates: []tls.Certificate{cert}}, nil
 }
 
 // validateID validates and sanitizes a collector ID.
