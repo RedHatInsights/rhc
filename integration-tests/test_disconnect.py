@@ -67,6 +67,10 @@ def test_rhc_disconnect(external_candlepin, rhc, test_config, output_format):
             "Disconnected from Red Hat Subscription Management"
             in disconnect_result.stdout
         )
+        assert (
+            "Manage your connected systems: https://red.ht/connector"
+            not in disconnect_result.stdout
+        )
     elif output_format == "json":
         # JSON checks
         json_output = json.loads(disconnect_result.stdout)
@@ -122,6 +126,10 @@ def test_disconnect_when_already_disconnected(rhc, output_format):
         assert (
             "Already disconnected from Red Hat Subscription Management"
             in disconnect_result.stdout
+        )
+        assert (
+            "Manage your connected systems: https://red.ht/connector"
+            not in disconnect_result.stdout
         )
     elif output_format == "json":
         # JSON checks
