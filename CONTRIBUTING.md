@@ -30,6 +30,7 @@ $ mock -r fedora-43-x86_64 ~/rpmbuild/SRPMS/rhc-*.src.rpm
 You can create an RPM package using [packit](https://packit.dev/docs/cli) CLI too:
 
 ```shell
+$ sudo dnf install dbus-x11 packit
 $ packit build locally
 ```
 

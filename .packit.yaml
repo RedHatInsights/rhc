@@ -1,0 +1,101 @@
+specfile_path: rhc.spec
+
+# List of files to synchronize from GitHub upstream to Fedora downstream
+files_to_sync:
+  - rhc.spec
+  - .packit.yaml
+
+srpm_build_deps:
+  - gawk
+  - golang
+  - dbus-x11
+  - "pkgconfig(bash-completion)"
+  - "pkgconfig(dbus-1)"
+  - rpm-build
+  - "go-vendor-tools"
+
+# Hooks to overwrite default Packit behavior
+actions:
+  # Extract version from the .spec file
+  get-current-version:
+    - bash -c 'rpmspec --query --queryformat "%{version}\n" rhc.spec'
+  # Packit expects a single archive to be created
+  #  https://packit.dev/docs/configuration/examples#custom-archive-creation-for-srpm
+  create-archive:
+    - make archive
+    - bash -c "ls -1 ./rhc-*.tar.gz | head -n 1"
+
+jobs:
+  - job: copr_build
+    trigger: pull_request
+    additional_repos:
+      - "copr://@go-sig/go-vendor-tools-dev"
+    targets:
+      fedora-all-aarch64: {}
+      fedora-all-x86_64: {}
+      fedora-all-ppc64le: {}
+      fedora-all-s390x: {}
+      rhel+epel-10-aarch64:
+        distros: [CentOS-Stream-10, RHEL-10]
+      rhel+epel-10-x86_64:
+        distros: [CentOS-Stream-10, RHEL-10]
+      rhel+epel-10-ppc64le:
+        distros: [CentOS-Stream-10, RHEL-10]
+      rhel+epel-10-s390x:
+        distros: [CentOS-Stream-10, RHEL-10]
+
+  - job: copr_build
+    trigger: commit
+    additional_repos:
+      - "copr://@go-sig/go-vendor-tools-dev"
+    branch: main
+    owner: "@yggdrasil"
+    project: latest
+    targets:
+      fedora-all-aarch64: {}
+      fedora-all-x86_64: {}
+      fedora-all-ppc64le: {}
+      fedora-all-s390x: {}
+      rhel+epel-10-aarch64:
+        distros: [CentOS-Stream-10, RHEL-10]
+      rhel+epel-10-x86_64:
+        distros: [CentOS-Stream-10, RHEL-10]
+      rhel+epel-10-ppc64le:
+        distros: [CentOS-Stream-10, RHEL-10]
+      rhel+epel-10-s390x:
+        distros: [CentOS-Stream-10, RHEL-10]
+
+  - job: tests
+    trigger: pull_request
+    identifier: "unit/centos-stream"
+    targets:
+      - centos-stream-10-aarch64
+      - centos-stream-10-x86_64
+      - centos-stream-10-ppc64le
+      - centos-stream-10-s390x
+    labels:
+      - unit
+  - job: tests
+    trigger: pull_request
+    identifier: "unit/fedora"
+    targets:
+      - fedora-stable
+      - fedora-rawhide
+    labels:
+      - unit
+  - job: tests
+    trigger: pull_request
+    identifier: "unit/rhel"
+    targets:
+      rhel-10-x86_64:
+        distros:
+          - RHEL-10-Nightly
+    labels:
+      - unit
+    tf_extra_params:
+      environments:
+          settings:
+            provisioning:
+              tags:
+                BusinessUnit: sst_csi_client_tools
+    use_internal_tf: true
