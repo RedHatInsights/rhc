@@ -8,13 +8,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/redhatinsights/rhc/internal/features"
-	"github.com/redhatinsights/rhc/internal/rhsm"
-	"github.com/urfave/cli/v2"
-
 	"github.com/redhatinsights/rhc/internal/datacollection"
+	"github.com/redhatinsights/rhc/internal/features"
 	"github.com/redhatinsights/rhc/internal/remotemanagement"
+	"github.com/redhatinsights/rhc/internal/rhsm"
 	"github.com/redhatinsights/rhc/internal/ui"
+	"github.com/urfave/cli/v2"
 )
 
 type FeatureResult struct {
@@ -77,7 +76,8 @@ func (connectResult *ConnectResult) errorMessages() map[string]string {
 // will be stored in RHSMConnectError.
 func (connectResult *ConnectResult) TryRegisterRHSM(ctx *cli.Context) {
 	slog.Info("Registering the system with Red Hat Subscription Management")
-	returnedMsg, err := rhsm.RegisterRHSM(ctx, features.ContentFeature.Enabled)
+
+	err := registerRHSM(ctx)
 	if err != nil {
 		connectResult.RHSMConnected = false
 		connectResult.RHSMConnectError = fmt.Sprintf("cannot connect to Red Hat Subscription Management: %s", err)
@@ -96,8 +96,8 @@ func (connectResult *ConnectResult) TryRegisterRHSM(ctx *cli.Context) {
 		)
 	} else {
 		connectResult.RHSMConnected = true
-		slog.Debug(returnedMsg)
-		ui.Printf("%s[%v] %s\n", ui.Indent.Small, ui.Icons.Ok, returnedMsg)
+		slog.Debug("Connected to Red Hat Subscription Management")
+		ui.Printf("%s[%v] Connected to Red Hat Subscription Management\n", ui.Indent.Small, ui.Icons.Ok)
 		if features.ContentFeature.Enabled {
 			connectResult.Features.Content.Successful = true
 			slog.Info("redhat.repo has been generated")
@@ -218,6 +218,7 @@ func beforeConnectAction(ctx *cli.Context) error {
 
 	// When machine is already connected, then return error
 	slog.Info("Checking system connection status")
+
 	uuid, err := rhsm.GetConsumerUUID()
 	if err != nil {
 		return cli.Exit(
