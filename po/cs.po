@@ -7,40 +7,42 @@ msgstr ""
 "Project-Id-Version: rhc\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-02-16 16:35+0100\n"
-"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"Last-Translator: Automatically generated\n"
-"Language-Team: none\n"
+"PO-Revision-Date: 2026-02-20 14:58+0000\n"
+"Last-Translator: Jiri Hnidek <jhnidek@redhat.com>\n"
+"Language-Team: Czech <https://translate.fedoraproject.org/projects/rhc/rhc/"
+"cs/>\n"
 "Language: cs\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=3; plural=(n==1) ? 0 : (n>=2 && n<=4) ? 1 : 2;\n"
+"X-Generator: Weblate 5.16\n"
 
 #: cmd/rhc/connect_cmd.go:83
 #, c-format
 msgid "cannot connect to Red Hat Subscription Management: %s"
-msgstr ""
+msgstr "není možné se připojit k Red Hat Subscription Management: %s"
 
 #: cmd/rhc/connect_cmd.go:87
 msgid "%s[%v] Cannot connect to Red Hat Subscription Management\n"
-msgstr ""
+msgstr "%s[%v] Není možné se připojit k Red Hat Subscription Management\n"
 
 #: cmd/rhc/connect_cmd.go:93
 msgid "%s[%v] Skipping generation of Red Hat repository file\n"
-msgstr ""
+msgstr "%s[%v] Generování souboru s Red Hat repozitáři bude přeskočeno\n"
 
 #: cmd/rhc/connect_cmd.go:100
 msgid "%s[%v] %s\n"
-msgstr ""
+msgstr "%s[%v] %s\n"
 
 #: cmd/rhc/connect_cmd.go:104
 msgid "%s[%v] Content ... Red Hat repository file generated\n"
-msgstr ""
+msgstr "%s[%v] Obsah ... Soubor s Red Hat repositáři byl vygenerován\n"
 
 #: cmd/rhc/connect_cmd.go:108
 #, c-format
 msgid "%s[ ] Content ... Red Hat repository file not generated\n"
-msgstr ""
+msgstr "%s[ ] Obsah ... Soubor s Red Hat repositáři nebyl vygenerován\n"
 
 #: cmd/rhc/connect_cmd.go:120
 #, c-format
