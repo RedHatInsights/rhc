@@ -2,13 +2,14 @@
 # Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
 # This file is distributed under the same license as the PACKAGE package.
 # Jiri Hnidek <jhnidek@redhat.com>, 2026.
+# Pavel Borecki <pavel.borecki@gmail.com>, 2026.
 msgid ""
 msgstr ""
 "Project-Id-Version: rhc\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-02-16 16:35+0100\n"
-"PO-Revision-Date: 2026-02-20 14:58+0000\n"
-"Last-Translator: Jiri Hnidek <jhnidek@redhat.com>\n"
+"PO-Revision-Date: 2026-02-22 08:58+0000\n"
+"Last-Translator: Pavel Borecki <pavel.borecki@gmail.com>\n"
 "Language-Team: Czech <https://translate.fedoraproject.org/projects/rhc/rhc/"
 "cs/>\n"
 "Language: cs\n"
@@ -50,69 +51,73 @@ msgid ""
 "%s[ ] Analytics ... Connecting to Red Hat Lightspeed (formerly Insights) "
 "disabled\n"
 msgstr ""
+"%s[ ] Analytiky … Připojování k Red Hat Lightspeed (dříve Insights) "
+"zakázáno\n"
 
 #: cmd/rhc/connect_cmd.go:127
 msgid "%s[%v] Skipping connection to Red Hat Lightspeed (formerly Insights)\n"
-msgstr ""
+msgstr "%s[%v] Připojování k Red Hat Lightspeed (dříve Insights) přeskočeno\n"
 
 #: cmd/rhc/connect_cmd.go:138
 msgid "cannot connect to Red Hat Lightspeed (formerly Insights): %v"
-msgstr ""
+msgstr "nebylo možné se připojit k Red Hat Lightspeed (dříve Insights): %v"
 
 #: cmd/rhc/connect_cmd.go:139
 msgid "cannot connect to Red Hat Lightspeed: %v"
-msgstr ""
+msgstr "nebylo možné se připojit k Red Hat Lightspeed: %v"
 
 #: cmd/rhc/connect_cmd.go:141
 msgid ""
 "%s[%v] Analytics ... Cannot connect to Red Hat Lightspeed (formerly "
 "Insights)\n"
 msgstr ""
+"%s[%v] Analytiky … Nebylo možné se připojit k Red Hat Lightspeed (dříve "
+"Insights)\n"
 
 #: cmd/rhc/connect_cmd.go:150
 msgid ""
 "%s[%v] Analytics ... Connected to Red Hat Lightspeed (formerly Insights)\n"
-msgstr ""
+msgstr "%s[%v] Analytiky … Připojeno k Red Hat Lightspeed (dříve Insights)\n"
 
 #: cmd/rhc/connect_cmd.go:160
 #, c-format
 msgid "Starting yggdrasil service disabled (%s)"
-msgstr ""
+msgstr "Spouštění služby yggdrasil vypnuto (%s)"
 
 #: cmd/rhc/connect_cmd.go:162 cmd/rhc/connect_cmd.go:166
 #, c-format
 msgid "%s[ ] Management .... %s\n"
-msgstr ""
+msgstr "%s[ ] Správa .... %s\n"
 
 #: cmd/rhc/connect_cmd.go:178
 msgid "%s[%v] Skipping activation of yggdrasil service\n"
-msgstr ""
+msgstr "%s[%v] Aktivace služby yggdrasil přeskočena\n"
 
 #: cmd/rhc/connect_cmd.go:189
 msgid "cannot activate the yggdrasil service: %v"
-msgstr ""
+msgstr "nebylo možné aktivovat službu yggdrasil: %v"
 
 #: cmd/rhc/connect_cmd.go:192
 msgid "%s[%v] Remote Management ... Cannot activate the yggdrasil service\n"
-msgstr ""
+msgstr "%s[%v] Vzdálená správa … Nebylo možné aktivovat službu yggdrasil\n"
 
 #: cmd/rhc/connect_cmd.go:202
 msgid "%s[%v] Remote Management ... %s\n"
-msgstr ""
+msgstr "%s[%v] Vzdálená správa … %s\n"
 
 #: cmd/rhc/connect_cmd.go:224
 #, c-format
 msgid "unable to get consumer UUID: %s"
-msgstr ""
+msgstr "nebylo možné získat UUID identif. spotřebitele: %s"
 
 #: cmd/rhc/connect_cmd.go:318
 #, c-format
 msgid "error: %s"
-msgstr ""
+msgstr "chyba: %s"
 
 #: cmd/rhc/connect_cmd.go:328
 msgid "Error retrieving system hostname: %v"
-msgstr ""
+msgstr "Chyba při získávání názvu hostitele systému: %v"
 
 #: cmd/rhc/connect_cmd.go:337
 msgid ""
@@ -120,16 +125,19 @@ msgid ""
 "This might take a few seconds.\n"
 "\n"
 msgstr ""
+"Připojování %v k Red Hat.\n"
+"Toto může několik sekund trvat.\n"
+"\n"
 
 #: cmd/rhc/connect_cmd.go:353
 #, c-format
 msgid "Feature '%s' marked enabled"
-msgstr ""
+msgstr "Funkce „%s“ označena jako zapnutá"
 
 #: cmd/rhc/connect_cmd.go:366
 #, c-format
 msgid "Feature '%s' marked disabled"
-msgstr ""
+msgstr "Funkce „%s“ označena jako vypnutá"
 
 #: cmd/rhc/connect_cmd.go:370
 #, c-format
@@ -137,15 +145,21 @@ msgid ""
 "Features preferences: %s\n"
 "\n"
 msgstr ""
+"Předvolby pro funkce: %s\n"
+"\n"
 
 #: cmd/rhc/connect_cmd.go:390
 msgid ""
 "\n"
 "Successfully connected to Red Hat!\n"
 msgstr ""
+"\n"
+"Úspěšně připojeno k Red Hat!\n"
 
 #: cmd/rhc/connect_cmd.go:394
 msgid ""
 "\n"
 "Manage your connected systems: https://red.ht/connector\n"
 msgstr ""
+"\n"
+"Spravujte své připojené systémy: https://red.ht/connector\n"
