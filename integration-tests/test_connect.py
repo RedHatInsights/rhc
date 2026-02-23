@@ -297,6 +297,54 @@ def test_connect_wrong_parameters(
         assert result.returncode != 0
     assert not yggdrasil_service_is_active()
 
+    # Regression: success message must not appear when connect fails
+    assert "Successfully connected to Red Hat!" not in result.stdout
+
+
+def test_connect_failure_does_not_print_success_message(
+    external_candlepin, rhc, test_config
+):
+    """
+    :id: connect-failure-no-success-msg
+    :title: Verify 'rhc connect' does not print success message when credentials are invalid
+    :description:
+        Regression test for the bug where "Successfully connected to Red Hat!"
+        was printed even when connect failed (e.g. wrong username/password).
+        Verifies that on failure the success message is absent and error output is present.
+    :steps:
+        1.  Ensure the system is disconnected from RHC.
+        2.  Run 'rhc connect' with invalid username and password (text output).
+        3.  Verify non-zero return code.
+        4.  Verify "Successfully connected to Red Hat!" is not in stdout.
+        5.  Verify RHSM error message is present in output.
+    :expectedresults:
+        1.  System is disconnected (if needed).
+        2.  Connect command runs and fails.
+        3.  Return code is non-zero.
+        4.  Success message is not printed.
+        5.  Error message indicates connection failure (e.g. Cannot connect to RHSM or Invalid username or password).
+    """
+    with contextlib.suppress(Exception):
+        rhc.disconnect()
+
+    # Wrong username, valid password from config (same pattern as test_connect_wrong_parameters)
+    credentials = {
+        "username": "notarealuser",
+        "password": "candlepin.password",
+    }
+    command_args = prepare_args_for_connect(test_config, credentials=credentials)
+    command = ["connect"] + command_args
+    result = rhc.run(*command, check=False)
+
+    assert result.returncode != 0
+    assert "Successfully connected to Red Hat!" not in result.stdout
+
+    output = result.stdout + result.stderr
+    assert (
+        "Cannot connect to Red Hat Subscription Management" in output
+        or "Invalid username or password" in output
+    ), f"Expected RHSM error in output: {output!r}"
+
 
 @pytest.mark.skip("Test cannot be run due to unresolved issues CCT-696")
 @pytest.mark.parametrize("auth", ["basic", "activation-key"])
