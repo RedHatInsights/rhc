@@ -387,7 +387,9 @@ func connectAction(ctx *cli.Context) error {
 	connectResult.TryActivateServices()
 	durations["yggdrasil"] = time.Since(start)
 
-	ui.Printf("\nSuccessfully connected to Red Hat!\n")
+	if connectResult.RHSMConnected {
+		ui.Printf("\nSuccessfully connected to Red Hat!\n")
+	}
 
 	if !ui.IsOutputMachineReadable() {
 		/* 5. Show footer message */
