@@ -92,17 +92,63 @@ Thus, mock of `/usr/bin/insights-client` should look like this:
 ```bash
 #!/bin/bash
 
-if [[ -f /etc/pki/consumer/cert.pem ]]
-then
-	echo "registered"
+register_insights() {
 	touch /etc/insights-client/.registered
 	rm -f /etc/insights-client/.unregistered
-else
-	echo "not registered"
+}
+
+unregister_insights() {
 	touch /etc/insights-client/.unregistered
 	rm -f /etc/insights-client/.registered
+}
+
+if [[ $1 = "--register" ]]
+then
+	if [[ -f /etc/pki/consumer/cert.pem ]]
+	then
+		echo "registering..."
+		register_insights
+		sleep 3
+		echo "registered"
+		exit 0
+	else
+		echo "unable to register (consumer cert does not exists)"
+		exit 1
+	fi
 fi
 
+
+if [[ $1 = "--unregister" ]]
+then
+	echo "unregistering..."
+	unregister_insights
+	sleep 2
+	echo "unregistered"
+	exit 0
+fi
+
+if [[ $1 = "--status" ]]
+then
+	if [[ -f /etc/pki/consumer/cert.pem ]]
+	then
+		if [[ -f /etc/insights-client/.registered ]]
+		then
+			echo "/etc/insights-client/.registered exist"
+			sleep 1
+			exit 0
+		else
+			echo "/etc/insights-client/.registered does not exist"
+			sleep 1
+			exit 1
+		fi
+	else
+		echo "consumer cert does not exist"
+		exit 1
+	fi
+fi
+
+echo "unknown CLI option"
+sleep 1
 exit 0
 ```
 
