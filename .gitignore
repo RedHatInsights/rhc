@@ -13,3 +13,4 @@ settings.toml
 .secrets.toml
 /rhc*.tar.*
 /vendor/
+*.mo
