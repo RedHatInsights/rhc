@@ -19,6 +19,7 @@ Source2:        go-vendor-tools.toml
 
 BuildRequires:  go-vendor-tools
 BuildRequires:  systemd-rpm-macros
+BuildRequires:  gettext
 %if 0%{?with_check}
 BuildRequires:  /usr/bin/dbus-launch
 %endif
@@ -49,6 +50,9 @@ export GO_LDFLAGS="-X main.Version=%{version} -X main.ServiceName=yggdrasil"
 # Generate man page
 %{gobuilddir}/bin/rhc --generate-man-page > rhc.1
 
+# Compile translation files (.po -> .mo)ç
+make i18n
+
 %install
 # Licenses
 %go_vendor_license_install -c %{S:2}
@@ -73,6 +77,14 @@ install -m 0755 -vd                     %{buildroot}%{_sysconfdir}/%{name}/
 install -m 0755 -vd %{buildroot}%{_unitdir}/yggdrasil.service.d/
 install -m 0644 -vp %{buildroot}%{_unitdir}/yggdrasil.service.d/rhcd.conf %{buildroot}%{_unitdir}/yggdrasil.service.d/
 %endif
+# Localization files
+for mo_file in po/*/LC_MESSAGES/*.mo; do
+    if [ -f "$mo_file" ]; then
+        lang=$(echo $mo_file | sed 's|po/\(.*\)/LC_MESSAGES/.*|\1|')
+        install -m 0755 -vd %{buildroot}%{_prefix}/local/share/locale/$lang/LC_MESSAGES
+        install -m 0644 -vp $mo_file %{buildroot}%{_prefix}/local/share/locale/$lang/LC_MESSAGES/rhc.mo
+    fi
+done
 
 %check
 %go_vendor_license_check -c %{S:2}
@@ -113,6 +125,8 @@ fi
 %if 0%{?with_rhcd_compat}
 %{_unitdir}/yggdrasil.service.d/rhcd.conf
 %endif
+# Localization
+%{_prefix}/local/share/locale/*/LC_MESSAGES/rhc.mo
 
 %changelog
 %autochangelog
