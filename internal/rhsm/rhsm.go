@@ -103,7 +103,7 @@ func registerUsernamePassword(username, password, organization string, environme
 		return orgs, err
 	}
 	if uuid != "" {
-		return orgs, fmt.Errorf("warning: the system is already registered")
+		return orgs, fmt.Errorf(localization.T("warning: the system is already registered"))
 	}
 
 	registerServer := conn.Object("com.redhat.RHSM1", "/com/redhat/RHSM1/RegisterServer")
@@ -221,7 +221,7 @@ func registerActivationKey(orgID string, activationKeys []string, environments [
 		return err
 	}
 	if uuid != "" {
-		return fmt.Errorf("warning: the system is already registered")
+		return fmt.Errorf(localization.T("warning: the system is already registered"))
 	}
 
 	registerServer := conn.Object("com.redhat.RHSM1", "/com/redhat/RHSM1/RegisterServer")
@@ -301,7 +301,7 @@ func Unregister() error {
 		return err
 	}
 	if uuid == "" {
-		return fmt.Errorf("warning: the system is already unregistered")
+		return fmt.Errorf(localization.T("warning: the system is already unregistered"))
 	}
 
 	locale := localization.GetLocale()
@@ -357,7 +357,7 @@ func UnpackDBusError(err error) error {
 func RegisterRHSM(ctx *cli.Context, enableContent bool) (string, error) {
 	uuid, err := GetConsumerUUID()
 	if err != nil {
-		return "Unable to get consumer UUID", cli.Exit(err, 1)
+		return localization.T("Unable to get consumer UUID"), cli.Exit(err, 1)
 	}
 	var successMsg string
 
@@ -372,15 +372,15 @@ func RegisterRHSM(ctx *cli.Context, enableContent bool) (string, error) {
 			if username == "" {
 				password = ""
 				scanner := bufio.NewScanner(os.Stdin)
-				fmt.Print("Username: ")
+				fmt.Print(localization.T("Username: "))
 				_ = scanner.Scan()
 				username = strings.TrimSpace(scanner.Text())
 			}
 			if password == "" {
-				fmt.Print("Password: ")
+				fmt.Print(localization.T("Password: "))
 				data, err := term.ReadPassword(int(os.Stdin.Fd()))
 				if err != nil {
-					return "Unable to read password", cli.Exit(err, 1)
+					return localization.T("Unable to read password"), cli.Exit(err, 1)
 				}
 				password = string(data)
 				fmt.Printf("\n\n")
@@ -391,7 +391,7 @@ func RegisterRHSM(ctx *cli.Context, enableContent bool) (string, error) {
 		if ui.IsOutputRich() {
 			s = spinner.New(spinner.CharSets[9], 100*time.Millisecond)
 			s.Prefix = ui.Indent.Small + "["
-			s.Suffix = "] Connecting to Red Hat Subscription Management..."
+			s.Suffix = localization.T("] Connecting to Red Hat Subscription Management...")
 			s.Start()
 			defer s.Stop()
 		}
@@ -416,7 +416,7 @@ func RegisterRHSM(ctx *cli.Context, enableContent bool) (string, error) {
 				   the organization. */
 				if len(orgs) > 0 {
 					if ui.IsOutputMachineReadable() {
-						return "Unable to register system to RHSM", cli.Exit("no organization specified", 1)
+						return localization.T("Unable to register system to RHSM"), cli.Exit(localization.T("no organization specified"), 1)
 					}
 					// Stop spinner to be able to display message and ask for organization
 					if ui.IsOutputRich() {
@@ -425,7 +425,7 @@ func RegisterRHSM(ctx *cli.Context, enableContent bool) (string, error) {
 
 					// Ask for organization and display hint with list of organizations
 					scanner := bufio.NewScanner(os.Stdin)
-					fmt.Println("Available Organizations:")
+					fmt.Println(localization.T("Available Organizations:"))
 					writer := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
 					for i, org := range orgs {
 						_, _ = fmt.Fprintf(writer, "%v\t", org)
@@ -434,7 +434,7 @@ func RegisterRHSM(ctx *cli.Context, enableContent bool) (string, error) {
 						}
 					}
 					_ = writer.Flush()
-					fmt.Print("\nOrganization: ")
+					fmt.Print(localization.T("\nOrganization: "))
 					_ = scanner.Scan()
 					organization = strings.TrimSpace(scanner.Text())
 					fmt.Printf("\n")
@@ -451,11 +451,11 @@ func RegisterRHSM(ctx *cli.Context, enableContent bool) (string, error) {
 			}
 		}
 		if err != nil {
-			return "Unable to register system to RHSM", cli.Exit(err, 1)
+			return localization.T("Unable to register system to RHSM"), cli.Exit(err, 1)
 		}
-		successMsg = "Connected to Red Hat Subscription Management"
+		successMsg = localization.T("Connected to Red Hat Subscription Management")
 	} else {
-		successMsg = "This system is already connected to Red Hat Subscription Management"
+		successMsg = localization.T("This system is already connected to Red Hat Subscription Management")
 	}
 	return successMsg, nil
 }

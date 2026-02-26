@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/redhatinsights/rhc/internal/localization"
 	"github.com/urfave/cli/v2"
 	"golang.org/x/sys/unix"
 )
@@ -70,8 +71,8 @@ func ConfigPath() (string, error) {
 // checkForUnknownArgs returns an error if any unknown arguments are present.
 func checkForUnknownArgs(ctx *cli.Context) error {
 	if ctx.Args().Len() != 0 {
-		return fmt.Errorf("error: unknown option(s): %s",
-			strings.Join(ctx.Args().Slice(), " "))
+		return fmt.Errorf(localization.TF("error: unknown option(s): %s",
+			strings.Join(ctx.Args().Slice(), " ")))
 	}
 	return nil
 }
@@ -84,9 +85,9 @@ func setupFormatOption(ctx *cli.Context) error {
 		return nil
 	default:
 		err := fmt.Errorf(
-			"unsupported format: %s (supported formats: %s)",
-			format,
-			`"json"`,
+			localization.TF("unsupported format: %s (supported formats: %s)",
+				format,
+				`"json"`),
 		)
 		return cli.Exit(err, ExitCodeDataErr)
 	}

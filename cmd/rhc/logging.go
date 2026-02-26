@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/redhatinsights/rhc/internal/localization"
 	"github.com/redhatinsights/rhc/internal/ui"
 )
 
@@ -72,7 +73,8 @@ func configureFileLogging(logLevel slog.Leveler) {
 	if err != nil {
 		// Discard log messages if we can't open the log file
 		w = io.Discard
-		ui.Printf("Unable to open log file: %v. \n\nDetailed logs will not be available.\n\n", err)
+		ui.Printf(localization.TF("Unable to open log file: %v.", err) + " \n\n" +
+			localization.T("Detailed logs will not be available.") + "\n\n")
 	} else {
 		logFile = file
 		w = logFile

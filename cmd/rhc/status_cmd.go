@@ -31,17 +31,17 @@ func rhsmStatus(systemStatus *SystemStatus) error {
 	if err != nil {
 		systemStatus.returnCode += 1
 		systemStatus.RHSMError = err.Error()
-		return fmt.Errorf("unable to get consumer UUID: %s", err)
+		return fmt.Errorf(localization.TF("unable to get consumer UUID: %s", err))
 	}
 	if uuid == "" {
 		systemStatus.returnCode += 1
 		systemStatus.RHSMConnected = false
-		infoMsg := "Not connected to Red Hat Subscription Management"
+		infoMsg := localization.T("Not connected to Red Hat Subscription Management")
 		slog.Info(infoMsg)
 		ui.Printf("%s[ ] %v\n", ui.Indent.Small, infoMsg)
 	} else {
 		systemStatus.RHSMConnected = true
-		infoMsg := "Connected to Red Hat Subscription Management"
+		infoMsg := localization.T("Connected to Red Hat Subscription Management")
 		slog.Info(infoMsg)
 		ui.Printf("%s[%v] %v\n", ui.Indent.Small, ui.Icons.Ok, infoMsg)
 	}
@@ -78,24 +78,24 @@ func isContentEnabled(systemStatus *SystemStatus) error {
 	if err != nil {
 		systemStatus.returnCode += 1
 		systemStatus.ContentError = err.Error()
-		return fmt.Errorf("unable to get consumer UUID: %s", err)
+		return fmt.Errorf(localization.TF("unable to get consumer UUID: %s", err))
 	}
 
 	if contentEnabled == "1" && uuid != "" {
 		systemStatus.ContentEnabled = true
-		infoMsg := "Red Hat repository file generated"
+		infoMsg := localization.T("Red Hat repository file generated")
 		slog.Info(infoMsg)
-		ui.Printf("%s[%v] Content ... %v\n", ui.Indent.Medium, ui.Icons.Ok, infoMsg)
+		ui.Printf("%s[%v] %s\n", ui.Indent.Medium, ui.Icons.Ok, localization.T("Content ... Red Hat repository file generated"))
 	} else {
 		systemStatus.ContentEnabled = false
 		if uuid != "" {
-			infoMsg := "Generating of Red Hat repository file disabled in rhsm.conf"
+			infoMsg := localization.T("Generating of Red Hat repository file disabled in rhsm.conf")
 			slog.Info(infoMsg)
-			ui.Printf("%s[ ] Content ... %v\n", ui.Indent.Medium, infoMsg)
+			ui.Printf("%s[ ] %s\n", ui.Indent.Medium, localization.T("Content ... Generating of Red Hat repository file disabled in rhsm.conf"))
 		} else {
-			infoMsg := "Red Hat repository file not generated"
+			infoMsg := localization.T("Red Hat repository file not generated")
 			slog.Info(infoMsg)
-			ui.Printf("%s[ ] Content ... %v\n", ui.Indent.Medium, infoMsg)
+			ui.Printf("%s[ ] %s\n", ui.Indent.Medium, localization.T("Content ... Red Hat repository file not generated"))
 		}
 	}
 	return nil
@@ -109,7 +109,7 @@ func insightStatus(systemStatus *SystemStatus) error {
 	if ui.IsOutputRich() {
 		s = spinner.New(spinner.CharSets[9], 100*time.Millisecond)
 		s.Prefix = ui.Indent.Medium + "["
-		s.Suffix = "] Checking Red Hat Lightspeed (formerly Insights)..."
+		s.Suffix = "] " + localization.T("Checking Red Hat Lightspeed (formerly Insights)...")
 		s.Start()
 	}
 	isRegistered, err := datacollection.InsightsClientIsRegistered()
@@ -119,13 +119,13 @@ func insightStatus(systemStatus *SystemStatus) error {
 	if isRegistered {
 		systemStatus.InsightsConnected = true
 		slog.Info("Connected to Red Hat Lightspeed")
-		ui.Printf("%s[%v] Analytics ... Connected to Red Hat Lightspeed (formerly Insights)\n", ui.Indent.Medium, ui.Icons.Ok)
+		ui.Printf("%s[%v] %s\n", ui.Indent.Medium, ui.Icons.Ok, localization.T("Analytics ... Connected to Red Hat Lightspeed (formerly Insights)"))
 	} else {
 		systemStatus.returnCode += 1
 		if err == nil {
 			systemStatus.InsightsConnected = false
 			slog.Info("Not connected to Red Hat Lightspeed")
-			ui.Printf("%s[ ] Analytics ... Not connected to Red Hat Lightspeed (formerly Insights)\n", ui.Indent.Medium)
+			ui.Printf("%s[ ] %s\n", ui.Indent.Medium, localization.T("Analytics ... Not connected to Red Hat Lightspeed (formerly Insights)"))
 		} else {
 			systemStatus.InsightsConnected = false
 			systemStatus.InsightsError = err.Error()
@@ -144,7 +144,7 @@ func serviceStatus(systemStatus *SystemStatus) error {
 	if err != nil {
 		systemStatus.YggdrasilRunning = false
 		systemStatus.YggdrasilError = err.Error()
-		return fmt.Errorf("unable to connect to systemd: %s", err)
+		return fmt.Errorf(localization.TF("unable to connect to systemd: %s", err))
 	}
 	defer conn.Close()
 	unitName := "yggdrasil.service"
@@ -152,23 +152,23 @@ func serviceStatus(systemStatus *SystemStatus) error {
 	if err != nil {
 		systemStatus.YggdrasilRunning = false
 		systemStatus.YggdrasilError = err.Error()
-		return fmt.Errorf("unable to get properties of %s: %s", unitName, err)
+		return fmt.Errorf(localization.TF("unable to get properties of %s: %s", unitName, err))
 	}
 
 	activeState := properties["ActiveState"]
 	if activeState.(string) == "active" {
 		systemStatus.YggdrasilRunning = true
-		infoMsg := "The yggdrasil service is active"
+		infoMsg := localization.T("The yggdrasil service is active")
 		slog.Info(infoMsg)
-		ui.Printf("%s[%v] Remote Management ... %v\n", ui.Indent.Medium, ui.Icons.Ok, infoMsg)
+		ui.Printf("%s[%v] %s\n", ui.Indent.Medium, ui.Icons.Ok, localization.T("Remote Management ... The yggdrasil service is active"))
 	} else {
 		systemStatus.returnCode += 1
 		loadState := properties["LoadState"]
 		if loadState == "loaded" {
 			systemStatus.YggdrasilRunning = false
-			warnMsg := "The yggdrasil service is inactive but not loaded"
+			warnMsg := localization.T("The yggdrasil service is inactive but not loaded")
 			slog.Warn(warnMsg)
-			ui.Printf("%s[ ] Remote Management ... %v\n", ui.Indent.Medium, warnMsg)
+			ui.Printf("%s[ ] %s\n", ui.Indent.Medium, localization.T("Remote Management ... The yggdrasil service is inactive but not loaded"))
 		} else {
 			loadError := properties["LoadError"]
 			// This part of the systemd D-Bus API is a little bit tricky. It returns
@@ -188,10 +188,10 @@ func serviceStatus(systemStatus *SystemStatus) error {
 						systemStatus.YggdrasilError = loadErrorString
 						slog.Error(loadErrorString)
 						ui.Printf(
-							"%s[%s] Remote Management ... %v\n",
+							"%s[%s] %s\n",
 							ui.Indent.Medium,
 							ui.Icons.Error,
-							loadErrorString,
+							localization.TF("Remote Management ... %v", loadErrorString),
 						)
 					}
 				}
@@ -272,7 +272,7 @@ func statusAction(ctx *cli.Context) (err error) {
 			// a non-zero value
 			if err != nil {
 				err = cli.Exit(
-					fmt.Errorf("unable to print status as %s document: %s", format, err.Error()),
+					fmt.Errorf(localization.TF("unable to print status as %s document: %s", format, err.Error())),
 					1)
 			}
 			// When any of status is not correct, then return 1 exit code
@@ -292,7 +292,7 @@ func statusAction(ctx *cli.Context) (err error) {
 	}
 
 	systemStatus.SystemHostname = hostname
-	ui.Printf("Connection status for %v:\n\n", hostname)
+	ui.Printf(localization.TF("Connection status for %v:\n\n", hostname))
 	slog.Info("Checking system connection status")
 
 	/* 1. Get Status of RHSM */
@@ -300,10 +300,10 @@ func statusAction(ctx *cli.Context) (err error) {
 	if err != nil {
 		slog.Error(fmt.Sprintf("Cannot detect Red Hat Subscription Management status: %v", err))
 		ui.Printf(
-			"%s[%s] Red Hat Subscription Management ... %s\n",
+			"%s[%s] %s\n",
 			ui.Indent.Small,
 			ui.Icons.Error,
-			err,
+			localization.TF("Red Hat Subscription Management ... %s", err),
 		)
 	}
 
@@ -312,10 +312,10 @@ func statusAction(ctx *cli.Context) (err error) {
 	if err != nil {
 		slog.Error(fmt.Sprintf("Cannot detect content management status: %v", err))
 		ui.Printf(
-			"%s[%s] Content ... %s\n",
+			"%s[%s] %s\n",
 			ui.Indent.Medium,
 			ui.Icons.Error,
-			err,
+			localization.TF("Content ... %s", err),
 		)
 	}
 
@@ -323,10 +323,10 @@ func statusAction(ctx *cli.Context) (err error) {
 	err = insightStatus(&systemStatus)
 	if err != nil {
 		slog.Error(fmt.Sprintf("Cannot detect Red Hat Lightspeed status: %v", err))
-		ui.Printf("%s[%v] Analytics ... Cannot detect Red Hat Lightspeed (formerly Insights) status: %v\n",
+		ui.Printf("%s[%v] %s\n",
 			ui.Indent.Medium,
 			ui.Icons.Error,
-			err,
+			localization.TF("Analytics ... Cannot detect Red Hat Lightspeed (formerly Insights) status: %v", err),
 		)
 	}
 
@@ -334,14 +334,14 @@ func statusAction(ctx *cli.Context) (err error) {
 	err = serviceStatus(&systemStatus)
 	if err != nil {
 		ui.Printf(
-			"%s[%s] Remote Management ... %s\n",
+			"%s[%s] %s\n",
 			ui.Indent.Medium,
 			ui.Icons.Error,
-			err,
+			localization.TF("Remote Management ... %s", err),
 		)
 	}
 
-	ui.Printf("\nManage your connected systems: https://red.ht/connector\n")
+	ui.Printf(localization.T("\nManage your connected systems: https://red.ht/connector\n"))
 
 	// At the end check if all statuses are correct.
 	// If not, return 1 exit code without any message.

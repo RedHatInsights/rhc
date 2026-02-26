@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/redhatinsights/rhc/internal/features"
+	"github.com/redhatinsights/rhc/internal/localization"
 	"github.com/redhatinsights/rhc/internal/rhsm"
 	"github.com/urfave/cli/v2"
 
@@ -53,7 +54,7 @@ func (connectResult *ConnectResult) Error() string {
 	case "":
 		break
 	default:
-		result = "error: unsupported document format: " + connectResult.format
+		result = localization.TF("error: unsupported document format: %s", connectResult.format)
 	}
 	return result
 }
@@ -80,19 +81,21 @@ func (connectResult *ConnectResult) TryRegisterRHSM(ctx *cli.Context) {
 	returnedMsg, err := rhsm.RegisterRHSM(ctx, features.ContentFeature.Enabled)
 	if err != nil {
 		connectResult.RHSMConnected = false
-		connectResult.RHSMConnectError = fmt.Sprintf("cannot connect to Red Hat Subscription Management: %s", err)
+		connectResult.RHSMConnectError = localization.TF("cannot connect to Red Hat Subscription Management: %s", err)
 		connectResult.Features.Content.Successful = false
 		slog.Error(connectResult.RHSMConnectError)
 		ui.Printf(
-			"%s[%v] Cannot connect to Red Hat Subscription Management\n",
+			"%s[%v] %s\n",
 			ui.Indent.Small,
 			ui.Icons.Error,
+			localization.T("Cannot connect to Red Hat Subscription Management"),
 		)
 		slog.Warn("Skipping generation of redhat.repo (RHSM registration failed)")
 		ui.Printf(
-			"%s[%v] Skipping generation of Red Hat repository file\n",
+			"%s[%v] %s\n",
 			ui.Indent.Medium,
 			ui.Icons.Error,
+			localization.T("Skipping generation of Red Hat repository file"),
 		)
 	} else {
 		connectResult.RHSMConnected = true
@@ -101,11 +104,11 @@ func (connectResult *ConnectResult) TryRegisterRHSM(ctx *cli.Context) {
 		if features.ContentFeature.Enabled {
 			connectResult.Features.Content.Successful = true
 			slog.Info("redhat.repo has been generated")
-			ui.Printf("%s[%v] Content ... Red Hat repository file generated\n", ui.Indent.Medium, ui.Icons.Ok)
+			ui.Printf("%s[%v] %s\n", ui.Indent.Medium, ui.Icons.Ok, localization.T("Content ... Red Hat repository file generated"))
 		} else {
 			connectResult.Features.Content.Successful = false
 			slog.Info("redhat.repo not generated (content feature disabled)")
-			ui.Printf("%s[ ] Content ... Red Hat repository file not generated\n", ui.Indent.Medium)
+			ui.Printf("%s[ ] %s\n", ui.Indent.Medium, localization.T("Content ... Red Hat repository file not generated"))
 		}
 	}
 }
@@ -117,37 +120,39 @@ func (connectResult *ConnectResult) TryRegisterInsightsClient() {
 	if !features.AnalyticsFeature.Enabled {
 		connectResult.Features.Analytics.Successful = false
 		slog.Info("Connecting to Red Hat Lightspeed disabled (analytics feature disabled)")
-		ui.Printf("%s[ ] Analytics ... Connecting to Red Hat Lightspeed (formerly Insights) disabled\n", ui.Indent.Medium)
+		ui.Printf("%s[ ] %s\n", ui.Indent.Medium, localization.T("Analytics ... Connecting to Red Hat Lightspeed (formerly Insights) disabled"))
 		return
 	}
 
 	if connectResult.RHSMConnectError != "" {
 		slog.Warn("Skipping connection to Red Hat Lightspeed (RHSM registration failed)", "rhsm_error", connectResult.RHSMConnectError)
 		ui.Printf(
-			"%s[%v] Skipping connection to Red Hat Lightspeed (formerly Insights)\n",
+			"%s[%v] %s\n",
 			ui.Indent.Medium,
 			ui.Icons.Error,
+			localization.T("Skipping connection to Red Hat Lightspeed (formerly Insights)"),
 		)
 		return
 	}
 
 	slog.Info("Connecting to Red Hat Lightspeed")
-	err := ui.Spinner(datacollection.RegisterInsightsClient, ui.Indent.Medium, "Connecting to Red Hat Lightspeed (formerly Insights)...")
+	err := ui.Spinner(datacollection.RegisterInsightsClient, ui.Indent.Medium, localization.T("Connecting to Red Hat Lightspeed (formerly Insights)..."))
 	if err != nil {
 		connectResult.Features.Analytics.Successful = false
-		connectResult.Features.Analytics.Error = fmt.Sprintf("cannot connect to Red Hat Lightspeed (formerly Insights): %v", err)
-		slog.Error(fmt.Sprintf("cannot connect to Red Hat Lightspeed: %v", err))
+		connectResult.Features.Analytics.Error = localization.TF("cannot connect to Red Hat Lightspeed (formerly Insights): %v", err)
+		slog.Error(localization.TF("cannot connect to Red Hat Lightspeed: %v", err))
 		ui.Printf(
-			"%s[%v] Analytics ... Cannot connect to Red Hat Lightspeed (formerly Insights)\n",
+			"%s[%v] %s\n",
 			ui.Indent.Medium,
 			ui.Icons.Error,
+			localization.T("Analytics ... Cannot connect to Red Hat Lightspeed (formerly Insights)"),
 		)
 		return
 	}
 
 	connectResult.Features.Analytics.Successful = true
 	slog.Debug("Connected to Red Hat Lightspeed")
-	ui.Printf("%s[%v] Analytics ... Connected to Red Hat Lightspeed (formerly Insights)\n", ui.Indent.Medium, ui.Icons.Ok)
+	ui.Printf("%s[%v] %s\n", ui.Indent.Medium, ui.Icons.Ok, localization.T("Analytics ... Connected to Red Hat Lightspeed (formerly Insights)"))
 }
 
 // TryActivateServices will attempt to activate the yggdrasil service.
@@ -157,13 +162,13 @@ func (connectResult *ConnectResult) TryActivateServices() {
 	if !features.ManagementFeature.Enabled {
 		connectResult.Features.RemoteManagement.Successful = false
 		if features.ManagementFeature.Reason != "" {
-			infoMsg := fmt.Sprintf("Starting yggdrasil service disabled (%s)", features.ManagementFeature.Reason)
+			infoMsg := localization.TF("Starting yggdrasil service disabled (%s)", features.ManagementFeature.Reason)
 			slog.Info(infoMsg)
-			ui.Printf("%s[ ] Management .... %s\n", ui.Indent.Medium, infoMsg)
+			ui.Printf("%s[ ] %s\n", ui.Indent.Medium, infoMsg)
 		} else {
-			infoMsg := "Starting yggdrasil service disabled"
+			infoMsg := localization.T("Starting yggdrasil service disabled")
 			slog.Info(infoMsg)
-			ui.Printf("%s[ ] Management .... %s\n", ui.Indent.Medium, infoMsg)
+			ui.Printf("%s[ ] %s\n", ui.Indent.Medium, infoMsg)
 		}
 		return
 	}
@@ -175,31 +180,33 @@ func (connectResult *ConnectResult) TryActivateServices() {
 			"rhsm_error", connectResult.RHSMConnectError,
 		)
 		ui.Printf(
-			"%s[%v] Skipping activation of yggdrasil service\n",
+			"%s[%v] %s\n",
 			ui.Indent.Medium,
 			ui.Icons.Error,
+			localization.T("Skipping activation of yggdrasil service"),
 		)
 		return
 	}
 
 	slog.Info("Activating yggdrasil service")
-	err := ui.Spinner(remotemanagement.ActivateServices, ui.Indent.Medium, " Activating the yggdrasil service")
+	err := ui.Spinner(remotemanagement.ActivateServices, ui.Indent.Medium, localization.T(" Activating the yggdrasil service"))
 	if err != nil {
 		connectResult.Features.RemoteManagement.Successful = false
-		connectResult.Features.RemoteManagement.Error = fmt.Sprintf("cannot activate the yggdrasil service: %v", err)
+		connectResult.Features.RemoteManagement.Error = localization.TF("cannot activate the yggdrasil service: %v", err)
 		slog.Error(connectResult.Features.RemoteManagement.Error)
 		ui.Printf(
-			"%s[%v] Remote Management ... Cannot activate the yggdrasil service\n",
+			"%s[%v] %s\n",
 			ui.Indent.Medium,
 			ui.Icons.Error,
+			localization.T("Remote Management ... Cannot activate the yggdrasil service"),
 		)
 		return
 	}
 
 	connectResult.Features.RemoteManagement.Successful = true
-	infoMsg := "Activated the yggdrasil service"
+	infoMsg := localization.T("Activated the yggdrasil service")
 	slog.Debug(infoMsg)
-	ui.Printf("%s[%v] Remote Management ... %s\n", ui.Indent.Medium, ui.Icons.Ok, infoMsg)
+	ui.Printf("%s[%v] %s\n", ui.Indent.Medium, ui.Icons.Ok, localization.T("Remote Management ... Activated the yggdrasil service"))
 }
 
 // beforeConnectAction ensures that user has supplied correct CLI options
@@ -221,13 +228,13 @@ func beforeConnectAction(ctx *cli.Context) error {
 	uuid, err := rhsm.GetConsumerUUID()
 	if err != nil {
 		return cli.Exit(
-			fmt.Sprintf("unable to get consumer UUID: %s", err),
+			localization.TF("unable to get consumer UUID: %s", err),
 			ExitCodeSoftware,
 		)
 	}
 	if uuid != "" {
 		slog.Info("Consumer UUID is set, system is already connected")
-		return cli.Exit("this system is already connected", ExitCodeUsage)
+		return cli.Exit(localization.T("this system is already connected"), ExitCodeUsage)
 	}
 
 	username := ctx.String("username")
@@ -241,7 +248,7 @@ func beforeConnectAction(ctx *cli.Context) error {
 	if len(activationKeys) > 0 {
 		if username != "" {
 			exitErr := cli.Exit(
-				"--username and --activation-key can not be used together",
+				localization.T("--username and --activation-key can not be used together"),
 				ExitCodeUsage,
 			)
 			return exitErr
@@ -249,7 +256,7 @@ func beforeConnectAction(ctx *cli.Context) error {
 		}
 		if password != "" {
 			exitErr := cli.Exit(
-				"--password and --activation-key can not be used together",
+				localization.T("--password and --activation-key can not be used together"),
 				ExitCodeUsage,
 			)
 			return exitErr
@@ -257,7 +264,7 @@ func beforeConnectAction(ctx *cli.Context) error {
 		}
 		if organization == "" {
 			exitErr := cli.Exit(
-				"--organization is required, when --activation-key is used",
+				localization.T("--organization is required, when --activation-key is used"),
 				ExitCodeUsage,
 			)
 			return exitErr
@@ -269,7 +276,7 @@ func beforeConnectAction(ctx *cli.Context) error {
 	if !ui.IsInteractive() {
 		if (username == "" || password == "") && (len(activationKeys) == 0 || organization == "") {
 			exitErr := cli.Exit(
-				"--username/--password or --organization/--activation-key are required when a machine-readable format is used",
+				localization.T("--username/--password or --organization/--activation-key are required when a machine-readable format is used"),
 				ExitCodeUsage,
 			)
 			return exitErr
@@ -283,7 +290,7 @@ func beforeConnectAction(ctx *cli.Context) error {
 
 	if !features.ContentFeature.Enabled && len(contentTemplates) > 0 {
 		return cli.Exit(
-			"'--content-template' can not be used together with '--disable-feature content'",
+			localization.T("'--content-template' can not be used together with '--disable-feature content'"),
 			ExitCodeUsage,
 		)
 	}
@@ -307,7 +314,7 @@ func connectAction(ctx *cli.Context) error {
 
 	uid := os.Getuid()
 	if uid != 0 {
-		errMsg := "non-root user cannot connect system"
+		errMsg := localization.T("non-root user cannot connect system")
 		exitCode := 1
 		slog.Error(errMsg)
 		if ui.IsOutputMachineReadable() {
@@ -315,7 +322,7 @@ func connectAction(ctx *cli.Context) error {
 			connectResult.UIDError = errMsg
 			return cli.Exit(connectResult, exitCode)
 		} else {
-			return cli.Exit(fmt.Errorf("error: %s", errMsg), exitCode)
+			return cli.Exit(fmt.Errorf(localization.TF("error: %s", errMsg)), exitCode)
 		}
 	}
 
@@ -325,7 +332,7 @@ func connectAction(ctx *cli.Context) error {
 	}
 	if err != nil {
 		exitCode := 1
-		slog.Error(fmt.Sprintf("Error retrieving system hostname: %v", err))
+		slog.Error(localization.TF("Error retrieving system hostname: %v", err))
 		if ui.IsOutputMachineReadable() {
 			connectResult.HostnameError = err.Error()
 			return cli.Exit(connectResult, exitCode)
@@ -334,7 +341,7 @@ func connectAction(ctx *cli.Context) error {
 		}
 	}
 
-	ui.Printf("Connecting %v to Red Hat.\nThis might take a few seconds.\n\n", hostname)
+	ui.Printf(localization.TF("Connecting %v to Red Hat.\nThis might take a few seconds.\n\n", hostname))
 
 	var featuresStr []string
 	for _, feature := range features.KnownFeatures {
@@ -350,7 +357,7 @@ func connectAction(ctx *cli.Context) error {
 				}
 			}
 			featuresStr = append(featuresStr, "["+ui.Icons.Ok+"]"+feature.ID)
-			slog.Debug(fmt.Sprintf("Feature '%s' marked enabled", feature.ID))
+			slog.Debug(localization.TF("Feature '%s' marked enabled", feature.ID))
 		} else {
 			if ui.IsOutputMachineReadable() {
 				switch feature.ID {
@@ -363,11 +370,11 @@ func connectAction(ctx *cli.Context) error {
 				}
 			}
 			featuresStr = append(featuresStr, "[ ]"+feature.ID)
-			slog.Debug(fmt.Sprintf("Feature '%s' marked disabled", feature.ID))
+			slog.Debug(localization.TF("Feature '%s' marked disabled", feature.ID))
 		}
 	}
 	featuresListStr := strings.Join(featuresStr, ", ")
-	ui.Printf("Features preferences: %s\n\n", featuresListStr)
+	ui.Printf(localization.TF("Features preferences: %s\n\n", featuresListStr))
 
 	var start time.Time
 	durations := make(map[string]time.Duration)
@@ -388,12 +395,12 @@ func connectAction(ctx *cli.Context) error {
 	durations["yggdrasil"] = time.Since(start)
 
 	if connectResult.RHSMConnected {
-		ui.Printf("\nSuccessfully connected to Red Hat!\n")
+		ui.Printf(localization.T("\nSuccessfully connected to Red Hat!\n"))
 	}
 
 	if !ui.IsOutputMachineReadable() {
 		/* 5. Show footer message */
-		fmt.Printf("\nManage your connected systems: https://red.ht/connector\n")
+		fmt.Printf(localization.T("\nManage your connected systems: https://red.ht/connector\n"))
 
 		/* 6. Optionally display duration time of each sub-action */
 		showTimeDuration(durations)
