@@ -473,7 +473,7 @@ func TestValidateSelectedFeatures(t *testing.T) {
 			},
 		},
 		{
-			description:          "validate selected features where analytics requires content - content not explicitly enabled",
+			description:          "validate selected features where enable analytics",
 			wantEnabledFeatures:  []string{"analytics"},
 			wantDisabledFeatures: []string{},
 			expectError:          false,
@@ -481,23 +481,16 @@ func TestValidateSelectedFeatures(t *testing.T) {
 				if !AnalyticsFeatureInst.WantEnabled() {
 					t.Error("AnalyticsFeature should be enabled")
 				}
-				// Content should remain in its default state (not explicitly set)
 			},
 		},
 		{
-			description:          "validate selected features where disable content - analytics should be affected",
+			description:          "validate selected features where disable content",
 			wantEnabledFeatures:  []string{},
 			wantDisabledFeatures: []string{"content"},
 			expectError:          false,
 			validateState: func(t *testing.T) {
 				if ContentFeatureInst.WantEnabled() {
 					t.Error("ContentFeature should be disabled")
-				}
-				if AnalyticsFeatureInst.WantEnabled() {
-					t.Error("AnalyticsFeature should be disabled due to content being disabled")
-				}
-				if AnalyticsFeatureInst.Reason() == "" {
-					t.Error("AnalyticsFeature.Reason should be set")
 				}
 			},
 		},
@@ -531,13 +524,6 @@ func TestValidateSelectedFeatures(t *testing.T) {
 			wantDisabledFeatures: []string{"feature1", "feature2"},
 			expectError:          true,
 			errorContains:        "no such feature exists",
-		},
-		{
-			description:          "validate selected features where enable analytics without content - content disabled",
-			wantEnabledFeatures:  []string{"analytics"},
-			wantDisabledFeatures: []string{"content"},
-			expectError:          true,
-			errorContains:        "required feature",
 		},
 		{
 			description:          "validate selected features where enable management with content but analytics disabled",

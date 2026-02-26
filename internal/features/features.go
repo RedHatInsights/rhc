@@ -398,7 +398,7 @@ var AnalyticsFeatureInst = AnalyticsFeature{
 	BaseFeature: BaseFeature{
 		id:          AnalyticsFeatureID,
 		name:        "Analytics",
-		requires:    []RhcFeature{&ContentFeatureInst},
+		requires:    []RhcFeature{},
 		wantEnabled: true,
 		description: "Red Hat Lightspeed data collection",
 	},
@@ -422,7 +422,7 @@ var ManagementFeatureInst = ManagementFeature{
 func init() {
 	// FIXME: this is a temporary solution. We should implement automatic dependency graph and
 	//        fill `requiredBy` field from `requires` of other features
-	ContentFeatureInst.requiredBy = []RhcFeature{&AnalyticsFeatureInst, &ManagementFeatureInst}
+	ContentFeatureInst.requiredBy = []RhcFeature{&ManagementFeatureInst}
 	AnalyticsFeatureInst.requiredBy = []RhcFeature{&ManagementFeatureInst}
 	ManagementFeatureInst.requiredBy = []RhcFeature{}
 }
