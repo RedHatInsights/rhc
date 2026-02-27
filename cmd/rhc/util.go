@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -71,7 +72,7 @@ func ConfigPath() (string, error) {
 // checkForUnknownArgs returns an error if any unknown arguments are present.
 func checkForUnknownArgs(ctx *cli.Context) error {
 	if ctx.Args().Len() != 0 {
-		return fmt.Errorf(localization.TF("error: unknown option(s): %s",
+		return errors.New(localization.TF("error: unknown option(s): %s",
 			strings.Join(ctx.Args().Slice(), " ")))
 	}
 	return nil
@@ -84,7 +85,7 @@ func setupFormatOption(ctx *cli.Context) error {
 	case "", "json":
 		return nil
 	default:
-		err := fmt.Errorf(
+		err := errors.New(
 			localization.TF("unsupported format: %s (supported formats: %s)",
 				format,
 				`"json"`),

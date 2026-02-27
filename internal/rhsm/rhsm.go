@@ -3,6 +3,7 @@ package rhsm
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -103,7 +104,7 @@ func registerUsernamePassword(username, password, organization string, environme
 		return orgs, err
 	}
 	if uuid != "" {
-		return orgs, fmt.Errorf(localization.T("warning: the system is already registered"))
+		return orgs, errors.New(localization.T("warning: the system is already registered"))
 	}
 
 	registerServer := conn.Object("com.redhat.RHSM1", "/com/redhat/RHSM1/RegisterServer")
@@ -221,7 +222,7 @@ func registerActivationKey(orgID string, activationKeys []string, environments [
 		return err
 	}
 	if uuid != "" {
-		return fmt.Errorf(localization.T("warning: the system is already registered"))
+		return errors.New(localization.T("warning: the system is already registered"))
 	}
 
 	registerServer := conn.Object("com.redhat.RHSM1", "/com/redhat/RHSM1/RegisterServer")
@@ -301,7 +302,7 @@ func Unregister() error {
 		return err
 	}
 	if uuid == "" {
-		return fmt.Errorf(localization.T("warning: the system is already unregistered"))
+		return errors.New(localization.T("warning: the system is already unregistered"))
 	}
 
 	locale := localization.GetLocale()

@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -196,7 +197,7 @@ func disconnectAction(ctx *cli.Context) error {
 			disconnectResult.UIDError = errMsg
 			return cli.Exit(disconnectResult, exitCode)
 		} else {
-			return cli.Exit(fmt.Errorf(localization.TF("error: %s", errMsg)), exitCode)
+			return cli.Exit(errors.New(localization.TF("error: %s", errMsg)), exitCode)
 		}
 	}
 
@@ -214,7 +215,7 @@ func disconnectAction(ctx *cli.Context) error {
 	}
 
 	slog.Info(localization.TF("Disconnecting %v from Red Hat", hostname))
-	ui.Printf(localization.TF("Disconnecting %v from Red Hat.\nThis might take a few seconds.\n\n", hostname))
+	ui.Printf("%s", localization.TF("Disconnecting %v from Red Hat.\nThis might take a few seconds.\n\n", hostname))
 
 	var start time.Time
 	durations := make(map[string]time.Duration)

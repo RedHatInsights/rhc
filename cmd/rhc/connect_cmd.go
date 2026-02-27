@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -322,7 +323,7 @@ func connectAction(ctx *cli.Context) error {
 			connectResult.UIDError = errMsg
 			return cli.Exit(connectResult, exitCode)
 		} else {
-			return cli.Exit(fmt.Errorf(localization.TF("error: %s", errMsg)), exitCode)
+			return cli.Exit(errors.New(localization.TF("error: %s", errMsg)), exitCode)
 		}
 	}
 
@@ -341,7 +342,7 @@ func connectAction(ctx *cli.Context) error {
 		}
 	}
 
-	ui.Printf(localization.TF("Connecting %v to Red Hat.\nThis might take a few seconds.\n\n", hostname))
+	ui.Printf("%s", localization.TF("Connecting %v to Red Hat.\nThis might take a few seconds.\n\n", hostname))
 
 	var featuresStr []string
 	for _, feature := range features.KnownFeatures {
@@ -374,7 +375,7 @@ func connectAction(ctx *cli.Context) error {
 		}
 	}
 	featuresListStr := strings.Join(featuresStr, ", ")
-	ui.Printf(localization.TF("Features preferences: %s\n\n", featuresListStr))
+	ui.Printf("%s", localization.TF("Features preferences: %s\n\n", featuresListStr))
 
 	var start time.Time
 	durations := make(map[string]time.Duration)
@@ -395,12 +396,12 @@ func connectAction(ctx *cli.Context) error {
 	durations["yggdrasil"] = time.Since(start)
 
 	if connectResult.RHSMConnected {
-		ui.Printf(localization.T("\nSuccessfully connected to Red Hat!\n"))
+		ui.Printf("%s", localization.T("\nSuccessfully connected to Red Hat!\n"))
 	}
 
 	if !ui.IsOutputMachineReadable() {
 		/* 5. Show footer message */
-		fmt.Printf(localization.T("\nManage your connected systems: https://red.ht/connector\n"))
+		fmt.Print(localization.T("\nManage your connected systems: https://red.ht/connector\n"))
 
 		/* 6. Optionally display duration time of each sub-action */
 		showTimeDuration(durations)

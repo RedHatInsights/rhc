@@ -1,6 +1,7 @@
 package features
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -116,7 +117,7 @@ func CheckFeatureInput(enabledFeaturesIDs *[]string, disabledFeaturesIDs *[]stri
 		if !isKnown {
 			supportedIds := listKnownFeatureIds()
 			hint := strings.Join(supportedIds, ",")
-			return fmt.Errorf(localization.TF("cannot disable feature \"%s\": no such feature exists (%s)", featureId, hint))
+			return errors.New(localization.TF("cannot disable feature \"%s\": no such feature exists (%s)", featureId, hint))
 		}
 		disabledFeature.Enabled = false
 	}
@@ -137,16 +138,16 @@ func CheckFeatureInput(enabledFeaturesIDs *[]string, disabledFeaturesIDs *[]stri
 		if !isKnown {
 			supportedIds := listKnownFeatureIds()
 			hint := strings.Join(supportedIds, ",")
-			return fmt.Errorf(localization.TF("cannot enable feature \"%s\": no such feature exists (%s)", featureId, hint))
+			return errors.New(localization.TF("cannot enable feature \"%s\": no such feature exists (%s)", featureId, hint))
 		}
 		for _, disabledFeatureId := range *disabledFeaturesIDs {
 			if featureId == disabledFeatureId {
-				return fmt.Errorf(localization.TF("cannot enable feature: \"%s\": feature \"%s\" explicitly disabled",
+				return errors.New(localization.TF("cannot enable feature: \"%s\": feature \"%s\" explicitly disabled",
 					featureId, disabledFeatureId))
 			}
 			for _, requiredFeature := range enabledFeature.Requires {
 				if requiredFeature.ID == disabledFeatureId {
-					return fmt.Errorf(localization.TF("cannot enable feature: \"%s\": required feature \"%s\" explicitly disabled",
+					return errors.New(localization.TF("cannot enable feature: \"%s\": required feature \"%s\" explicitly disabled",
 						enabledFeature.ID, disabledFeatureId))
 				}
 			}

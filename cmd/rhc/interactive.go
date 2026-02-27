@@ -34,7 +34,7 @@ func showErrorMessages(action string, errorMessages map[string]string) error {
 	}
 
 	fmt.Println()
-	fmt.Printf(localization.TF("The following errors were encountered during %s:\n\n", action))
+	fmt.Print(localization.TF("The following errors were encountered during %s:\n\n", action))
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	_, _ = fmt.Fprintln(w, localization.T("STEP\tERROR\t"))
 	for step, errMsg := range errorMessages {
@@ -45,7 +45,7 @@ func showErrorMessages(action string, errorMessages map[string]string) error {
 
 	// Direct users to the log file
 	if logFile != nil {
-		fmt.Printf(localization.TF("Please see %s for full details.\n", logFile.Name()))
+		fmt.Print(localization.TF("Please see %s for full details.\n", logFile.Name()))
 	}
 
 	return cli.Exit("", 1)

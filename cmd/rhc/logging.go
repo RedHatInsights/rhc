@@ -73,7 +73,7 @@ func configureFileLogging(logLevel slog.Leveler) {
 	if err != nil {
 		// Discard log messages if we can't open the log file
 		w = io.Discard
-		ui.Printf(localization.TF("Unable to open log file: %v.", err) + " \n\n" +
+		ui.Printf("%s", localization.TF("Unable to open log file: %v.", err) + " \n\n" +
 			localization.T("Detailed logs will not be available.") + "\n\n")
 	} else {
 		logFile = file

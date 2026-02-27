@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -31,7 +32,7 @@ func rhsmStatus(systemStatus *SystemStatus) error {
 	if err != nil {
 		systemStatus.returnCode += 1
 		systemStatus.RHSMError = err.Error()
-		return fmt.Errorf(localization.TF("unable to get consumer UUID: %s", err))
+		return errors.New(localization.TF("unable to get consumer UUID: %s", err))
 	}
 	if uuid == "" {
 		systemStatus.returnCode += 1
@@ -78,7 +79,7 @@ func isContentEnabled(systemStatus *SystemStatus) error {
 	if err != nil {
 		systemStatus.returnCode += 1
 		systemStatus.ContentError = err.Error()
-		return fmt.Errorf(localization.TF("unable to get consumer UUID: %s", err))
+		return errors.New(localization.TF("unable to get consumer UUID: %s", err))
 	}
 
 	if contentEnabled == "1" && uuid != "" {
@@ -144,7 +145,7 @@ func serviceStatus(systemStatus *SystemStatus) error {
 	if err != nil {
 		systemStatus.YggdrasilRunning = false
 		systemStatus.YggdrasilError = err.Error()
-		return fmt.Errorf(localization.TF("unable to connect to systemd: %s", err))
+		return errors.New(localization.TF("unable to connect to systemd: %s", err))
 	}
 	defer conn.Close()
 	unitName := "yggdrasil.service"
@@ -152,7 +153,7 @@ func serviceStatus(systemStatus *SystemStatus) error {
 	if err != nil {
 		systemStatus.YggdrasilRunning = false
 		systemStatus.YggdrasilError = err.Error()
-		return fmt.Errorf(localization.TF("unable to get properties of %s: %s", unitName, err))
+		return errors.New(localization.TF("unable to get properties of %s: %s", unitName, err))
 	}
 
 	activeState := properties["ActiveState"]
@@ -272,7 +273,7 @@ func statusAction(ctx *cli.Context) (err error) {
 			// a non-zero value
 			if err != nil {
 				err = cli.Exit(
-					fmt.Errorf(localization.TF("unable to print status as %s document: %s", format, err.Error())),
+					errors.New(localization.TF("unable to print status as %s document: %s", format, err.Error())),
 					1)
 			}
 			// When any of status is not correct, then return 1 exit code
@@ -292,7 +293,7 @@ func statusAction(ctx *cli.Context) (err error) {
 	}
 
 	systemStatus.SystemHostname = hostname
-	ui.Printf(localization.TF("Connection status for %v:\n\n", hostname))
+	ui.Printf("%s", localization.TF("Connection status for %v:\n\n", hostname))
 	slog.Info("Checking system connection status")
 
 	/* 1. Get Status of RHSM */
@@ -341,7 +342,7 @@ func statusAction(ctx *cli.Context) (err error) {
 		)
 	}
 
-	ui.Printf(localization.T("\nManage your connected systems: https://red.ht/connector\n"))
+	ui.Printf("%s", localization.T("\nManage your connected systems: https://red.ht/connector\n"))
 
 	// At the end check if all statuses are correct.
 	// If not, return 1 exit code without any message.
