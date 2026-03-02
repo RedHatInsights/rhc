@@ -10,11 +10,13 @@ import contextlib
 import os
 import re
 import stat
+import subprocess
 import pytest
 
 from utils import prepare_args_for_connect
 
 LOG_FILE_PATH = "/var/log/rhc/rhc.log"
+LOG_DIR_PATH = "/var/log/rhc"
 LOGROTATE_CONFIG_PATH = "/etc/logrotate.d/rhc"
 
 
@@ -98,6 +100,115 @@ def test_log_file_permissions(rhc):
     assert file_mode == 0o640, (
         f"Log file permissions should be 0640, got {oct(file_mode)}"
     )
+
+@pytest.fixture
+def non_root_user():
+    """Creates a temporary non-root user for testing, then removes it after."""
+    username = "rhc_test_user"
+    subprocess.run(["useradd", "-m", username], check=True)
+    yield username
+    subprocess.run(["userdel", "-r", username], check=False)
+
+
+@pytest.mark.tier1
+def test_log_file_created_non_root(non_root_user):
+    """
+    :id: 89da0e9d-3c14-42fd-b45d-f695de60119b
+    :title: Verify non-root user log file is created at ~/.local/state/rhc/rhc.log
+    :description:
+        Verifies that when rhc is run as a non-root user, the log file is
+        created under ~/.local/state/rhc/rhc.log (instead of /var/log/rhc/rhc.log),
+        the log directory has 0700 permissions, and the log file contains
+        expected startup entries.
+    :tags: Tier 1
+    :steps:
+        1. Create a temporary non-root user.
+        2. Run 'rhc status' as the non-root user.
+        3. Verify that ~/.local/state/rhc/rhc.log exists for the user.
+        4. Verify the log directory has 0700 permissions.
+        5. Verify the log file contains startup entries.
+        6. Remove the temporary user.
+    :expectedresults:
+        1. The temporary user is created.
+        2. 'rhc status' runs (may fail for non-root, but logging still occurs).
+        3. The log file exists at ~/.local/state/rhc/rhc.log.
+        4. The log directory ~/.local/state/rhc has 0700 permissions.
+        5. The log file contains 'rhc started' with version and pid.
+        6. The temporary user is removed.
+    """
+    home_dir = os.path.expanduser(f"~{non_root_user}")
+    log_dir = os.path.join(home_dir, ".local", "state", "rhc")
+    log_path = os.path.join(log_dir, "rhc.log")
+
+    subprocess.run(
+        ["su", "-", non_root_user, "-c", "rhc status"],
+        capture_output=True, text=True,
+    )
+
+    assert os.path.exists(log_path), (
+        f"Non-root log file should exist at {log_path}"
+    )
+
+    dir_mode = stat.S_IMODE(os.stat(log_dir).st_mode)
+    assert dir_mode == 0o700, (
+        f"Non-root log directory permissions should be 0700, got {oct(dir_mode)}"
+    )
+
+    with open(log_path, "r") as f:
+        content = f.read()
+    assert 'msg="rhc started"' in content, (
+        "Non-root log file should contain 'rhc started' message"
+    )
+    assert "version=" in content, (
+        "Non-root log file should contain version information"
+    )
+    assert "pid=" in content, (
+        "Non-root log file should contain PID information"
+    )
+
+
+@pytest.mark.tier1
+def test_log_file_open_failure_message(non_root_user):
+    """
+    :id: 6ded3c1d-8557-476b-b156-a1425ce0705a
+    :title: Verify CLI warns user when log file cannot be opened
+    :description:
+        Verifies that when a non-root user's home directory is read-only
+        and the log directory (~/.local/state/rhc) cannot be created,
+        the CLI output displays a warning message informing the user that
+        detailed logs will not be available.
+    :tags: Tier 1
+    :steps:
+        1. Create a temporary non-root user.
+        2. Make the user's home directory read-only so the log directory
+           cannot be created.
+        3. Run 'rhc status' as the non-root user.
+        4. Verify CLI output contains the warning about the unopenable log file.
+        5. Restore home directory permissions and remove the user.
+    :expectedresults:
+        1. The temporary user is created.
+        2. The home directory is read-only.
+        3. 'rhc status' runs.
+        4. CLI output contains "Unable to open log file:" and
+           "Detailed logs will not be available."
+        5. The home directory permissions are restored and the user is removed.
+    """
+    home_dir = os.path.expanduser(f"~{non_root_user}")
+    os.chmod(home_dir, 0o555)
+    try:
+        result = subprocess.run(
+            ["su", "-", non_root_user, "-c", "rhc status"],
+            capture_output=True, text=True,
+        )
+        output = result.stdout + result.stderr
+        assert "Unable to open log file:" in output, (
+            f"CLI should warn about unopenable log file, got: {output!r}"
+        )
+        assert "Detailed logs will not be available." in output, (
+            f"CLI should inform that logs are unavailable, got: {output!r}"
+        )
+    finally:
+        os.chmod(home_dir, 0o755)
 
 
 @pytest.mark.tier1
@@ -570,6 +681,7 @@ def test_log_status_disconnected(rhc, log_monitor):
     )
 
 
+@pytest.mark.tier1
 def test_log_connect_with_disabled_feature(
     external_candlepin, rhc, test_config, log_monitor
 ):
@@ -580,6 +692,7 @@ def test_log_connect_with_disabled_feature(
         Verifies that when 'rhc connect' is run with --disable-feature content,
         the log file contains messages indicating the content feature was
         disabled and the repository file was not generated.
+    :tags: Tier 1
     :steps:
         1. Ensure the system is disconnected.
         2. Run 'rhc connect' with --disable-feature content.
