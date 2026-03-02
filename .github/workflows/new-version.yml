@@ -1,0 +1,59 @@
+name: Set version and open PR
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'MAJOR.MINOR.PATCH. Leave empty to bump PATCH'
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  new-version:
+    runs-on: ubuntu-latest
+    container:
+      image: registry.fedoraproject.org/fedora:latest
+    steps:
+      - run: dnf install --setopt install_weak_deps=False --assumeyes golang git-core rpm-build jq gh
+      - uses: actions/checkout@v6
+      - run: git config --global safe.directory "*"
+      - run: |
+          git config user.name github-actions[bot]
+          git config user.email github-actions[bot]@users.noreply.github.com
+
+      - name: Determine new version
+        id: version
+        run: |
+          if [ -n "${{ inputs.version }}" ]; then
+            # Use manual override
+            new_version="${{ inputs.version }}"
+          else
+            # Read current version and bump PATCH
+            current_version=$(rpmspec --query --queryformat "%{version}\n" rhc.spec | head -n1)
+            new_version=$(echo "$current_version" | awk -F. '{$NF+=1; print}' OFS=.)
+          fi
+          echo "version=$new_version" >> $GITHUB_OUTPUT
+          echo "New version: $new_version"
+
+      - name: Update rhc.spec
+        run: |
+          sed -i 's/^Version:\s*.*/Version:                ${{ steps.version.outputs.version }}/' rhc.spec
+
+      - name: Create PR
+        run: |
+          git checkout -b actions/set-version-${{ steps.version.outputs.version }}
+          git add rhc.spec
+          git commit -m "chore: set version to ${{ steps.version.outputs.version }}"
+          git push -u origin actions/set-version-${{ steps.version.outputs.version }}
+          gh pr create --fill --label auto-release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Clean up on failure
+        if: failure()
+        run: git push --delete origin actions/set-version-${{ steps.version.outputs.version }}

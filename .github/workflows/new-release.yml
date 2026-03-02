@@ -1,0 +1,45 @@
+name: Create draft release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Git tag'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  new-release:
+    runs-on: ubuntu-latest
+    container:
+      image: registry.fedoraproject.org/fedora:latest
+    steps:
+      - run: dnf copr enable --assumeyes @go-sig/go-vendor-tools-dev
+      - run: dnf install --setopt install_weak_deps=False --assumeyes golang git-core go-vendor-tools gh
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.tag }}
+      - run: git config --global safe.directory "*"
+
+      - name: Generate tarballs
+        run: make archive
+
+      - name: Get version from spec
+        id: version
+        run: |
+          version=$(rpmspec --query --queryformat "%{version}\n" rhc.spec | head -n1)
+          echo "version=$version" >> $GITHUB_OUTPUT
+          echo "Version: $version"
+
+      - name: Create draft release
+        run: |
+          gh release create ${{ inputs.tag }} \
+            --draft \
+            --generate-notes \
+            rhc-${{ steps.version.outputs.version }}.tar.gz \
+            rhc-${{ steps.version.outputs.version }}-vendor.tar.bz2
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
