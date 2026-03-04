@@ -10,6 +10,7 @@ import (
 	"github.com/urfave/cli/v2"
 
 	"github.com/redhatinsights/rhc/internal/conf"
+	"github.com/redhatinsights/rhc/internal/localization"
 	"github.com/redhatinsights/rhc/internal/ui"
 )
 
@@ -33,9 +34,9 @@ func showErrorMessages(action string, errorMessages map[string]string) error {
 	}
 
 	fmt.Println()
-	fmt.Printf("The following errors were encountered during %s:\n\n", action)
+	fmt.Print(localization.TF("The following errors were encountered during %s:\n\n", action))
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	_, _ = fmt.Fprintln(w, "STEP\tERROR\t")
+	_, _ = fmt.Fprintln(w, localization.T("STEP\tERROR\t"))
 	for step, errMsg := range errorMessages {
 		_, _ = fmt.Fprintf(w, "%v\t%v\n", step, errMsg)
 	}
@@ -44,7 +45,7 @@ func showErrorMessages(action string, errorMessages map[string]string) error {
 
 	// Direct users to the log file
 	if logFile != nil {
-		fmt.Printf("Please see %s for full details.\n", logFile.Name())
+		fmt.Print(localization.TF("Please see %s for full details.\n", logFile.Name()))
 	}
 
 	return cli.Exit("", 1)

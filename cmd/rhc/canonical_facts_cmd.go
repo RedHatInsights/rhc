@@ -2,9 +2,11 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/redhatinsights/rhc/internal/canonical_facts"
+	"github.com/redhatinsights/rhc/internal/localization"
 	"github.com/urfave/cli/v2"
 )
 
@@ -14,7 +16,7 @@ func canonicalFactAction(_ *cli.Context) error {
 	// NOTE: CLI context is not useful for anything
 	facts, err := canonical_facts.GetCanonicalFacts()
 	if err != nil {
-		return cli.Exit(fmt.Errorf("cannot generate canonical facts: %v", err), 1)
+		return cli.Exit(errors.New(localization.TF("cannot generate canonical facts: %v", err)), 1)
 	}
 	data, err := json.MarshalIndent(facts, "", "   ")
 	if err != nil {

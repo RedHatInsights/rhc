@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: rhc\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-02-16 16:35+0100\n"
+"POT-Creation-Date: 2026-02-26 12:30+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,134 +17,591 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: cmd/rhc/connect_cmd.go:83
+#: cmd/rhc/canonical_facts_cmd.go:18
+msgid "cannot generate canonical facts: %v"
+msgstr ""
+
+#: cmd/rhc/connect_cmd.go:57 cmd/rhc/disconnect_cmd.go:48
+#, c-format
+msgid "error: unsupported document format: %s"
+msgstr ""
+
+#: cmd/rhc/connect_cmd.go:84
 #, c-format
 msgid "cannot connect to Red Hat Subscription Management: %s"
 msgstr ""
 
-#: cmd/rhc/connect_cmd.go:87
-msgid "%s[%v] Cannot connect to Red Hat Subscription Management\n"
+#: cmd/rhc/connect_cmd.go:91
+msgid "Cannot connect to Red Hat Subscription Management"
 msgstr ""
 
-#: cmd/rhc/connect_cmd.go:93
-msgid "%s[%v] Skipping generation of Red Hat repository file\n"
+#: cmd/rhc/connect_cmd.go:98
+msgid "Skipping generation of Red Hat repository file"
 msgstr ""
 
-#: cmd/rhc/connect_cmd.go:100
-msgid "%s[%v] %s\n"
+#: cmd/rhc/connect_cmd.go:107 cmd/rhc/status_cmd.go:88
+msgid "Content ... Red Hat repository file generated"
 msgstr ""
 
-#: cmd/rhc/connect_cmd.go:104
-msgid "%s[%v] Content ... Red Hat repository file generated\n"
+#: cmd/rhc/connect_cmd.go:111 cmd/rhc/status_cmd.go:98
+msgid "Content ... Red Hat repository file not generated"
 msgstr ""
 
-#: cmd/rhc/connect_cmd.go:108
-#, c-format
-msgid "%s[ ] Content ... Red Hat repository file not generated\n"
-msgstr ""
-
-#: cmd/rhc/connect_cmd.go:120
-#, c-format
+#: cmd/rhc/connect_cmd.go:123
 msgid ""
-"%s[ ] Analytics ... Connecting to Red Hat Lightspeed (formerly Insights) "
-"disabled\n"
+"Analytics ... Connecting to Red Hat Lightspeed (formerly Insights) disabled"
 msgstr ""
 
-#: cmd/rhc/connect_cmd.go:127
-msgid "%s[%v] Skipping connection to Red Hat Lightspeed (formerly Insights)\n"
-msgstr ""
-
-#: cmd/rhc/connect_cmd.go:138
-msgid "cannot connect to Red Hat Lightspeed (formerly Insights): %v"
+#: cmd/rhc/connect_cmd.go:133
+msgid "Skipping connection to Red Hat Lightspeed (formerly Insights)"
 msgstr ""
 
 #: cmd/rhc/connect_cmd.go:139
+msgid "Connecting to Red Hat Lightspeed (formerly Insights)..."
+msgstr ""
+
+#: cmd/rhc/connect_cmd.go:142
+msgid "cannot connect to Red Hat Lightspeed (formerly Insights): %v"
+msgstr ""
+
+#: cmd/rhc/connect_cmd.go:143
 msgid "cannot connect to Red Hat Lightspeed: %v"
 msgstr ""
 
-#: cmd/rhc/connect_cmd.go:141
-msgid ""
-"%s[%v] Analytics ... Cannot connect to Red Hat Lightspeed (formerly "
-"Insights)\n"
+#: cmd/rhc/connect_cmd.go:148
+msgid "Analytics ... Cannot connect to Red Hat Lightspeed (formerly Insights)"
 msgstr ""
 
-#: cmd/rhc/connect_cmd.go:150
-msgid ""
-"%s[%v] Analytics ... Connected to Red Hat Lightspeed (formerly Insights)\n"
+#: cmd/rhc/connect_cmd.go:155 cmd/rhc/status_cmd.go:122
+msgid "Analytics ... Connected to Red Hat Lightspeed (formerly Insights)"
 msgstr ""
 
-#: cmd/rhc/connect_cmd.go:160
+#: cmd/rhc/connect_cmd.go:165
 #, c-format
 msgid "Starting yggdrasil service disabled (%s)"
 msgstr ""
 
-#: cmd/rhc/connect_cmd.go:162 cmd/rhc/connect_cmd.go:166
-#, c-format
-msgid "%s[ ] Management .... %s\n"
+#: cmd/rhc/connect_cmd.go:169
+msgid "Starting yggdrasil service disabled"
 msgstr ""
 
-#: cmd/rhc/connect_cmd.go:178
-msgid "%s[%v] Skipping activation of yggdrasil service\n"
-msgstr ""
-
-#: cmd/rhc/connect_cmd.go:189
-msgid "cannot activate the yggdrasil service: %v"
+#: cmd/rhc/connect_cmd.go:186
+msgid "Skipping activation of yggdrasil service"
 msgstr ""
 
 #: cmd/rhc/connect_cmd.go:192
-msgid "%s[%v] Remote Management ... Cannot activate the yggdrasil service\n"
+msgid " Activating the yggdrasil service"
 msgstr ""
 
-#: cmd/rhc/connect_cmd.go:202
-msgid "%s[%v] Remote Management ... %s\n"
+#: cmd/rhc/connect_cmd.go:195
+msgid "cannot activate the yggdrasil service: %v"
 msgstr ""
 
-#: cmd/rhc/connect_cmd.go:224
+#: cmd/rhc/connect_cmd.go:201
+msgid "Remote Management ... Cannot activate the yggdrasil service"
+msgstr ""
+
+#: cmd/rhc/connect_cmd.go:207
+msgid "Activated the yggdrasil service"
+msgstr ""
+
+#: cmd/rhc/connect_cmd.go:209
+msgid "Remote Management ... Activated the yggdrasil service"
+msgstr ""
+
+#: cmd/rhc/connect_cmd.go:231 cmd/rhc/status_cmd.go:34 cmd/rhc/status_cmd.go:81
 #, c-format
 msgid "unable to get consumer UUID: %s"
 msgstr ""
 
-#: cmd/rhc/connect_cmd.go:318
+#: cmd/rhc/connect_cmd.go:237
+msgid "this system is already connected"
+msgstr ""
+
+#: cmd/rhc/connect_cmd.go:251
+msgid "--username and --activation-key can not be used together"
+msgstr ""
+
+#: cmd/rhc/connect_cmd.go:259
+msgid "--password and --activation-key can not be used together"
+msgstr ""
+
+#: cmd/rhc/connect_cmd.go:267
+msgid "--organization is required, when --activation-key is used"
+msgstr ""
+
+#: cmd/rhc/connect_cmd.go:279
+msgid ""
+"--username/--password or --organization/--activation-key are required when a "
+"machine-readable format is used"
+msgstr ""
+
+#: cmd/rhc/connect_cmd.go:293
+msgid ""
+"'--content-template' can not be used together with '--disable-feature "
+"content'"
+msgstr ""
+
+#: cmd/rhc/connect_cmd.go:317
+msgid "non-root user cannot connect system"
+msgstr ""
+
+#: cmd/rhc/connect_cmd.go:325 cmd/rhc/disconnect_cmd.go:199
 #, c-format
 msgid "error: %s"
 msgstr ""
 
-#: cmd/rhc/connect_cmd.go:328
+#: cmd/rhc/connect_cmd.go:335
 msgid "Error retrieving system hostname: %v"
 msgstr ""
 
-#: cmd/rhc/connect_cmd.go:337
+#: cmd/rhc/connect_cmd.go:344
 msgid ""
 "Connecting %v to Red Hat.\n"
 "This might take a few seconds.\n"
 "\n"
 msgstr ""
 
-#: cmd/rhc/connect_cmd.go:353
+#: cmd/rhc/connect_cmd.go:360
 #, c-format
 msgid "Feature '%s' marked enabled"
 msgstr ""
 
-#: cmd/rhc/connect_cmd.go:366
+#: cmd/rhc/connect_cmd.go:373
 #, c-format
 msgid "Feature '%s' marked disabled"
 msgstr ""
 
-#: cmd/rhc/connect_cmd.go:370
+#: cmd/rhc/connect_cmd.go:377
 #, c-format
 msgid ""
 "Features preferences: %s\n"
 "\n"
 msgstr ""
 
-#: cmd/rhc/connect_cmd.go:390
+#: cmd/rhc/connect_cmd.go:398
 msgid ""
 "\n"
 "Successfully connected to Red Hat!\n"
 msgstr ""
 
-#: cmd/rhc/connect_cmd.go:394
+#: cmd/rhc/connect_cmd.go:403 cmd/rhc/status_cmd.go:344
 msgid ""
 "\n"
 "Manage your connected systems: https://red.ht/connector\n"
+msgstr ""
+
+#: cmd/rhc/disconnect_cmd.go:78
+msgid "The yggdrasil service is already inactive"
+msgstr ""
+
+#: cmd/rhc/disconnect_cmd.go:85
+msgid "Deactivating the yggdrasil service"
+msgstr ""
+
+#: cmd/rhc/disconnect_cmd.go:88
+msgid "Cannot deactivate yggdrasil service: %v"
+msgstr ""
+
+#: cmd/rhc/disconnect_cmd.go:95
+msgid "Deactivated the yggdrasil service"
+msgstr ""
+
+#: cmd/rhc/disconnect_cmd.go:114
+msgid "Already disconnected from Red Hat Lightspeed (formerly Insights)"
+msgstr ""
+
+#: cmd/rhc/disconnect_cmd.go:117
+msgid "Disconnecting from Red Hat Lightspeed (formerly Insights)..."
+msgstr ""
+
+#: cmd/rhc/disconnect_cmd.go:119
+msgid "Cannot disconnect from Red Hat Lightspeed (formerly Insights): %v"
+msgstr ""
+
+#: cmd/rhc/disconnect_cmd.go:122
+msgid "Cannot disconnect from Red Hat Lightspeed: %v"
+msgstr ""
+
+#: cmd/rhc/disconnect_cmd.go:127
+msgid "Disconnected from Red Hat Lightspeed (formerly Insights)"
+msgstr ""
+
+#: cmd/rhc/disconnect_cmd.go:142
+msgid "Already disconnected from Red Hat Subscription Management"
+msgstr ""
+
+#: cmd/rhc/disconnect_cmd.go:151
+msgid "Disconnecting from Red Hat Subscription Management..."
+msgstr ""
+
+#: cmd/rhc/disconnect_cmd.go:154
+msgid "Cannot disconnect from Red Hat Subscription Management: %v"
+msgstr ""
+
+#: cmd/rhc/disconnect_cmd.go:163
+msgid "Disconnected from Red Hat Subscription Management"
+msgstr ""
+
+#: cmd/rhc/disconnect_cmd.go:191
+msgid "non-root user cannot disconnect system"
+msgstr ""
+
+#: cmd/rhc/disconnect_cmd.go:216
+msgid "Disconnecting %v from Red Hat"
+msgstr ""
+
+#: cmd/rhc/disconnect_cmd.go:217
+msgid ""
+"Disconnecting %v from Red Hat.\n"
+"This might take a few seconds.\n"
+"\n"
+msgstr ""
+
+#: cmd/rhc/interactive.go:37
+#, c-format
+msgid ""
+"The following errors were encountered during %s:\n"
+"\n"
+msgstr ""
+
+#: cmd/rhc/interactive.go:39
+msgid "STEP\tERROR\t"
+msgstr ""
+
+#: cmd/rhc/interactive.go:48
+#, c-format
+msgid "Please see %s for full details.\n"
+msgstr ""
+
+#: cmd/rhc/logging.go:76
+msgid "Unable to open log file: %v."
+msgstr ""
+
+#: cmd/rhc/logging.go:77
+msgid "Detailed logs will not be available."
+msgstr ""
+
+#: cmd/rhc/main.go:139
+msgid "control the system's connection to Red Hat"
+msgstr ""
+
+#: cmd/rhc/main.go:140
+#, c-format
+msgid "The %s command controls the system's connection to Red Hat."
+msgstr ""
+
+#: cmd/rhc/main.go:142
+msgid "To connect the system using an activation key:"
+msgstr ""
+
+#: cmd/rhc/main.go:144
+msgid "To connect the system using a username and password:"
+msgstr ""
+
+#: cmd/rhc/main.go:146
+msgid "To disconnect the system:"
+msgstr ""
+
+#: cmd/rhc/main.go:148
+#, c-format
+msgid "Run '%s command --help' for more details."
+msgstr ""
+
+#: cmd/rhc/main.go:182
+msgid "Read config values from `FILE`"
+msgstr ""
+
+#: cmd/rhc/main.go:187
+msgid "Use `FILE` as the client certificate"
+msgstr ""
+
+#: cmd/rhc/main.go:192
+msgid "Use `FILE` as the client's private key"
+msgstr ""
+
+#: cmd/rhc/main.go:198
+msgid "Set the logging output level to `LEVEL`"
+msgstr ""
+
+#: cmd/rhc/main.go:208
+msgid "register with `USERNAME`"
+msgstr ""
+
+#: cmd/rhc/main.go:213
+msgid "register with `PASSWORD`"
+msgstr ""
+
+#: cmd/rhc/main.go:218
+msgid "register with `ID`"
+msgstr ""
+
+#: cmd/rhc/main.go:223
+msgid "register with `KEY`"
+msgstr ""
+
+#: cmd/rhc/main.go:228
+msgid "register with `CONTENT_TEMPLATE`"
+msgstr ""
+
+#: cmd/rhc/main.go:233
+#, c-format
+msgid "enable `FEATURE` during connection (allowed values: %s)"
+msgstr ""
+
+#: cmd/rhc/main.go:238
+#, c-format
+msgid "disable `FEATURE` during connection (allowed values: %s)"
+msgstr ""
+
+#: cmd/rhc/main.go:243
+msgid ""
+"prints output of connection in machine-readable format (supported formats: "
+"\"json\")"
+msgstr ""
+
+#: cmd/rhc/main.go:247
+msgid "Connects the system to Red Hat"
+msgstr ""
+
+#: cmd/rhc/main.go:249
+msgid ""
+"The connect command connects the system to Red Hat Subscription Management, "
+"Red Hat Lightspeed (formerly Insights) and Red Hat and activates the "
+"yggdrasil service that enables Red Hat to interact with the system. For "
+"details visit: https://red.ht/connector"
+msgstr ""
+
+#: cmd/rhc/main.go:258
+msgid ""
+"prints output of disconnection in machine-readable format (supported "
+"formats: \"json\")"
+msgstr ""
+
+#: cmd/rhc/main.go:262
+msgid "Disconnects the system from Red Hat"
+msgstr ""
+
+#: cmd/rhc/main.go:264
+msgid ""
+"The disconnect command disconnects the system from Red Hat Subscription "
+"Management, Red Hat Lightspeed (formerly Insights) and Red Hat and "
+"deactivates the yggdrasil service. Red Hat will no longer be able to "
+"interact with the system."
+msgstr ""
+
+#: cmd/rhc/main.go:271
+msgid "Prints canonical facts about the system."
+msgstr ""
+
+#: cmd/rhc/main.go:273
+msgid ""
+"The canonical-facts command prints data that uniquely identifies the system "
+"in the Red Hat inventory service. Use only as directed for debugging "
+"purposes."
+msgstr ""
+
+#: cmd/rhc/main.go:281
+msgid "prints status in machine-readable format (supported formats: \"json\")"
+msgstr ""
+
+#: cmd/rhc/main.go:285
+msgid "Prints status of the system's connection to Red Hat"
+msgstr ""
+
+#: cmd/rhc/main.go:287
+msgid ""
+"The status command prints the state of the connection to Red Hat "
+"Subscription Management, Red Hat Lightspeed (formerly Insights) and Red Hat."
+msgstr ""
+
+#: cmd/rhc/util.go:74
+#, c-format
+msgid "error: unknown option(s): %s"
+msgstr ""
+
+#: cmd/rhc/util.go:88
+#, c-format
+msgid "unsupported format: %s (supported formats: %s)"
+msgstr ""
+
+#: cmd/rhc/status_cmd.go:39
+msgid "Not connected to Red Hat Subscription Management"
+msgstr ""
+
+#: cmd/rhc/status_cmd.go:44 internal/rhsm/rhsm.go:456
+msgid "Connected to Red Hat Subscription Management"
+msgstr ""
+
+#: cmd/rhc/status_cmd.go:86
+msgid "Red Hat repository file generated"
+msgstr ""
+
+#: cmd/rhc/status_cmd.go:92
+msgid "Generating of Red Hat repository file disabled in rhsm.conf"
+msgstr ""
+
+#: cmd/rhc/status_cmd.go:94
+msgid "Content ... Generating of Red Hat repository file disabled in rhsm.conf"
+msgstr ""
+
+#: cmd/rhc/status_cmd.go:96
+msgid "Red Hat repository file not generated"
+msgstr ""
+
+#: cmd/rhc/status_cmd.go:112
+msgid "Checking Red Hat Lightspeed (formerly Insights)..."
+msgstr ""
+
+#: cmd/rhc/status_cmd.go:128
+msgid "Analytics ... Not connected to Red Hat Lightspeed (formerly Insights)"
+msgstr ""
+
+#: cmd/rhc/status_cmd.go:147
+#, c-format
+msgid "unable to connect to systemd: %s"
+msgstr ""
+
+#: cmd/rhc/status_cmd.go:155
+#, c-format
+msgid "unable to get properties of %s: %s"
+msgstr ""
+
+#: cmd/rhc/status_cmd.go:161
+msgid "The yggdrasil service is active"
+msgstr ""
+
+#: cmd/rhc/status_cmd.go:163
+msgid "Remote Management ... The yggdrasil service is active"
+msgstr ""
+
+#: cmd/rhc/status_cmd.go:169
+msgid "The yggdrasil service is inactive but not loaded"
+msgstr ""
+
+#: cmd/rhc/status_cmd.go:171
+msgid "Remote Management ... The yggdrasil service is inactive but not loaded"
+msgstr ""
+
+#: cmd/rhc/status_cmd.go:194
+msgid "Remote Management ... %v"
+msgstr ""
+
+#: cmd/rhc/status_cmd.go:275
+#, c-format
+msgid "unable to print status as %s document: %s"
+msgstr ""
+
+#: cmd/rhc/status_cmd.go:295
+msgid ""
+"Connection status for %v:\n"
+"\n"
+msgstr ""
+
+#: cmd/rhc/status_cmd.go:306
+#, c-format
+msgid "Red Hat Subscription Management ... %s"
+msgstr ""
+
+#: cmd/rhc/status_cmd.go:318
+#, c-format
+msgid "Content ... %s"
+msgstr ""
+
+#: cmd/rhc/status_cmd.go:329
+msgid ""
+"Analytics ... Cannot detect Red Hat Lightspeed (formerly Insights) status: %v"
+msgstr ""
+
+#: cmd/rhc/status_cmd.go:340
+#, c-format
+msgid "Remote Management ... %s"
+msgstr ""
+
+#: internal/features/features.go:59
+msgid "Get access to RHEL content"
+msgstr ""
+
+#: internal/features/features.go:75
+msgid "Enable data collection for Red Hat Lightspeed (formerly Insights)"
+msgstr ""
+
+#: internal/features/features.go:92
+msgid "Remote management"
+msgstr ""
+
+#: internal/features/features.go:119
+#, c-format
+msgid "cannot disable feature \"%s\": no such feature exists (%s)"
+msgstr ""
+
+#: internal/features/features.go:140
+#, c-format
+msgid "cannot enable feature \"%s\": no such feature exists (%s)"
+msgstr ""
+
+#: internal/features/features.go:144
+#, c-format
+msgid "cannot enable feature: \"%s\": feature \"%s\" explicitly disabled"
+msgstr ""
+
+#: internal/features/features.go:149
+#, c-format
+msgid ""
+"cannot enable feature: \"%s\": required feature \"%s\" explicitly disabled"
+msgstr ""
+
+#: internal/features/features.go:161
+#, c-format
+msgid "required feature \"%s\" is disabled"
+msgstr ""
+
+#: internal/rhsm/rhsm.go:106 internal/rhsm/rhsm.go:224
+msgid "warning: the system is already registered"
+msgstr ""
+
+#: internal/rhsm/rhsm.go:304
+msgid "warning: the system is already unregistered"
+msgstr ""
+
+#: internal/rhsm/rhsm.go:360
+msgid "Unable to get consumer UUID"
+msgstr ""
+
+#: internal/rhsm/rhsm.go:375
+msgid "Username: "
+msgstr ""
+
+#: internal/rhsm/rhsm.go:380
+msgid "Password: "
+msgstr ""
+
+#: internal/rhsm/rhsm.go:383
+msgid "Unable to read password"
+msgstr ""
+
+#: internal/rhsm/rhsm.go:394
+msgid "] Connecting to Red Hat Subscription Management..."
+msgstr ""
+
+#: internal/rhsm/rhsm.go:419 internal/rhsm/rhsm.go:454
+msgid "Unable to register system to RHSM"
+msgstr ""
+
+#: internal/rhsm/rhsm.go:419
+msgid "no organization specified"
+msgstr ""
+
+#: internal/rhsm/rhsm.go:428
+msgid "Available Organizations:"
+msgstr ""
+
+#: internal/rhsm/rhsm.go:437
+msgid ""
+"\n"
+"Organization: "
+msgstr ""
+
+#: internal/rhsm/rhsm.go:458
+msgid "This system is already connected to Red Hat Subscription Management"
 msgstr ""

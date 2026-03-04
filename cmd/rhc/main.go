@@ -11,6 +11,7 @@ import (
 	"github.com/urfave/cli/v2/altsrc"
 
 	"github.com/redhatinsights/rhc/internal/conf"
+	"github.com/redhatinsights/rhc/internal/localization"
 	"github.com/redhatinsights/rhc/internal/ui"
 )
 
@@ -129,18 +130,22 @@ func exitErrHandler(c *cli.Context, err error) {
 }
 
 func main() {
+	// Initialize localization system
+	localization.Init("/usr/local/share/locale")
+
 	app := cli.NewApp()
 	app.Name = "rhc"
 	app.Version = Version
-	app.Usage = "control the system's connection to Red Hat"
-	app.Description = "The " + app.Name + " command controls the system's connection to Red Hat.\n\n" +
-		"To connect the system using an activation key:\n" +
-		"\t" + app.Name + " connect --organization ID --activation-key KEY\n\n" +
-		"To connect the system using a username and password:\n" +
-		"\t" + app.Name + " connect --username USERNAME --password PASSWORD\n\n" +
-		"To disconnect the system:\n" +
-		"\t" + app.Name + " disconnect\n\n" +
-		"Run '" + app.Name + " command --help' for more details."
+	app.Usage = localization.T("control the system's connection to Red Hat")
+	app.Description = localization.TF("The %s command controls the system's connection to Red Hat.", app.Name) +
+		"\n\n" +
+		localization.T("To connect the system using an activation key:") +
+		"\n\t" + app.Name + " connect --organization ID --activation-key KEY\n\n" +
+		localization.T("To connect the system using a username and password:") +
+		"\n\t" + app.Name + " connect --username USERNAME --password PASSWORD\n\n" +
+		localization.T("To disconnect the system:") +
+		"\n\t" + app.Name + " disconnect\n\n" +
+		localization.TF("Run '%s command --help' for more details.", app.Name)
 
 	var featureIdSlice []string
 	for _, featureID := range features.KnownFeatures {
@@ -174,23 +179,23 @@ func main() {
 			Hidden:    true,
 			Value:     defaultConfigFilePath,
 			TakesFile: true,
-			Usage:     "Read config values from `FILE`",
+			Usage:     localization.T("Read config values from `FILE`"),
 		},
 		altsrc.NewStringFlag(&cli.StringFlag{
 			Name:   cliCertFile,
 			Hidden: true,
-			Usage:  "Use `FILE` as the client certificate",
+			Usage:  localization.T("Use `FILE` as the client certificate"),
 		}),
 		altsrc.NewStringFlag(&cli.StringFlag{
 			Name:   cliKeyFile,
 			Hidden: true,
-			Usage:  "Use `FILE` as the client's private key",
+			Usage:  localization.T("Use `FILE` as the client's private key"),
 		}),
 		altsrc.NewStringFlag(&cli.StringFlag{
 			Name:   cliLogLevel,
 			Value:  "info",
 			Hidden: true,
-			Usage:  "Set the logging output level to `LEVEL`",
+			Usage:  localization.T("Set the logging output level to `LEVEL`"),
 		}),
 	}
 
@@ -200,48 +205,48 @@ func main() {
 			Flags: []cli.Flag{
 				&cli.StringFlag{
 					Name:    "username",
-					Usage:   "register with `USERNAME`",
+					Usage:   localization.T("register with `USERNAME`"),
 					Aliases: []string{"u"},
 				},
 				&cli.StringFlag{
 					Name:    "password",
-					Usage:   "register with `PASSWORD`",
+					Usage:   localization.T("register with `PASSWORD`"),
 					Aliases: []string{"p"},
 				},
 				&cli.StringFlag{
 					Name:    "organization",
-					Usage:   "register with `ID`",
+					Usage:   localization.T("register with `ID`"),
 					Aliases: []string{"o"},
 				},
 				&cli.StringSliceFlag{
 					Name:    "activation-key",
-					Usage:   "register with `KEY`",
+					Usage:   localization.T("register with `KEY`"),
 					Aliases: []string{"a"},
 				},
 				&cli.StringSliceFlag{
 					Name:    "content-template",
-					Usage:   "register with `CONTENT_TEMPLATE`",
+					Usage:   localization.T("register with `CONTENT_TEMPLATE`"),
 					Aliases: []string{"c"},
 				},
 				&cli.StringSliceFlag{
 					Name:    "enable-feature",
-					Usage:   fmt.Sprintf("enable `FEATURE` during connection (allowed values: %s)", featureIDs),
+					Usage:   localization.TF("enable `FEATURE` during connection (allowed values: %s)", featureIDs),
 					Aliases: []string{"e"},
 				},
 				&cli.StringSliceFlag{
 					Name:    "disable-feature",
-					Usage:   fmt.Sprintf("disable `FEATURE` during connection (allowed values: %s)", featureIDs),
+					Usage:   localization.TF("disable `FEATURE` during connection (allowed values: %s)", featureIDs),
 					Aliases: []string{"d"},
 				},
 				&cli.StringFlag{
 					Name:    "format",
-					Usage:   "prints output of connection in machine-readable format (supported formats: \"json\")",
+					Usage:   localization.T("prints output of connection in machine-readable format (supported formats: \"json\")"),
 					Aliases: []string{"f"},
 				},
 			},
-			Usage:       "Connects the system to Red Hat",
+			Usage:       localization.T("Connects the system to Red Hat"),
 			UsageText:   fmt.Sprintf("%v connect [command options]", app.Name),
-			Description: "The connect command connects the system to Red Hat Subscription Management, Red Hat Lightspeed (formerly Insights) and Red Hat and activates the yggdrasil service that enables Red Hat to interact with the system. For details visit: https://red.ht/connector",
+			Description: localization.T("The connect command connects the system to Red Hat Subscription Management, Red Hat Lightspeed (formerly Insights) and Red Hat and activates the yggdrasil service that enables Red Hat to interact with the system. For details visit: https://red.ht/connector"),
 			Before:      beforeConnectAction,
 			Action:      connectAction,
 		},
@@ -250,22 +255,22 @@ func main() {
 			Flags: []cli.Flag{
 				&cli.StringFlag{
 					Name:    "format",
-					Usage:   "prints output of disconnection in machine-readable format (supported formats: \"json\")",
+					Usage:   localization.T("prints output of disconnection in machine-readable format (supported formats: \"json\")"),
 					Aliases: []string{"f"},
 				},
 			},
-			Usage:       "Disconnects the system from Red Hat",
+			Usage:       localization.T("Disconnects the system from Red Hat"),
 			UsageText:   fmt.Sprintf("%v disconnect", app.Name),
-			Description: "The disconnect command disconnects the system from Red Hat Subscription Management, Red Hat Lightspeed (formerly Insights) and Red Hat and deactivates the yggdrasil service. Red Hat will no longer be able to interact with the system.",
+			Description: localization.T("The disconnect command disconnects the system from Red Hat Subscription Management, Red Hat Lightspeed (formerly Insights) and Red Hat and deactivates the yggdrasil service. Red Hat will no longer be able to interact with the system."),
 			Before:      beforeDisconnectAction,
 			Action:      disconnectAction,
 		},
 		{
 			Name:        "canonical-facts",
 			Hidden:      true,
-			Usage:       "Prints canonical facts about the system.",
+			Usage:       localization.T("Prints canonical facts about the system."),
 			UsageText:   fmt.Sprintf("%v canonical-facts", app.Name),
-			Description: "The canonical-facts command prints data that uniquely identifies the system in the Red Hat inventory service. Use only as directed for debugging purposes.",
+			Description: localization.T("The canonical-facts command prints data that uniquely identifies the system in the Red Hat inventory service. Use only as directed for debugging purposes."),
 			Action:      canonicalFactAction,
 		},
 		{
@@ -273,13 +278,13 @@ func main() {
 			Flags: []cli.Flag{
 				&cli.StringFlag{
 					Name:    "format",
-					Usage:   "prints status in machine-readable format (supported formats: \"json\")",
+					Usage:   localization.T("prints status in machine-readable format (supported formats: \"json\")"),
 					Aliases: []string{"f"},
 				},
 			},
-			Usage:       "Prints status of the system's connection to Red Hat",
+			Usage:       localization.T("Prints status of the system's connection to Red Hat"),
 			UsageText:   fmt.Sprintf("%v status", app.Name),
-			Description: "The status command prints the state of the connection to Red Hat Subscription Management, Red Hat Lightspeed (formerly Insights) and Red Hat.",
+			Description: localization.T("The status command prints the state of the connection to Red Hat Subscription Management, Red Hat Lightspeed (formerly Insights) and Red Hat."),
 			Before:      beforeStatusAction,
 			Action:      statusAction,
 		},

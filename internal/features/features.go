@@ -1,10 +1,12 @@
 package features
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
 
+	"github.com/redhatinsights/rhc/internal/localization"
 	"github.com/urfave/cli/v2"
 )
 
@@ -55,7 +57,7 @@ var ContentFeature = RhcFeature{
 	ID:          "content",
 	Requires:    []*RhcFeature{},
 	Enabled:     func() bool { return true }(),
-	Description: "Get access to RHEL content",
+	Description: localization.T("Get access to RHEL content"),
 	EnableFunc: func(ctx *cli.Context) error {
 		slog.Debug("enabling 'content' feature not implemented")
 		return nil
@@ -71,7 +73,7 @@ var AnalyticsFeature = RhcFeature{
 	ID:          "analytics",
 	Requires:    []*RhcFeature{},
 	Enabled:     func() bool { return true }(),
-	Description: "Enable data collection for Red Hat Lightspeed (formerly Insights)",
+	Description: localization.T("Enable data collection for Red Hat Lightspeed (formerly Insights)"),
 	EnableFunc: func(ctx *cli.Context) error {
 		slog.Debug("enabling 'analytics' feature not implemented")
 		return nil
@@ -88,7 +90,7 @@ var ManagementFeature = RhcFeature{
 	ID:          "remote-management",
 	Requires:    []*RhcFeature{&ContentFeature, &AnalyticsFeature},
 	Enabled:     func() bool { return true }(),
-	Description: "Remote management",
+	Description: localization.T("Remote management"),
 	EnableFunc: func(ctx *cli.Context) error {
 		slog.Debug("enabling 'management' feature not implemented")
 		return nil
@@ -115,7 +117,7 @@ func CheckFeatureInput(enabledFeaturesIDs *[]string, disabledFeaturesIDs *[]stri
 		if !isKnown {
 			supportedIds := listKnownFeatureIds()
 			hint := strings.Join(supportedIds, ",")
-			return fmt.Errorf("cannot disable feature \"%s\": no such feature exists (%s)", featureId, hint)
+			return errors.New(localization.TF("cannot disable feature \"%s\": no such feature exists (%s)", featureId, hint))
 		}
 		disabledFeature.Enabled = false
 	}
@@ -136,17 +138,17 @@ func CheckFeatureInput(enabledFeaturesIDs *[]string, disabledFeaturesIDs *[]stri
 		if !isKnown {
 			supportedIds := listKnownFeatureIds()
 			hint := strings.Join(supportedIds, ",")
-			return fmt.Errorf("cannot enable feature \"%s\": no such feature exists (%s)", featureId, hint)
+			return errors.New(localization.TF("cannot enable feature \"%s\": no such feature exists (%s)", featureId, hint))
 		}
 		for _, disabledFeatureId := range *disabledFeaturesIDs {
 			if featureId == disabledFeatureId {
-				return fmt.Errorf("cannot enable feature: \"%s\": feature \"%s\" explicitly disabled",
-					featureId, disabledFeatureId)
+				return errors.New(localization.TF("cannot enable feature: \"%s\": feature \"%s\" explicitly disabled",
+					featureId, disabledFeatureId))
 			}
 			for _, requiredFeature := range enabledFeature.Requires {
 				if requiredFeature.ID == disabledFeatureId {
-					return fmt.Errorf("cannot enable feature: \"%s\": required feature \"%s\" explicitly disabled",
-						enabledFeature.ID, disabledFeatureId)
+					return errors.New(localization.TF("cannot enable feature: \"%s\": required feature \"%s\" explicitly disabled",
+						enabledFeature.ID, disabledFeatureId))
 				}
 			}
 		}
@@ -157,7 +159,7 @@ func CheckFeatureInput(enabledFeaturesIDs *[]string, disabledFeaturesIDs *[]stri
 		for _, requiredFeature := range feature.Requires {
 			if !requiredFeature.Enabled {
 				feature.Enabled = false
-				feature.Reason = fmt.Sprintf("required feature \"%s\" is disabled", requiredFeature.ID)
+				feature.Reason = localization.TF("required feature \"%s\" is disabled", requiredFeature.ID)
 			}
 		}
 	}
