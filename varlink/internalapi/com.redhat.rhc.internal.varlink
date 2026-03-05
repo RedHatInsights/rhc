@@ -1,4 +1,4 @@
-interface org.rhc.internal
+interface com.redhat.rhc.internal
 # Internal API for rhc-server
 # This API is temporary and unstable
 
