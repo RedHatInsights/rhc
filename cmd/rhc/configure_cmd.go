@@ -42,7 +42,7 @@ func enableFeaturesAction(ctx *cli.Context) error {
 	enabledFeatures := args.Slice()
 
 	for _, featureId := range enabledFeatures {
-		if _, ok := features.KnownFeatures[featureId]; !ok {
+		if _, ok := features.FeatureMgr.Map()[featureId]; !ok {
 			knownFeatIds := strings.Join(features.ListKnownFeatureIds(), ", ")
 			slog.Error(fmt.Sprintf("Unknown feature ID: '%s' (allowed: %s)",
 				featureId, knownFeatIds))
@@ -69,23 +69,24 @@ func enableFeaturesAction(ctx *cli.Context) error {
 	}
 
 	// First, mark all features as disabled
-	for _, feature := range features.KnownFeatures {
+	for _, feature := range features.FeatureMgr.List() {
 		feature.SetWantEnabled(false)
 	}
 	// Then mark wanted features as enabled
+	featMap := features.FeatureMgr.Map()
 	for _, featureId := range enabledFeatures {
-		feature := features.KnownFeatures[featureId]
+		feature := featMap[featureId]
 		feature.SetWantEnabled(true)
 	}
 
 	// Then call Enable() on the features marked as enabled. Dependencies are automatically handled
 	// in the Enable() function.
 	var featuresResults features.FeaturesResults
-	for _, feature := range features.KnownFeatures {
+	for _, feature := range features.FeatureMgr.List() {
 		if feature.WantEnabled() {
 			if feature.IsEnabled() {
 				slog.Debug(fmt.Sprintf("Feature '%s' is already enabled", feature.ID()))
-				ui.Printf("%s[%v] %s ... already enabled\n", ui.Indent.Medium, ui.Icons.Ok, feature.Name())
+				ui.Printf("%s[%v] %s ... Already enabled\n", ui.Indent.Medium, ui.Icons.Ok, feature.Name())
 				continue
 			}
 			slog.Debug(fmt.Sprintf("Feature '%s' will be enabled", feature.ID()))
@@ -146,9 +147,13 @@ func disableFeaturesAction(ctx *cli.Context) error {
 	disabledFeatures := args.Slice()
 
 	for _, featureId := range disabledFeatures {
-		if _, ok := features.KnownFeatures[featureId]; !ok {
-			slog.Error(fmt.Sprintf("Unknown feature ID: '%s'", featureId))
-			return cli.Exit(fmt.Errorf("unknown feature ID: '%s'", featureId), ExitCodeDataErr)
+		if _, ok := features.FeatureMgr.Map()[featureId]; !ok {
+			knownFeatIds := strings.Join(features.ListKnownFeatureIds(), ", ")
+			slog.Error(fmt.Sprintf("Unknown feature ID: '%s' (allowed: %s)", featureId, knownFeatIds))
+			return cli.Exit(
+				fmt.Errorf("unknown feature ID: '%s' (allowed: %s)", featureId, knownFeatIds),
+				ExitCodeDataErr,
+			)
 		}
 	}
 
@@ -168,17 +173,19 @@ func disableFeaturesAction(ctx *cli.Context) error {
 	}
 
 	// Then mark wanted features as disabled
+	featMap := features.FeatureMgr.Map()
 	for _, featureId := range disabledFeatures {
-		feature := features.KnownFeatures[featureId]
+		feature := featMap[featureId]
 		feature.SetWantEnabled(false)
 	}
 
 	// Then call Disable() on the features marked as disabled. Dependencies are automatically handled
 	var featuresResults features.FeaturesResults
 	for _, featureId := range disabledFeatures {
-		feature := features.KnownFeatures[featureId]
+		feature := featMap[featureId]
 		if !feature.IsEnabled() {
 			slog.Debug(fmt.Sprintf("Feature '%s' is already disabled", featureId))
+			ui.Printf("%s[ ] %s ... Already disabled\n", ui.Indent.Medium, feature.Name())
 			continue
 		}
 		slog.Debug(fmt.Sprintf("Feature '%s' will be disabled", featureId))
@@ -250,7 +257,7 @@ func statusFeaturesAction(ctx *cli.Context) error {
 			}
 		}
 
-		for _, feature := range features.KnownFeaturesList {
+		for _, feature := range features.FeatureMgr.List() {
 			s.Suffix = fmt.Sprintf(" Checking status of '%s' feature...", feature.ID())
 			if feature.IsEnabled() {
 				_, _ = fmt.Fprintf(w, "%s\t%s\t%s\n", feature.ID(), ui.Icons.Enabled, feature.Description())
@@ -264,7 +271,7 @@ func statusFeaturesAction(ctx *cli.Context) error {
 		if rhsm.IsRegistered() {
 			var featPrefs conf.ConnectFeaturesPrefs
 			// When the system is registered, then show the actual state of the features
-			for _, feature := range features.KnownFeaturesList {
+			for _, feature := range features.FeatureMgr.List() {
 				enabled := feature.IsEnabled()
 				switch feature.ID() {
 				case features.ContentFeatureID:

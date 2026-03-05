@@ -17,48 +17,45 @@ import (
 
 const RhcConnectFeaturesPreferencesPath = "/var/lib/rhc/rhc-connect-features-prefs.json"
 
-// RhcFeature is the interface for optional features of rhc.
-type RhcFeature interface {
+// baseFeatureInterface defines the core methods required for managing base functionality of a feature.
+type baseFeatureInterface interface {
 	// ID returns the unique identifier of the feature.
-	// Implemented in BaseFeature.
+	// Implemented in baseFeature.
 	ID() string
 	// Name returns the human-readable name of the feature.
-	// Implemented in BaseFeature.
+	// Implemented in baseFeature.
 	Name() string
 	// Description returns the human-readable description of the feature.
-	// Implemented in BaseFeature.
+	// Implemented in baseFeature.
 	Description() string
 	// SetWantEnabled sets the desired state of the feature to enabled or disabled based on the provided boolean value.
-	// Implemented in BaseFeature.
+	// Implemented in baseFeature.
 	SetWantEnabled(bool)
 	// WantEnabled returns the desired state of the feature.
-	// Implemented in BaseFeature.
+	// Implemented in baseFeature.
 	WantEnabled() bool
 	// SetReason sets the reason for enabling or disabling the feature.
-	// Implemented in BaseFeature.
+	// Implemented in baseFeature.
 	SetReason(string)
 	// Reason returns the reason for enabling or disabling the feature.
-	// Implemented in BaseFeature.
+	// Implemented in baseFeature.
 	Reason() string
 	// Requires returns the slice of features that this feature depends on.
-	// Implemented in BaseFeature.
+	// Implemented in baseFeature.
 	Requires() []RhcFeature
 	// RequiredBy returns the slice of features that require this feature.
 	RequiredBy() []RhcFeature
-	// confPref returns the pointer to the configuration preference for the feature.
-	// Implemented in BaseFeature.
-	confPref() *bool
-	// setConfPref sets the configuration preference for the feature.
-	// Implemented in BaseFeature.
-	setConfPref(bool)
 	// IsEnabled returns true if the feature is enabled, false otherwise.
-	// It triggers the isEnabledHelper() helper function, which triggers
-	// the isEnabled() function.
 	IsEnabled() bool
 	// Enable enables the feature.
 	Enable(featureResults *FeaturesResults) error
 	// Disable disables the feature.
 	Disable(featureResults *FeaturesResults) error
+}
+
+// setterFeatureInterface is the interface for enabling and disabling features.
+// This interface should not expose any public method.
+type setterFeatureInterface interface {
 	// isEnabled checks if the feature is enabled. Specific for each feature.
 	isEnabled() (bool, error)
 	// enable enables the feature. Specific for each feature.
@@ -67,8 +64,14 @@ type RhcFeature interface {
 	disableFeature(featureResults *FeaturesResults) error
 }
 
-// BaseFeature manages optional features of rhc.
-type BaseFeature struct {
+// RhcFeature is the interface for optional features of rhc.
+type RhcFeature interface {
+	baseFeatureInterface
+	setterFeatureInterface
+}
+
+// baseFeature implements the baseFeatureInterface, which is the same for all features.
+type baseFeature struct {
 	// id is an identifier of the feature.
 	id string
 	// name is the human-readable name of the feature.
@@ -79,49 +82,53 @@ type BaseFeature struct {
 	wantEnabled bool
 	// reason for disabling/enabling the feature
 	reason string
+	// self is a pointer to the feature itself, used for dependency resolution.
+	self RhcFeature
 	// requires is a slice of IDs of other features that are required for this feature.
 	requires []RhcFeature
 	// requiredBy is a slice of IDs of other features that require this feature.
 	requiredBy []RhcFeature
 }
 
-func (feature *BaseFeature) SetReason(reason string) {
+func (feature *baseFeature) SetReason(reason string) {
 	feature.reason = reason
 }
 
-func (feature *BaseFeature) ID() string {
+func (feature *baseFeature) ID() string {
 	return feature.id
 }
 
-func (feature *BaseFeature) Name() string {
+func (feature *baseFeature) Name() string {
 	return feature.name
 }
 
-func (feature *BaseFeature) Description() string {
+func (feature *baseFeature) Description() string {
 	return feature.description
 }
 
-func (feature *BaseFeature) SetWantEnabled(wanted bool) {
+func (feature *baseFeature) SetWantEnabled(wanted bool) {
 	feature.wantEnabled = wanted
 }
 
-func (feature *BaseFeature) WantEnabled() bool {
+func (feature *baseFeature) WantEnabled() bool {
 	return feature.wantEnabled
 }
 
-func (feature *BaseFeature) Reason() string {
+func (feature *baseFeature) Reason() string {
 	return feature.reason
 }
 
-func (feature *BaseFeature) Requires() []RhcFeature {
+func (feature *baseFeature) Requires() []RhcFeature {
 	return feature.requires
 }
 
-func (feature *BaseFeature) RequiredBy() []RhcFeature {
+func (feature *baseFeature) RequiredBy() []RhcFeature {
 	return feature.requiredBy
 }
 
-func (feature *BaseFeature) confPref() *bool {
+// confPref returns the feature preference from the configuration file, which
+// is loaded during start of the program.
+func (feature *baseFeature) confPref() *bool {
 	switch feature.id {
 	case ContentFeatureID:
 		return conf.ConnectFeaturesPreferences.Content
@@ -134,62 +141,41 @@ func (feature *BaseFeature) confPref() *bool {
 	}
 }
 
-func (feature *BaseFeature) setConfPref(enabled bool) {
+// setConfPref set the feature preference in the configuration structure. The preference
+// itself is written to file, when SaveFeaturePreferencesToFile() is called. This function
+// also prints the message to the console, which is used for the user to see, that the
+// preference was set.
+func (feature *baseFeature) setConfPref(enabled bool) {
 	if feature.confPref() != nil {
 		*feature.confPref() = enabled
 	}
 	reason := feature.Reason()
 	if enabled {
 		if reason != "" {
-			ui.Printf("%s[%s] %s ... enabled in preference (%s)\n",
+			ui.Printf("%s[%s] %s ... Enabled in preference (%s)\n",
 				ui.Indent.Medium, ui.Icons.Ok, feature.name, reason)
 		} else {
-			ui.Printf("%s[%s] %s ... enabled in preference\n",
+			ui.Printf("%s[%s] %s ... Enabled in preference\n",
 				ui.Indent.Medium, ui.Icons.Ok, feature.name)
 		}
 	} else {
 		if reason != "" {
-			ui.Printf("%s[ ] %s ... disabled in preference (%s)\n",
+			ui.Printf("%s[ ] %s ... Disabled in preference (%s)\n",
 				ui.Indent.Medium, feature.name, reason)
 		} else {
-			ui.Printf("%s[ ] %s ... disabled in preference\n",
+			ui.Printf("%s[ ] %s ... Disabled in preference\n",
 				ui.Indent.Medium, feature.name)
 		}
 	}
 }
 
-func (feature *BaseFeature) IsEnabled() bool {
-	panic("not implemented in the BaseFeature")
-}
-
-func (feature *BaseFeature) Enable(featureResults *FeaturesResults) error {
-	panic("not implemented in the BaseFeature")
-}
-
-func (feature *BaseFeature) Disable(featureResults *FeaturesResults) error {
-	panic("not implemented in the BaseFeature")
-}
-
-func (feature *BaseFeature) isEnabled() (bool, error) {
-	panic("not implemented in the BaseFeature")
-}
-
-func (feature *BaseFeature) enableFeature(featureResults *FeaturesResults) error {
-	panic("not implemented in the BaseFeature")
-}
-
-func (feature *BaseFeature) disableFeature(featureResults *FeaturesResults) error {
-	panic("not implemented in the BaseFeature")
-}
-
-// Helpers functions
-
-func isEnabledHelper(feature RhcFeature) bool {
+// IsEnabled returns true if the feature is enabled, false otherwise.
+func (feature *baseFeature) IsEnabled() bool {
 	slog.Debug(fmt.Sprintf("Checking if '%s' feature is enabled", feature.ID()))
 	if rhsm.IsRegistered() {
-		enabled, err := feature.isEnabled()
+		enabled, err := feature.self.isEnabled()
 		if err != nil {
-			slog.Warn(fmt.Sprintf("Failed to check if 'content' feature is enabled: %v", err))
+			slog.Warn(fmt.Sprintf("Failed to check if '%s' feature is enabled: %v", feature.ID(), err))
 			return false
 		}
 		return enabled
@@ -198,10 +184,9 @@ func isEnabledHelper(feature RhcFeature) bool {
 	return feature.confPref() != nil && *feature.confPref()
 }
 
-// enableHelper enables the feature. It first checks if all required features are enabled,
-// and then enables the feature itself. It cannot be implemented as a BaseFeature method,
-// because it needs call enableFeature() method of given feature (not BaseFeature).
-func enableHelper(feature RhcFeature, featureResults *FeaturesResults) error {
+// Enable enables the feature. It first checks if all required features are enabled,
+// and then enables the feature itself.
+func (feature *baseFeature) Enable(featureResults *FeaturesResults) error {
 	slog.Debug(fmt.Sprintf("Enabling '%s' feature", feature.ID()))
 	// First, try to enable all required features. If any of them fails, then disable the feature.
 	for _, reqFeature := range feature.Requires() {
@@ -216,7 +201,7 @@ func enableHelper(feature RhcFeature, featureResults *FeaturesResults) error {
 	}
 	// Then enable the feature itself
 	if rhsm.IsRegistered() {
-		err := feature.enableFeature(featureResults)
+		err := feature.self.enableFeature(featureResults)
 		if err != nil {
 			return fmt.Errorf("failed to enable '%s': %w", feature.ID(), err)
 		}
@@ -228,10 +213,9 @@ func enableHelper(feature RhcFeature, featureResults *FeaturesResults) error {
 	return nil
 }
 
-// disableHelper disables the feature. It first checks if all required features are disabled,
-// and then disables the feature itself. It cannot be implemented as a BaseFeature method,
-// because it needs call disable() method of given feature (not BaseFeature).
-func disableHelper(feature RhcFeature, featureResults *FeaturesResults) error {
+// Disable disables the feature. It first checks if all required features are disabled,
+// and then disables the feature itself.
+func (feature *baseFeature) Disable(featureResults *FeaturesResults) error {
 	slog.Debug(fmt.Sprintf("Disabling '%s' feature", feature.ID()))
 	// First, try to disable all required by features.
 	for _, reqFeature := range feature.RequiredBy() {
@@ -246,7 +230,7 @@ func disableHelper(feature RhcFeature, featureResults *FeaturesResults) error {
 	}
 	// Then disable the feature itself
 	if rhsm.IsRegistered() {
-		err := feature.disableFeature(featureResults)
+		err := feature.self.disableFeature(featureResults)
 		if err != nil {
 			return fmt.Errorf("failed to disable '%s': %w", feature.ID(), err)
 		}
@@ -261,19 +245,11 @@ func disableHelper(feature RhcFeature, featureResults *FeaturesResults) error {
 // Content
 
 type ContentFeature struct {
-	BaseFeature
-}
-
-func (feature *ContentFeature) IsEnabled() bool {
-	return isEnabledHelper(feature)
+	baseFeature
 }
 
 func (feature *ContentFeature) isEnabled() (bool, error) {
 	return rhsm.IsContentManagementEnabled()
-}
-
-func (feature *ContentFeature) Enable(featuresResults *FeaturesResults) error {
-	return enableHelper(feature, featuresResults)
 }
 
 func (feature *ContentFeature) enableFeature(featuresResults *FeaturesResults) error {
@@ -282,10 +258,6 @@ func (feature *ContentFeature) enableFeature(featuresResults *FeaturesResults) e
 		return fmt.Errorf("failed to enable content: %v", featuresResults.Content.Error)
 	}
 	return nil
-}
-
-func (feature *ContentFeature) Disable(featuresResults *FeaturesResults) error {
-	return disableHelper(feature, featuresResults)
 }
 
 func (feature *ContentFeature) disableFeature(featureResults *FeaturesResults) error {
@@ -299,35 +271,25 @@ func (feature *ContentFeature) disableFeature(featureResults *FeaturesResults) e
 // Analytics
 
 type AnalyticsFeature struct {
-	BaseFeature
-}
-
-func (feature *AnalyticsFeature) IsEnabled() bool {
-	return isEnabledHelper(feature)
+	baseFeature
 }
 
 func (feature *AnalyticsFeature) isEnabled() (bool, error) {
 	return datacollection.InsightsClientIsRegistered()
 }
 
-func (feature *AnalyticsFeature) Enable(featureResults *FeaturesResults) error {
-	return enableHelper(feature, featureResults)
-}
-
 func (feature *AnalyticsFeature) enableFeature(featuresResults *FeaturesResults) error {
-	featuresResults.TryRegisterInsightsClient(true)
+	reasons := feature.Reason()
+	featuresResults.TryRegisterInsightsClient(true, &reasons)
 	if featuresResults.Analytics.Successful != nil && !*featuresResults.Analytics.Successful {
 		return fmt.Errorf("failed to register insights client: %v", featuresResults.Analytics.Error)
 	}
 	return nil
 }
 
-func (feature *AnalyticsFeature) Disable(featuresResults *FeaturesResults) error {
-	return disableHelper(feature, featuresResults)
-}
-
 func (feature *AnalyticsFeature) disableFeature(featuresResults *FeaturesResults) error {
-	featuresResults.TryUnRegisterInsightsClient()
+	reasons := feature.Reason()
+	featuresResults.TryUnRegisterInsightsClient(&reasons)
 	if featuresResults.Analytics.Successful != nil && !*featuresResults.Analytics.Successful {
 		return fmt.Errorf("failed to unregister insights client: %v", featuresResults.Analytics.Error)
 	}
@@ -337,19 +299,11 @@ func (feature *AnalyticsFeature) disableFeature(featuresResults *FeaturesResults
 // Remote Management
 
 type ManagementFeature struct {
-	BaseFeature
-}
-
-func (feature *ManagementFeature) IsEnabled() bool {
-	return isEnabledHelper(feature)
+	baseFeature
 }
 
 func (feature *ManagementFeature) isEnabled() (bool, error) {
 	return remotemanagement.AssertYggdrasilServiceState("active")
-}
-
-func (feature *ManagementFeature) Enable(featureResults *FeaturesResults) error {
-	return enableHelper(feature, featureResults)
 }
 
 func (feature *ManagementFeature) enableFeature(featureResults *FeaturesResults) error {
@@ -360,12 +314,9 @@ func (feature *ManagementFeature) enableFeature(featureResults *FeaturesResults)
 	return nil
 }
 
-func (feature *ManagementFeature) Disable(featureResults *FeaturesResults) error {
-	return disableHelper(feature, featureResults)
-}
-
 func (feature *ManagementFeature) disableFeature(featureResults *FeaturesResults) error {
-	featureResults.TryDeactivateServices()
+	reasons := feature.Reason()
+	featureResults.TryDeactivateServices(&reasons)
 	if featureResults.RemoteManagement.Successful != nil && !*featureResults.RemoteManagement.Successful {
 		return fmt.Errorf("failed to deactivate services: %v", featureResults.RemoteManagement.Error)
 	}
@@ -378,74 +329,93 @@ const (
 	ManagementFeatureID = "remote-management"
 )
 
-// ContentFeatureInst is the structure implementing the RhcFeature interface.
-// It shares a majority of the implementation with BaseFeature, but enabling,
-// disabling, and checking the state is specific to the ContentFeatureInst.
-var ContentFeatureInst = ContentFeature{
-	BaseFeature: BaseFeature{
-		id:          ContentFeatureID,
-		name:        "Content",
-		requires:    []RhcFeature{},
-		wantEnabled: true,
-		description: "Access to package repositories",
-	},
+type FeatureManager struct {
+	ContentFeature    *ContentFeature
+	AnalyticsFeature  *AnalyticsFeature
+	ManagementFeature *ManagementFeature
+	featureMap        map[string]RhcFeature
+	featureList       []RhcFeature
 }
 
-// AnalyticsFeatureInst is the structure implementing the RhcFeature interface.
-// It shares a majority of the implementation with BaseFeature, but enabling,
-// disabling, and checking the state is specific to the AnalyticsFeatureInst.
-var AnalyticsFeatureInst = AnalyticsFeature{
-	BaseFeature: BaseFeature{
-		id:          AnalyticsFeatureID,
-		name:        "Analytics",
-		requires:    []RhcFeature{},
-		wantEnabled: true,
-		description: "Red Hat Lightspeed data collection",
-	},
-}
+// NewFeatureManager is a factory function for the FeatureManager. It creates the feature manager
+// and initializes all required fields and dependencies between features.
+func NewFeatureManager() *FeatureManager {
+	var contentFeature = ContentFeature{
+		baseFeature: baseFeature{
+			id:          ContentFeatureID,
+			name:        "Content",
+			requires:    []RhcFeature{},
+			wantEnabled: true,
+			description: "Access to package repositories",
+		},
+	}
+	contentFeature.self = &contentFeature
 
-// ManagementFeatureInst is the structure implementing the RhcFeature interface.
-// It shares a majority of the implementation with BaseFeature, but enabling,
-// disabling, and checking the state is specific to the ManagementFeature.
-var ManagementFeatureInst = ManagementFeature{
-	BaseFeature: BaseFeature{
-		id:          ManagementFeatureID,
-		name:        "Remote Management",
-		requires:    []RhcFeature{&ContentFeatureInst, &AnalyticsFeatureInst},
-		wantEnabled: true,
-		description: "Red Hat Lightspeed remote management",
-	},
-}
+	var analyticsFeature = AnalyticsFeature{
+		baseFeature: baseFeature{
+			id:          AnalyticsFeatureID,
+			name:        "Analytics",
+			requires:    []RhcFeature{},
+			wantEnabled: true,
+			description: "Red Hat Lightspeed data collection",
+		},
+	}
+	analyticsFeature.self = &analyticsFeature
 
-// init is run automatically at the start of the program. It initializes the `requiredBy` field
-// of the features. https://go.dev/doc/effective_go#init
-func init() {
+	var managementFeature = ManagementFeature{
+		baseFeature: baseFeature{
+			id:          ManagementFeatureID,
+			name:        "Remote Management",
+			requires:    []RhcFeature{&contentFeature, &analyticsFeature},
+			wantEnabled: true,
+			description: "Red Hat Lightspeed remote management",
+		},
+	}
+	managementFeature.self = &managementFeature
+
 	// FIXME: this is a temporary solution. We should implement automatic dependency graph and
 	//        fill `requiredBy` field from `requires` of other features
-	ContentFeatureInst.requiredBy = []RhcFeature{&ManagementFeatureInst}
-	AnalyticsFeatureInst.requiredBy = []RhcFeature{&ManagementFeatureInst}
-	ManagementFeatureInst.requiredBy = []RhcFeature{}
+	contentFeature.requiredBy = []RhcFeature{&managementFeature}
+	analyticsFeature.requiredBy = []RhcFeature{&managementFeature}
+	managementFeature.requiredBy = []RhcFeature{}
+
+	featMap := map[string]RhcFeature{
+		ContentFeatureID:    &contentFeature,
+		AnalyticsFeatureID:  &analyticsFeature,
+		ManagementFeatureID: &managementFeature,
+	}
+	featList := []RhcFeature{
+		&contentFeature,
+		&analyticsFeature,
+		&managementFeature,
+	}
+
+	fm := &FeatureManager{
+		ContentFeature:    &contentFeature,
+		AnalyticsFeature:  &analyticsFeature,
+		ManagementFeature: &managementFeature,
+		featureMap:        featMap,
+		featureList:       featList,
+	}
+
+	return fm
 }
 
-// KnownFeatures is a map of features
-var KnownFeatures = map[string]RhcFeature{
-	ContentFeatureID:    &ContentFeatureInst,
-	AnalyticsFeatureID:  &AnalyticsFeatureInst,
-	ManagementFeatureID: &ManagementFeatureInst,
+func (fm *FeatureManager) List() []RhcFeature {
+	return fm.featureList
 }
 
-// KnownFeaturesList is a sorted slice of features, ordered from least to the most dependent.
-var KnownFeaturesList = []RhcFeature{
-	&ContentFeatureInst,
-	&AnalyticsFeatureInst,
-	&ManagementFeatureInst,
+func (fm *FeatureManager) Map() map[string]RhcFeature {
+	return fm.featureMap
 }
+
+var FeatureMgr = NewFeatureManager()
 
 // ListKnownFeatureIds is the helper function, and it returns the list of IDs of known features.
 // It can be used for the case, when you want to display the list of features in the help message
 func ListKnownFeatureIds() []string {
 	var ids []string
-	for _, feature := range KnownFeatures {
+	for _, feature := range FeatureMgr.List() {
 		ids = append(ids, feature.ID())
 	}
 	return ids
@@ -509,6 +479,9 @@ func GetFeaturesFromFile(featuresFilePath string) (*conf.ConnectFeaturesPrefs, e
 	slog.Debug(fmt.Sprintf("Loaded features from preference file: %v", featuresFilePath))
 	return &featPrefs, nil
 }
+
+// TODO: Refactor ConsolidateSelectedFeatures to use a more efficient algorithm for feature consolidation
+//       that would use benefits of the dependency graph.
 
 // ConsolidateSelectedFeatures gathers the features values from the drop-in
 // configuration file and CLI flags to resolve dependencies between features.
@@ -579,13 +552,16 @@ func ConsolidateSelectedFeatures(
 	return enabledFeatures, disabledFeatures, nil
 }
 
+// TODO: Refactor ValidateSelectedFeatures to use a more efficient algorithm for feature validation
+//       that would use benefits of the dependency graph.
+
 // ValidateSelectedFeatures checks the validity of selected enabled and disabled features and handles
 // the dependency resolution between features.
 func ValidateSelectedFeatures(enabledFeaturesIDs *[]string, disabledFeaturesIDs *[]string) error {
 	// First, check disabled features: check only the correctness of IDs
 	for _, featureId := range *disabledFeaturesIDs {
 		isKnown := false
-		for _, rhcFeature := range KnownFeatures {
+		for _, rhcFeature := range FeatureMgr.List() {
 			if featureId == rhcFeature.ID() {
 				rhcFeature.SetWantEnabled(false)
 				slog.Debug(fmt.Sprintf("Disabling feature \"%s\"", featureId))
@@ -606,7 +582,7 @@ func ValidateSelectedFeatures(enabledFeaturesIDs *[]string, disabledFeaturesIDs 
 	for _, featureId := range *enabledFeaturesIDs {
 		isKnown := false
 		var enabledFeature *RhcFeature = nil
-		for _, rhcFeature := range KnownFeatures {
+		for _, rhcFeature := range FeatureMgr.List() {
 			if featureId == rhcFeature.ID() {
 				enabledFeature = &rhcFeature
 				isKnown = true
@@ -633,7 +609,7 @@ func ValidateSelectedFeatures(enabledFeaturesIDs *[]string, disabledFeaturesIDs 
 		(*enabledFeature).SetWantEnabled(true)
 	}
 
-	for _, feature := range KnownFeatures {
+	for _, feature := range FeatureMgr.List() {
 		for _, requiredFeature := range feature.Requires() {
 			if !requiredFeature.WantEnabled() {
 				feature.SetWantEnabled(false)

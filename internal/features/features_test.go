@@ -340,9 +340,9 @@ func TestConsolidateSelectedFeatures(t *testing.T) {
 func TestValidateSelectedFeatures(t *testing.T) {
 	// Reset feature states before each test
 	resetFeatures := func() {
-		ContentFeatureInst.SetWantEnabled(true)
-		AnalyticsFeatureInst.SetWantEnabled(true)
-		ManagementFeatureInst.SetWantEnabled(true)
+		FeatureMgr.ContentFeature.SetWantEnabled(true)
+		FeatureMgr.AnalyticsFeature.SetWantEnabled(true)
+		FeatureMgr.ManagementFeature.SetWantEnabled(true)
 	}
 
 	tests := []struct {
@@ -359,13 +359,13 @@ func TestValidateSelectedFeatures(t *testing.T) {
 			wantDisabledFeatures: []string{},
 			expectError:          false,
 			validateState: func(t *testing.T) {
-				if !ContentFeatureInst.WantEnabled() {
+				if !FeatureMgr.ContentFeature.WantEnabled() {
 					t.Error("ContentFeature should be enabled")
 				}
-				if !AnalyticsFeatureInst.WantEnabled() {
+				if !FeatureMgr.AnalyticsFeature.WantEnabled() {
 					t.Error("AnalyticsFeature should be enabled")
 				}
-				if !ManagementFeatureInst.WantEnabled() {
+				if !FeatureMgr.ManagementFeature.WantEnabled() {
 					t.Error("ManagementFeature should be enabled")
 				}
 			},
@@ -376,13 +376,13 @@ func TestValidateSelectedFeatures(t *testing.T) {
 			wantDisabledFeatures: []string{"content", "analytics", "remote-management"},
 			expectError:          false,
 			validateState: func(t *testing.T) {
-				if ContentFeatureInst.WantEnabled() {
+				if FeatureMgr.ContentFeature.WantEnabled() {
 					t.Error("ContentFeature should be disabled")
 				}
-				if AnalyticsFeatureInst.WantEnabled() {
+				if FeatureMgr.AnalyticsFeature.WantEnabled() {
 					t.Error("AnalyticsFeature should be disabled")
 				}
-				if ManagementFeatureInst.WantEnabled() {
+				if FeatureMgr.ManagementFeature.WantEnabled() {
 					t.Error("ManagementFeature should be disabled")
 				}
 			},
@@ -428,7 +428,7 @@ func TestValidateSelectedFeatures(t *testing.T) {
 			wantDisabledFeatures: []string{},
 			expectError:          false,
 			validateState: func(t *testing.T) {
-				if !ManagementFeatureInst.WantEnabled() {
+				if !FeatureMgr.ManagementFeature.WantEnabled() {
 					t.Error("ManagementFeature should be enabled when dependencies are met")
 				}
 			},
@@ -439,10 +439,10 @@ func TestValidateSelectedFeatures(t *testing.T) {
 			wantDisabledFeatures: []string{"content"},
 			expectError:          false,
 			validateState: func(t *testing.T) {
-				if ManagementFeatureInst.WantEnabled() {
+				if FeatureMgr.ManagementFeature.WantEnabled() {
 					t.Error("ManagementFeature should be disabled when Content is disabled")
 				}
-				if ManagementFeatureInst.Reason() == "" {
+				if FeatureMgr.ManagementFeature.Reason() == "" {
 					t.Error("ManagementFeature.Reason should be set")
 				}
 			},
@@ -453,7 +453,7 @@ func TestValidateSelectedFeatures(t *testing.T) {
 			wantDisabledFeatures: []string{},
 			expectError:          false,
 			validateState: func(t *testing.T) {
-				if !ContentFeatureInst.WantEnabled() {
+				if !FeatureMgr.ContentFeature.WantEnabled() {
 					t.Error("ContentFeature should be enabled")
 				}
 			},
@@ -464,10 +464,10 @@ func TestValidateSelectedFeatures(t *testing.T) {
 			wantDisabledFeatures: []string{},
 			expectError:          false,
 			validateState: func(t *testing.T) {
-				if !ContentFeatureInst.WantEnabled() {
+				if !FeatureMgr.ContentFeature.WantEnabled() {
 					t.Error("ContentFeature should be enabled")
 				}
-				if !AnalyticsFeatureInst.WantEnabled() {
+				if !FeatureMgr.AnalyticsFeature.WantEnabled() {
 					t.Error("AnalyticsFeature should be enabled")
 				}
 			},
@@ -478,8 +478,22 @@ func TestValidateSelectedFeatures(t *testing.T) {
 			wantDisabledFeatures: []string{},
 			expectError:          false,
 			validateState: func(t *testing.T) {
-				if !AnalyticsFeatureInst.WantEnabled() {
+				if !FeatureMgr.AnalyticsFeature.WantEnabled() {
 					t.Error("AnalyticsFeature should be enabled")
+				}
+			},
+		},
+		{
+			description:          "validate selected features where analytics is enabled but content is disabled",
+			wantEnabledFeatures:  []string{"analytics"},
+			wantDisabledFeatures: []string{"content"},
+			expectError:          false,
+			validateState: func(t *testing.T) {
+				if !FeatureMgr.AnalyticsFeature.WantEnabled() {
+					t.Error("AnalyticsFeature should be enabled")
+				}
+				if FeatureMgr.ContentFeature.WantEnabled() {
+					t.Error("ContentFeature should be disabled")
 				}
 			},
 		},
@@ -489,7 +503,7 @@ func TestValidateSelectedFeatures(t *testing.T) {
 			wantDisabledFeatures: []string{"content"},
 			expectError:          false,
 			validateState: func(t *testing.T) {
-				if ContentFeatureInst.WantEnabled() {
+				if FeatureMgr.ContentFeature.WantEnabled() {
 					t.Error("ContentFeature should be disabled")
 				}
 			},
@@ -500,13 +514,13 @@ func TestValidateSelectedFeatures(t *testing.T) {
 			wantDisabledFeatures: []string{"analytics"},
 			expectError:          false,
 			validateState: func(t *testing.T) {
-				if AnalyticsFeatureInst.WantEnabled() {
+				if FeatureMgr.AnalyticsFeature.WantEnabled() {
 					t.Error("AnalyticsFeature should be disabled")
 				}
-				if ManagementFeatureInst.WantEnabled() {
+				if FeatureMgr.ManagementFeature.WantEnabled() {
 					t.Error("ManagementFeature should be disabled due to analytics being disabled")
 				}
-				if ManagementFeatureInst.Reason() == "" {
+				if FeatureMgr.ManagementFeature.Reason() == "" {
 					t.Error("ManagementFeature.Reason should be set")
 				}
 			},
@@ -561,7 +575,7 @@ func TestValidateSelectedFeatures(t *testing.T) {
 			wantDisabledFeatures: []string{},
 			expectError:          false,
 			validateState: func(t *testing.T) {
-				if !ContentFeatureInst.WantEnabled() {
+				if !FeatureMgr.ContentFeature.WantEnabled() {
 					t.Error("ContentFeature should be enabled")
 				}
 			},

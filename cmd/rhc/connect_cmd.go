@@ -66,7 +66,9 @@ func (connectResult *ConnectResult) errorMessages() map[string]string {
 // will be stored in RHSMConnectError.
 func (connectResult *ConnectResult) TryRegisterRHSM(ctx *cli.Context) {
 	slog.Info("Registering the system with Red Hat Subscription Management")
-	returnedMsg, err := rhsm.RegisterRHSM(ctx, features.ContentFeatureInst.WantEnabled())
+	returnedMsg, err := rhsm.RegisterRHSM(ctx, features.FeatureMgr.ContentFeature.WantEnabled())
+
+	// TODO: refactor following code and use connectResult.Features.TryRegisterInsightsClient()
 	if err != nil {
 		connectResult.RHSMConnected = false
 		connectResult.RHSMConnectError = fmt.Sprintf("cannot connect to Red Hat Subscription Management: %s", err)
@@ -87,7 +89,7 @@ func (connectResult *ConnectResult) TryRegisterRHSM(ctx *cli.Context) {
 		connectResult.RHSMConnected = true
 		slog.Info(returnedMsg)
 		ui.Printf("%s[%v] %s\n", ui.Indent.Small, ui.Icons.Ok, returnedMsg)
-		if features.ContentFeatureInst.WantEnabled() {
+		if features.FeatureMgr.ContentFeature.WantEnabled() {
 			connectResult.Features.Content.Successful = features.BoolPtr(true)
 			infoMsg := "Red Hat repository file generated"
 			slog.Info(infoMsg)
@@ -174,27 +176,31 @@ func beforeConnectAction(ctx *cli.Context) error {
 		}
 	}
 
+	// When some CLI option --enable-feature or --disable-feature is used, then ignore
+	// preferences loaded from the config file /var/lib/rhc/rhc-connect-features-prefs.json
 	if len(enabledFeatures) > 0 || len(disabledFeatures) > 0 {
-		enabled := true
-		conf.ConnectFeaturesPreferences.Content = &enabled
-		conf.ConnectFeaturesPreferences.Analytics = &enabled
-		conf.ConnectFeaturesPreferences.RemoteManagement = &enabled
-	}
-
-	// Consolidate the features values from the drop-in configuration file and CLI flags
-	consolidatedEnabledFeatures, consolidatedDisabledFeatures, err := features.ConsolidateSelectedFeatures(
-		&conf.ConnectFeaturesPreferences, enabledFeatures, disabledFeatures)
-	if err != nil {
-		return cli.Exit(err.Error(), ExitCodeUsage)
+		conf.ConnectFeaturesPreferences.Content = features.BoolPtr(true)
+		conf.ConnectFeaturesPreferences.Analytics = features.BoolPtr(true)
+		conf.ConnectFeaturesPreferences.RemoteManagement = features.BoolPtr(true)
+	} else {
+		// When no CLI option is used, then use preferences loaded from the config file
+		enabledFeatures, disabledFeatures, err = features.ConsolidateSelectedFeatures(
+			&conf.ConnectFeaturesPreferences,
+			[]string{},
+			[]string{},
+		)
+		if err != nil {
+			return cli.Exit(err.Error(), ExitCodeDataErr)
+		}
 	}
 
 	// Validate the selected features and their dependencies
-	err = features.ValidateSelectedFeatures(&consolidatedEnabledFeatures, &consolidatedDisabledFeatures)
+	err = features.ValidateSelectedFeatures(&enabledFeatures, &disabledFeatures)
 	if err != nil {
 		return cli.Exit(err.Error(), ExitCodeUsage)
 	}
 
-	if !features.ContentFeatureInst.WantEnabled() && len(contentTemplates) > 0 {
+	if !features.FeatureMgr.ContentFeature.WantEnabled() && len(contentTemplates) > 0 {
 		return cli.Exit(
 			"'--content-template' can not be used together with '--disable-feature content'",
 			ExitCodeUsage,
@@ -248,7 +254,7 @@ func connectAction(ctx *cli.Context) error {
 	ui.Printf("Connecting %v to %v.\nThis might take a few seconds.\n\n", hostname, Provider)
 
 	var featuresStr []string
-	for _, feature := range features.KnownFeatures {
+	for _, feature := range features.FeatureMgr.List() {
 		if feature.WantEnabled() {
 			if ui.IsOutputMachineReadable() {
 				switch feature.ID() {
@@ -283,7 +289,7 @@ func connectAction(ctx *cli.Context) error {
 	disabledFeatures := ctx.StringSlice("disable-feature")
 	if _, err := os.Stat(features.RhcConnectFeaturesPreferencesPath); !os.IsNotExist(err) {
 		if len(enabledFeatures) > 0 || len(disabledFeatures) > 0 {
-			ui.Printf(ui.ColorGrey + " * Feature preferences in the config file was overridden by command line options.\n" + ui.ColorReset)
+			ui.Printf(ui.ColorGrey + " * Feature preferences in the config file were overridden by command line options.\n" + ui.ColorReset)
 		}
 	}
 	ui.Printf("\n")
@@ -298,14 +304,18 @@ func connectAction(ctx *cli.Context) error {
 
 	/* 2. Register insights-client */
 	start = time.Now()
-	connectResult.Features.TryRegisterInsightsClient(features.AnalyticsFeatureInst.WantEnabled())
+	reasons := features.FeatureMgr.AnalyticsFeature.Reason()
+	connectResult.Features.TryRegisterInsightsClient(
+		features.FeatureMgr.AnalyticsFeature.WantEnabled(),
+		&reasons,
+	)
 	durations["insights"] = time.Since(start)
 
 	/* 3. Start yggdrasil (rhcd) service */
 	start = time.Now()
-	reasons := features.ManagementFeatureInst.Reason()
+	reasons = features.FeatureMgr.ManagementFeature.Reason()
 	connectResult.Features.TryActivateServices(
-		features.ManagementFeatureInst.WantEnabled(),
+		features.FeatureMgr.ManagementFeature.WantEnabled(),
 		&reasons,
 	)
 	durations[ServiceName] = time.Since(start)

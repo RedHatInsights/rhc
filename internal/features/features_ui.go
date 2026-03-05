@@ -22,7 +22,7 @@ type FeaturesResults struct {
 	RemoteManagement FeatureResult `json:"remote_management"`
 }
 
-// BoolPtr is a test helper function that converts a bool
+// BoolPtr is a helper function that converts a bool
 // to a bool pointer
 func BoolPtr(b bool) *bool {
 	return &b
@@ -81,7 +81,7 @@ func (featureResults *FeaturesResults) TryEnableContent(wanted bool) {
 // TryDisableContent will attempt to disable content management.
 // If this fails, then Features.Content.Successful will be set to false, and the
 // error message will be stored in Features.Content.Error. This method is used
-// during `rhc connect` and during `rhc configuration feature enable content`.
+// during `rhc connect` and during `rhc configuration feature disable content`.
 func (featureResults *FeaturesResults) TryDisableContent() {
 	featureResults.Content.Enabled = BoolPtr(false)
 	if !rhsm.IsRegistered() {
@@ -120,7 +120,7 @@ func (featureResults *FeaturesResults) TryDisableContent() {
 // TryRegisterInsightsClient will attempt to register the system with Red Hat Lightspeed.
 // If this fails, then Features.Analytics.Successful will be set to false, and the
 // error message will be stored in Features.Analytics.Error.
-func (featureResults *FeaturesResults) TryRegisterInsightsClient(wanted bool) {
+func (featureResults *FeaturesResults) TryRegisterInsightsClient(wanted bool, reasons *string) {
 	if !wanted {
 		featureResults.Analytics.Enabled = BoolPtr(false)
 		featureResults.Analytics.Successful = BoolPtr(false)
@@ -141,8 +141,15 @@ func (featureResults *FeaturesResults) TryRegisterInsightsClient(wanted bool) {
 		return
 	}
 
-	slog.Info("Connecting to Red Hat Lightspeed (formerly Insights)")
-	err := ui.Spinner(datacollection.RegisterInsightsClient, ui.Indent.Medium, "Connecting to Red Hat Lightspeed (formerly Insights)...")
+	var infoMsg string
+	if reasons != nil && *reasons != "" {
+		infoMsg = fmt.Sprintf("Connecting to Red Hat Lightspeed (formerly Insights) (%s)", *reasons)
+	} else {
+		infoMsg = "Connecting to Red Hat Lightspeed (formerly Insights)"
+	}
+	slog.Info(infoMsg)
+	err := ui.Spinner(datacollection.RegisterInsightsClient, ui.Indent.Medium,
+		fmt.Sprintf("%s ...", infoMsg))
 	if err != nil {
 		featureResults.Analytics.Successful = BoolPtr(false)
 		featureResults.Analytics.Error = fmt.Sprintf("cannot connect to Red Hat Lightspeed (formerly Insights): %v", err)
@@ -156,7 +163,11 @@ func (featureResults *FeaturesResults) TryRegisterInsightsClient(wanted bool) {
 	}
 
 	featureResults.Analytics.Successful = BoolPtr(true)
-	infoMsg := "Connected to Red Hat Lightspeed (formerly Insights)"
+	if reasons != nil && *reasons != "" {
+		infoMsg = fmt.Sprintf("Connected to Red Hat Lightspeed (formerly Insights) (%s)", *reasons)
+	} else {
+		infoMsg = "Connected to Red Hat Lightspeed (formerly Insights)"
+	}
 	slog.Info(infoMsg)
 	ui.Printf("%s[%v] Analytics ... %s\n", ui.Indent.Medium, ui.Icons.Ok, infoMsg)
 }
@@ -164,7 +175,7 @@ func (featureResults *FeaturesResults) TryRegisterInsightsClient(wanted bool) {
 // TryUnRegisterInsightsClient will attempt to unregister the system from Red Hat Lightspeed.
 // If this fails, then Features.Analytics.Successful will be set to false, and the
 // error message will be stored in Features.Analytics.Error.
-func (featureResults *FeaturesResults) TryUnRegisterInsightsClient() {
+func (featureResults *FeaturesResults) TryUnRegisterInsightsClient(reasons *string) {
 	featureResults.Analytics.Enabled = BoolPtr(false)
 	if !rhsm.IsRegistered() {
 		slog.Warn("Skipping disconnection from Red Hat Lightspeed (formerly Insights) (not RHSM registered)")
@@ -176,16 +187,23 @@ func (featureResults *FeaturesResults) TryUnRegisterInsightsClient() {
 		return
 	}
 
-	slog.Info("Disconnecting to Red Hat Lightspeed (formerly Insights)")
+	var infoMsg string
+	if reasons != nil && *reasons != "" {
+		infoMsg = fmt.Sprintf("Disconnecting from Red Hat Lightspeed (formerly Insights) (%s)", *reasons)
+	} else {
+		infoMsg = "Disconnecting from Red Hat Lightspeed (formerly Insights)"
+	}
+	slog.Info(infoMsg)
 	err := ui.Spinner(datacollection.UnregisterInsightsClient,
 		ui.Indent.Medium,
-		"Disconnecting to Red Hat Lightspeed (formerly Insights)...")
+		fmt.Sprintf("%s ...", infoMsg),
+	)
 	if err != nil {
 		featureResults.Analytics.Successful = BoolPtr(false)
-		featureResults.Analytics.Error = fmt.Sprintf("cannot disconnect to Red Hat Lightspeed (formerly Insights): %v", err)
+		featureResults.Analytics.Error = fmt.Sprintf("cannot disconnect from Red Hat Lightspeed (formerly Insights): %v", err)
 		slog.Error(featureResults.Analytics.Error)
 		ui.Printf(
-			"%s[%v] Analytics ... Cannot disconnect to Red Hat Lightspeed (formerly Insights)\n",
+			"%s[%v] Analytics ... Cannot disconnect from Red Hat Lightspeed (formerly Insights)\n",
 			ui.Indent.Medium,
 			ui.Icons.Error,
 		)
@@ -193,7 +211,11 @@ func (featureResults *FeaturesResults) TryUnRegisterInsightsClient() {
 	}
 
 	featureResults.Analytics.Successful = BoolPtr(true)
-	infoMsg := "Disconnected from Red Hat Lightspeed (formerly Insights)"
+	if reasons != nil && *reasons != "" {
+		infoMsg = fmt.Sprintf("Disconnected from Red Hat Lightspeed (formerly Insights) (%s)", *reasons)
+	} else {
+		infoMsg = "Disconnected from Red Hat Lightspeed (formerly Insights)"
+	}
 	slog.Info(infoMsg)
 	ui.Printf("%s[ ] Analytics ... %s\n", ui.Indent.Medium, infoMsg)
 }
@@ -244,7 +266,12 @@ func (featureResults *FeaturesResults) TryActivateServices(wanted bool, reasons 
 	}
 
 	featureResults.RemoteManagement.Successful = BoolPtr(true)
-	infoMsg := "Activated the yggdrasil service"
+	var infoMsg string
+	if reasons != nil && *reasons != "" {
+		infoMsg = fmt.Sprintf("Activated the yggdrasil service (%s)", *reasons)
+	} else {
+		infoMsg = "Activated the yggdrasil service"
+	}
 	slog.Info(infoMsg)
 	ui.Printf("%s[%v] Remote Management ... %s\n", ui.Indent.Medium, ui.Icons.Ok, infoMsg)
 }
@@ -252,7 +279,7 @@ func (featureResults *FeaturesResults) TryActivateServices(wanted bool, reasons 
 // TryDeactivateServices will attempt to deactivate the yggdrasil service.
 // If this fails, then Features.RemoteManagement.Successful will be set to false, and the
 // error message will be stored in Features.RemoteManagement.Error.
-func (featureResults *FeaturesResults) TryDeactivateServices() {
+func (featureResults *FeaturesResults) TryDeactivateServices(reasons *string) {
 	featureResults.RemoteManagement.Enabled = BoolPtr(false)
 	if !rhsm.IsRegistered() {
 		featureResults.RemoteManagement.Successful = BoolPtr(false)
@@ -266,7 +293,12 @@ func (featureResults *FeaturesResults) TryDeactivateServices() {
 	}
 
 	slog.Info("Deactivating yggdrasil service")
-	progressMessage := " Deactivating the yggdrasil service"
+	var progressMessage string
+	if reasons != nil && *reasons != "" {
+		progressMessage = fmt.Sprintf(" Deactivating the yggdrasil service (%s)", *reasons)
+	} else {
+		progressMessage = " Deactivating the yggdrasil service"
+	}
 	err := ui.Spinner(remotemanagement.DeactivateServices, ui.Indent.Medium, progressMessage)
 	if err != nil {
 		featureResults.RemoteManagement.Successful = BoolPtr(false)
@@ -281,7 +313,12 @@ func (featureResults *FeaturesResults) TryDeactivateServices() {
 	}
 
 	featureResults.RemoteManagement.Successful = BoolPtr(true)
-	infoMsg := "Deactivated the yggdrasil service"
+	var infoMsg string
+	if reasons != nil && *reasons != "" {
+		infoMsg = fmt.Sprintf("Deactivated the yggdrasil service (%s)", *reasons)
+	} else {
+		infoMsg = "Deactivated the yggdrasil service"
+	}
 	slog.Info(infoMsg)
 	ui.Printf("%s[ ] Remote Management ... %s\n", ui.Indent.Medium, infoMsg)
 }

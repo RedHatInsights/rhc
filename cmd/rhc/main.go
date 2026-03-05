@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strings"
 
 	"github.com/redhatinsights/rhc/internal/features"
 	"github.com/urfave/cli/v2"
@@ -158,7 +159,7 @@ func main() {
 		"\t" + app.Name + " disconnect\n\n" +
 		"Run '" + app.Name + " command --help' for more details."
 
-	featureIDs := features.ListKnownFeatureIds()
+	featureIDs := strings.Join(features.ListKnownFeatureIds(), ", ")
 
 	defaultConfigFilePath, err := ConfigPath()
 	if err != nil {
@@ -299,13 +300,13 @@ func main() {
 			Name:        "configure",
 			Usage:       "Configure the system's connection to " + Provider,
 			UsageText:   fmt.Sprintf("%v configure", app.Name),
-			Description: fmt.Sprintf("The configure command allows you to set up the system's connection to %v.", Provider),
+			Description: fmt.Sprintf("The configure command allows to set up the system's connection to %v.", Provider),
 			Subcommands: []*cli.Command{
 				{
 					Name:        "features",
 					Usage:       "Configure the system's connection to " + Provider + " features",
 					UsageText:   fmt.Sprintf("%v configure features", app.Name),
-					Description: "The features command allows you to enable or disable " + Provider + " features.",
+					Description: "The features command allows to enable or disable " + Provider + " features before connecting the system or after the system has been connected.",
 					Subcommands: []*cli.Command{
 						{
 							Name:        "enable",
