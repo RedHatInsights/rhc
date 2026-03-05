@@ -12,7 +12,7 @@ type InvalidParameterError struct {
 }
 
 func (err *InvalidParameterError) Error() string {
-	return "varlink call failed: org.rhc.internal.InvalidParameter"
+	return "varlink call failed: com.redhat.rhc.internal.InvalidParameter"
 }
 
 type TestIn struct {
@@ -33,7 +33,7 @@ func unmarshalError(err error) error {
 	}
 	var v error
 	switch verr.Name {
-	case "org.rhc.internal.InvalidParameter":
+	case "com.redhat.rhc.internal.InvalidParameter":
 		v = new(InvalidParameterError)
 	default:
 		return err
@@ -48,7 +48,7 @@ func (c Client) Test(in *TestIn) (*TestOut, error) {
 		in = new(TestIn)
 	}
 	out := new(TestOut)
-	err := c.Client.Do("org.rhc.internal.Test", in, out)
+	err := c.Client.Do("com.redhat.rhc.internal.Test", in, out)
 	return out, unmarshalError(err)
 }
 
@@ -64,7 +64,7 @@ func marshalError(err error) error {
 	var name string
 	switch err.(type) {
 	case *InvalidParameterError:
-		name = "org.rhc.internal.InvalidParameter"
+		name = "com.redhat.rhc.internal.InvalidParameter"
 	default:
 		return err
 	}
@@ -79,7 +79,7 @@ func (h Handler) HandleVarlink(call *govarlink.ServerCall, req *govarlink.Server
 		err error
 	)
 	switch req.Method {
-	case "org.rhc.internal.Test":
+	case "com.redhat.rhc.internal.Test":
 		in := new(TestIn)
 		if err := json.Unmarshal(req.Parameters, in); err != nil {
 			return err
@@ -99,7 +99,7 @@ func (h Handler) HandleVarlink(call *govarlink.ServerCall, req *govarlink.Server
 
 func (h Handler) Register(reg *govarlink.Registry) {
 	reg.Add(&govarlink.RegistryInterface{
-		Definition: "interface org.rhc.internal\n# Internal API for rhc-server\n# This API is temporary and unstable\n\n# Generic error for invalid parameters\nerror InvalidParameter (parameter: string)\n\n# Test method - returns the input string as-is\nmethod Test(input: string) -> (output: string)\n",
-		Name:       "org.rhc.internal",
+		Definition: "interface com.redhat.rhc.internal\n# Internal API for rhc-server\n# This API is temporary and unstable\n\n# Generic error for invalid parameters\nerror InvalidParameter (parameter: string)\n\n# Test method - returns the input string as-is\nmethod Test(input: string) -> (output: string)\n",
+		Name:       "com.redhat.rhc.internal",
 	}, h)
 }
