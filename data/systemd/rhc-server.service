@@ -1,0 +1,18 @@
+[Unit]
+Description=rhc server
+Documentation=https://github.com/RedHatInsights/rhc
+Requires=rhc-server.socket
+After=rhc-server.socket
+
+[Service]
+Type=simple
+ExecStart=/usr/libexec/rhc/rhc-server
+StandardOutput=journal
+StandardError=journal
+ReadWritePaths=/run/rhc
+RuntimeDirectory=rhc
+RuntimeDirectoryMode=0755
+RuntimeDirectoryPreserve=yes
+
+[Install]
+WantedBy=multi-user.target

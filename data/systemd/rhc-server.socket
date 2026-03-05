@@ -1,0 +1,10 @@
+[Unit]
+Description=rhc server socket
+Documentation=https://github.com/RedHatInsights/rhc
+
+[Socket]
+ListenStream=/run/rhc/com.redhat.rhc
+SocketMode=0660
+
+[Install]
+WantedBy=sockets.target

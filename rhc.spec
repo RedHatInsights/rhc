@@ -45,6 +45,7 @@ to Red Hat Subscription Management and Red Hat Lightspeed.
 %build
 export GO_LDFLAGS="-X main.Version=%{version} -X main.ServiceName=yggdrasil"
 %gobuild -o %{gobuilddir}/bin/rhc %{goipath}/cmd/rhc
+%gobuild -o %{gobuilddir}/bin/rhc-server %{goipath}/cmd/rhc-server
 
 # Generate man page
 %{gobuilddir}/bin/rhc --generate-man-page > rhc.1
@@ -54,7 +55,9 @@ export GO_LDFLAGS="-X main.Version=%{version} -X main.ServiceName=yggdrasil"
 %go_vendor_license_install -c %{S:2}
 # Binaries
 install -m 0755 -vd                     %{buildroot}%{_bindir}
-install -m 0755 -vp _build/bin/*        %{buildroot}%{_bindir}/
+install -m 0755 -vp _build/bin/rhc      %{buildroot}%{_bindir}/
+install -m 0755 -vd                     %{buildroot}%{_libexecdir}/%{name}
+install -m 0755 -vp _build/bin/rhc-server %{buildroot}%{_libexecdir}/%{name}/
 # Bash completion
 install -m 0755 -vd                     %{buildroot}%{bash_completions_dir}/
 install -m 0644 -vp data/completion/rhc.bash  %{buildroot}%{bash_completions_dir}/%{name}
@@ -69,6 +72,8 @@ install -m 0644 -vp rhc.1               %{buildroot}%{_mandir}/man1/rhc.1
 # Systemd files
 install -m 0755 -vd                     %{buildroot}%{_unitdir}
 install -m 0644 -vp data/systemd/rhc-canonical-facts.*  %{buildroot}%{_unitdir}/
+install -m 0644 -vp data/systemd/rhc-server.service  %{buildroot}%{_unitdir}/
+install -m 0644 -vp data/systemd/rhc-server.socket   %{buildroot}%{_unitdir}/
 # Configuration
 install -m 0755 -vd                     %{buildroot}%{_sysconfdir}/%{name}/
 # Yggdrasil
@@ -85,6 +90,7 @@ install -m 0644 -vp %{buildroot}%{_unitdir}/yggdrasil.service.d/rhcd.conf %{buil
 
 %post
 %systemd_post rhc-canonical-facts.timer
+%systemd_post rhc-server.socket
 %if 0%{?with_rhcd_compat}
 # On package update, ensure yggdrasil (formerly rhcd) has its own configuration file
 if [ $1 -eq 2 ] && [ ! -f /etc/yggdrasil/config.toml ]; then
@@ -97,19 +103,24 @@ fi
 
 %preun
 %systemd_preun rhc-canonical-facts.timer
+%systemd_preun rhc-server.socket rhc-server.service
 
 %postun
 %systemd_postun_with_restart rhc-canonical-facts.timer
+%systemd_postun_with_restart rhc-server.service
 
 %files -f %{go_vendor_license_filelist}
 # Binaries
 %{_bindir}/rhc
+%{_libexecdir}/%{name}/rhc-server
 # Bash completion
 %{bash_completions_dir}/%{name}
 # Man page
 %{_mandir}/man1/*
 # Systemd
 %{_unitdir}/rhc-canonical-facts.*
+%{_unitdir}/rhc-server.service
+%{_unitdir}/rhc-server.socket
 # Configuration
 %{_sysconfdir}/%{name}/
 # Logrotate
