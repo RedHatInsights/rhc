@@ -16,7 +16,6 @@ import pytest
 from utils import prepare_args_for_connect
 
 LOG_FILE_PATH = "/var/log/rhc/rhc.log"
-LOG_DIR_PATH = "/var/log/rhc"
 LOGROTATE_CONFIG_PATH = "/etc/logrotate.d/rhc"
 
 
@@ -101,10 +100,12 @@ def test_log_file_permissions(rhc):
         f"Log file permissions should be 0640, got {oct(file_mode)}"
     )
 
+
 @pytest.fixture
 def non_root_user():
     """Creates a temporary non-root user for testing, then removes it after."""
     username = "rhc_test_user"
+    subprocess.run(["userdel", "-r", username], check=False)
     subprocess.run(["useradd", "-m", username], check=True)
     yield username
     subprocess.run(["userdel", "-r", username], check=False)
