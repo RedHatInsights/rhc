@@ -1,0 +1,89 @@
+specfile_path: rhc.spec
+
+# List of files to synchronize from GitHub upstream to Fedora downstream
+files_to_sync:
+  - rhc.spec
+  - .packit.yaml
+
+srpm_build_deps:
+  - gawk
+  - golang
+  - dbus-x11
+  - "pkgconfig(bash-completion)"
+  - "pkgconfig(dbus-1)"
+  - rpm-build
+  - "go-vendor-tools"
+
+# Hooks to overwrite default Packit behavior
+actions:
+  # Extract version from the .spec file
+  get-current-version:
+    - bash -c 'rpmspec --query --queryformat "%{version}\n" rhc.spec'
+  # Packit expects a single archive to be created
+  #  https://packit.dev/docs/configuration/examples#custom-archive-creation-for-srpm
+  create-archive:
+    - make archive
+    - bash -c "ls -1 ./rhc-*.tar.gz | head -n 1"
+
+jobs:
+  - job: copr_build
+    trigger: pull_request
+    additional_repos:
+      - "copr://@go-sig/go-vendor-tools-dev"
+    targets:
+      fedora-all-aarch64: {}
+      fedora-all-x86_64: {}
+      epel-10-aarch64:
+        distros: [CentOS-Stream-10, RHEL-10]
+      epel-10-x86_64:
+        distros: [CentOS-Stream-10, RHEL-10]
+
+  - job: copr_build
+    trigger: commit
+    additional_repos:
+      - "copr://@go-sig/go-vendor-tools-dev"
+    targets:
+      fedora-all-aarch64: {}
+      fedora-all-x86_64: {}
+      epel-10-aarch64:
+        distros: [CentOS-Stream-10, RHEL-10-Nightly]
+      epel-10-x86_64:
+        distros: [CentOS-Stream-10, RHEL-10-Nightly]
+
+  - job: tests
+    trigger: pull_request
+    identifier: "integration-tests/centos-stream"
+    targets:
+      epel-10-aarch64:
+        distros: [CentOS-Stream-10]
+      epel-10-x86_64:
+        distros: [CentOS-Stream-10]
+    labels:
+      - unit
+
+  - job: tests
+    trigger: pull_request
+    identifier: "integration-tests/fedora"
+    targets:
+      - fedora-stable
+      - fedora-rawhide
+    labels:
+      - unit
+
+  - job: tests
+    trigger: pull_request
+    identifier: "integration-tests/rhel"
+    targets:
+      epel-10-aarch64:
+        distros: [RHEL-10-Nightly]
+      epel-10-x86_64:
+        distros: [RHEL-10-Nightly]
+    labels:
+      - unit
+    tf_extra_params:
+      environments:
+          settings:
+            provisioning:
+              tags:
+                BusinessUnit: sst_csi_client_tools
+    use_internal_tf: true

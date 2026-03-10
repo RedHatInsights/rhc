@@ -30,6 +30,7 @@ $ mock -r fedora-43-x86_64 ~/rpmbuild/SRPMS/rhc-*.src.rpm
 You can create an RPM package using [packit](https://packit.dev/docs/cli) CLI too:
 
 ```shell
+$ sudo dnf install dbus-x11 packit
 $ packit build locally
 ```
 
@@ -90,11 +91,11 @@ Make sure to replace "host" with your virtual machine's IP address.
 # Required Reading
 
 * [Effective Go](https://go.dev/doc/effective_go)
-* [CodeReviewComments](https://github.com/golang/go/wiki/CodeReviewComments)
+* [CodeReviewComments](https://go.dev/wiki/CodeReviewComments)
 * [Go Proverbs](https://go-proverbs.github.io/)
 
 In addition to these 3 "classics", [A collection of Go style
-guides](https://golangexample.com/a-collection-of-go-style-guides/) contains a
+guides](https://github.com/dgryski/awesome-go-style) contains a
 wealth of resources on writing idiomatic Go.
 
 # Contact
