@@ -60,6 +60,9 @@ install -m 0755 -vd                     %{buildroot}%{bash_completions_dir}/
 install -m 0644 -vp data/completion/rhc.bash  %{buildroot}%{bash_completions_dir}/%{name}
 # Logs
 install -m 0755 -vd                     %{buildroot}%{_localstatedir}/log/%{name}/
+# Logrotate
+install -m 0755 -vd                     %{buildroot}%{_sysconfdir}/logrotate.d/
+install -m 0644 -vp data/logrotate.d/rhc %{buildroot}%{_sysconfdir}/logrotate.d/rhc
 # Man page
 install -m 0755 -vd                     %{buildroot}%{_mandir}/man1
 install -m 0644 -vp rhc.1               %{buildroot}%{_mandir}/man1/rhc.1
@@ -109,6 +112,8 @@ fi
 %{_unitdir}/rhc-canonical-facts.*
 # Configuration
 %{_sysconfdir}/%{name}/
+# Logrotate
+%config(noreplace) %{_sysconfdir}/logrotate.d/rhc
 # Yggdrasil
 %if 0%{?with_rhcd_compat}
 %{_unitdir}/yggdrasil.service.d/rhcd.conf
