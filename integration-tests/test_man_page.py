@@ -8,6 +8,7 @@ import subprocess
 import pytest
 
 
+@pytest.mark.tier1
 def test_man_page_synopsis():
     """This test verifies format of man page"""
     command_op = subprocess.check_output(["man", "rhc"]).decode("utf-8")
@@ -16,6 +17,7 @@ def test_man_page_synopsis():
     ) in command_op
 
 
+@pytest.mark.tier1
 def test_man_page_global_options():
     """Test verifies global option are present in man page"""
     command_op = subprocess.check_output(["man", "rhc"]).decode("utf-8")
@@ -24,6 +26,7 @@ def test_man_page_global_options():
     assert "--version, -v" in command_op
 
 
+@pytest.mark.tier1
 @pytest.mark.parametrize("command", ["connect", "disconnect", "status", "help"])
 def test_man_page_commands(command):
     """Test verifies if man page displays existing commands"""
@@ -31,6 +34,7 @@ def test_man_page_commands(command):
     assert command in command_op
 
 
+@pytest.mark.tier1
 @pytest.mark.parametrize(
     "options",
     [

@@ -10,6 +10,7 @@ from utils import rhcd_service_is_active
 import re
 
 
+@pytest.mark.tier1
 def test_status_connected(external_candlepin, rhc, test_config):
     """Test RHC Status command when the host is connected.
     test_steps:
@@ -37,6 +38,7 @@ def test_status_connected(external_candlepin, rhc, test_config):
     )
 
 
+@pytest.mark.tier1
 def test_status_connected_format_json(external_candlepin, rhc, test_config):
     """
     Test 'rhc status --format json' command, when host is connected
@@ -63,6 +65,7 @@ def test_status_connected_format_json(external_candlepin, rhc, test_config):
     assert type(status_json["rhcd_running"]) == bool
 
 
+@pytest.mark.tier1
 def test_status_disconnected(rhc):
     """Test RHC Status command when the host is disconnected.
     Ref: https://issues.redhat.com/browse/CCT-525
@@ -88,6 +91,7 @@ def test_status_disconnected(rhc):
     )
 
 
+@pytest.mark.tier1
 def test_rhcd_service_restart(external_candlepin, rhc, test_config):
     """
     Test rhcd service can be restarted on connected and  not on disconnected system.
