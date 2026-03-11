@@ -23,6 +23,7 @@ import re
 logger = logging.getLogger(__name__)
 
 
+@pytest.mark.tier1
 @pytest.mark.parametrize("auth", ["basic", "activation-key"])
 def test_connect(external_candlepin, rhc, test_config, auth):
     """Test if RHC can connect to CRC using basic auth and activation key,
@@ -49,6 +50,7 @@ def test_connect(external_candlepin, rhc, test_config, auth):
     assert "Successfully connected to Red Hat!" in result.stdout
 
 
+@pytest.mark.tier2
 @pytest.mark.parametrize(
     "credentials",
     [
@@ -92,6 +94,7 @@ def test_connect_wrong_parameters(external_candlepin, rhc, test_config, credenti
     assert not rhcd_service_is_active()
 
 
+@pytest.mark.tier1
 @pytest.mark.skipif(
     pytest.rhel_major_version == "unknown" or int(pytest.rhel_major_version) < 9,
     reason="This test is only supported on RHEL 9 and above",
@@ -171,6 +174,7 @@ def test_connect_with_content_template(external_candlepin, rhc, test_config, aut
     ), "No new repositories appeared in the system after connecting the content template"
 
 
+@pytest.mark.tier1
 @pytest.mark.skipif(
     pytest.rhel_major_version == "unknown" or int(pytest.rhel_major_version) < 9,
     reason="This test is only supported on RHEL 9 and above",
