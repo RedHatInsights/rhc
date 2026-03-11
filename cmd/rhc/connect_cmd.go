@@ -157,11 +157,11 @@ func (connectResult *ConnectResult) TryActivateServices() {
 	if !features.ManagementFeature.Enabled {
 		connectResult.Features.RemoteManagement.Successful = false
 		if features.ManagementFeature.Reason != "" {
-			infoMsg := fmt.Sprintf("Starting yggdrasil service disabled (%s)", features.ManagementFeature.Reason)
+			infoMsg := fmt.Sprintf("Not starting yggdrasil service (%s)", features.ManagementFeature.Reason)
 			slog.Info(infoMsg)
 			ui.Printf("%s[ ] Management .... %s\n", ui.Indent.Medium, infoMsg)
 		} else {
-			infoMsg := "Starting yggdrasil service disabled"
+			infoMsg := "Not starting yggdrasil service"
 			slog.Info(infoMsg)
 			ui.Printf("%s[ ] Management .... %s\n", ui.Indent.Medium, infoMsg)
 		}
