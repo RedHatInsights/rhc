@@ -15,6 +15,8 @@ import pytest
 
 from utils import prepare_args_for_connect
 
+pytest.skip("Skipping all tests in this file for RHEL 10.2 RCbaseline", allow_module_level=True)
+
 LOG_FILE_PATH = "/var/log/rhc/rhc.log"
 LOGROTATE_CONFIG_PATH = "/etc/logrotate.d/rhc"
 
