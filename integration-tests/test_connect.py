@@ -300,7 +300,7 @@ def test_connect_wrong_parameters(
     # Regression: success message must not appear when connect fails
     #assert "Successfully connected to Red Hat!" not in result.stdout
 
-
+@pytest.mark.skip("username password not supported on satellite yet")
 def test_connect_failure_does_not_print_success_message(
     external_candlepin, rhc, test_config
 ):
