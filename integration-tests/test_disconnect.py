@@ -29,18 +29,22 @@ def test_rhc_disconnect(external_candlepin, rhc, test_config):
         activationkey=test_config.get("candlepin.activation_keys")[0],
         org=test_config.get("candlepin.org"),
     )
-    assert rhc.is_registered
+    if (8, 8) <= pytest.rhel_version_tuple < (9, 0) or pytest.rhel_version_tuple >= (9, 2):
+        assert rhc.is_registered
     assert rhcd_service_is_active()
+    
     disconnect_result = rhc.run("disconnect", check=False)
     assert disconnect_result.returncode == 0
-    assert not rhc.is_registered
+    if (8, 8) <= pytest.rhel_version_tuple < (9, 0) or pytest.rhel_version_tuple >= (9, 2):
+        assert not rhc.is_registered  # --format is only supported 8.8+
     assert not rhcd_service_is_active()
-    # copr builds have BrandName rhc and downstream builds have "Remote Host Configuration"
+    # copr builds have BrandName rhc and downstream builds have "Remote Host Configuration" and 8.8- uses Red Hat connector daemon
     assert re.search(
-        r"(Deactivated the Remote Host Configuration daemon|Deactivated the rhc daemon)",
+        r"(Deactivated the Remote Host Configuration daemon|Deactivated the rhc daemon|Deactivated the Red Hat connector daemon)",
         disconnect_result.stdout,
     )
-    assert "Disconnected from Red Hat Insights" in disconnect_result.stdout
+    if pytest.rhel_version_tuple >= (8, 6):
+        assert "Disconnected from Red Hat Insights" in disconnect_result.stdout
     assert (
         "Disconnected from Red Hat Subscription Management" in disconnect_result.stdout
     )
@@ -68,22 +72,30 @@ def test_disconnect_when_already_disconnected(rhc):
     # second attempt to disconnect already disconnected system
     disconnect_result = rhc.run("disconnect", check=False)
     assert disconnect_result.returncode == 1
-    assert not rhc.is_registered
+
+    if (8, 8) <= pytest.rhel_version_tuple < (9, 0) or pytest.rhel_version_tuple >= (9, 2):
+        assert not rhc.is_registered  # --format is only supported 8.8+
+
     assert re.search(
-        r"(Deactivated the Remote Host Configuration daemon|Deactivated the rhc daemon)",
+        r"(Deactivated the Remote Host Configuration daemon|Deactivated the rhc daemon|Deactivated the Red Hat connector daemon)",
         disconnect_result.stdout,
     )
-    assert "Cannot disconnect from Red Hat Insights" in disconnect_result.stdout
-    assert (
-        "Cannot disconnect from Red Hat Subscription Management"
-        in disconnect_result.stdout
-    )
-    assert (
-        "rhsm      cannot disconnect from Red Hat Subscription Management:"
-        in disconnect_result.stdout
-    )
-    assert "warning: the system is already unregistered" in disconnect_result.stdout
-    assert (
-        "ERROR  insights  cannot disconnect from Red Hat Insights"
-        in disconnect_result.stdout
-    )
+
+    if pytest.rhel_version_tuple >= (8, 6):
+        assert "Cannot disconnect from Red Hat Insights" in disconnect_result.stdout
+        assert (
+            "Cannot disconnect from Red Hat Subscription Management"
+            in disconnect_result.stdout
+        )
+        assert (
+            "rhsm      cannot disconnect from Red Hat Subscription Management:"
+            in disconnect_result.stdout
+        )
+        assert (
+            "insights  cannot disconnect from Red Hat Insights"
+            in disconnect_result.stdout
+        )
+        assert "warning: the system is already unregistered" in disconnect_result.stdout
+
+    else:  # RHEL 8.4 and below
+        assert "warning: the system is already unregistered" in disconnect_result.stderr

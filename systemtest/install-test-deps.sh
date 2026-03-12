@@ -31,3 +31,6 @@ if [[ -v TEST_RPMS ]]; then
   echo "Installing RPMs: ${TEST_RPMS}"
   dnf -y install --allowerasing ${TEST_RPMS}
 fi
+
+# workaround - Install tomli for python 3.10 and below (RHEL8.x)
+python3 -m pip install tomli

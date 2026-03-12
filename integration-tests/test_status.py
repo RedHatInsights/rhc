@@ -30,14 +30,20 @@ def test_status_connected(external_candlepin, rhc, test_config):
     status_result = rhc.run("status", check=False)
     assert status_result.returncode == 0
     assert "Connected to Red Hat Subscription Management" in status_result.stdout
-    assert "Connected to Red Hat Insights" in status_result.stdout
+    if pytest.rhel_version_tuple >= (8, 6):
+        assert "Connected to Red Hat Insights" in status_result.stdout
     # copr builds have BrandName rhc and downstream builds have "Remote Host Configuration"
     assert re.search(
-        r"(The Remote Host Configuration daemon is active|The rhc daemon is active)",
+        r"(The Remote Host Configuration daemon is active|The rhc daemon is active|The Red Hat connector daemon is active)",
         status_result.stdout,
     )
 
 
+@pytest.mark.skipif(
+    pytest.rhel_version_tuple < (8, 8)
+    or (pytest.rhel_version_tuple[0] == 9 and pytest.rhel_version_tuple < (9, 2)),
+    reason="Feature requires RHEL >= 8.8 or >= 9.2",
+)
 @pytest.mark.tier1
 def test_status_connected_format_json(external_candlepin, rhc, test_config):
     """
@@ -83,10 +89,11 @@ def test_status_disconnected(rhc):
     status_result = rhc.run("status", check=False)
     assert status_result.returncode == 0
     assert "Not connected to Red Hat Subscription Management" in status_result.stdout
-    assert "Not connected to Red Hat Insights" in status_result.stdout
+    if pytest.rhel_version_tuple >= (8, 6):
+        assert "Not connected to Red Hat Insights" in status_result.stdout
     # copr builds have BrandName rhc and downstream builds have "Remote Host Configuration"
     assert re.search(
-        r"(The Remote Host Configuration daemon is inactive|The rhc daemon is inactive)",
+        r"(The Remote Host Configuration daemon is inactive|The rhc daemon is inactive|The Red Hat connector daemon is inactive)",
         status_result.stdout,
     )
 
@@ -121,7 +128,8 @@ def test_rhcd_service_restart(external_candlepin, rhc, test_config):
         activationkey=test_config.get("candlepin.activation_keys")[0],
         org=test_config.get("candlepin.org"),
     )
-    assert rhc.is_registered
+    if (8, 8) <= pytest.rhel_version_tuple < (9, 0) or pytest.rhel_version_tuple >= (9, 2):
+        assert rhc.is_registered
     try:
         util.logged_run("systemctl restart rhcd".split())
         assert rhcd_service_is_active()
