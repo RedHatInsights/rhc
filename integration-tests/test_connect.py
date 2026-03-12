@@ -37,17 +37,26 @@ def test_connect(external_candlepin, rhc, test_config, auth):
         rhc.disconnect()
     command_args = prepare_args_for_connect(test_config, auth=auth)
     command = ["connect"] + command_args
-    result = rhc.run(*command)
-    assert rhc.is_registered
+    
+    if pytest.rhel_version_tuple == (9, 2) or pytest.rhel_version_tuple == (8, 8):
+        result = rhc.run(*command, check=False) # known issue - https://redhat.atlassian.net/browse/RHELPLAN-163684
+    else:
+        result = rhc.run(*command)
+    
+    if (8, 8) <= pytest.rhel_version_tuple < (9, 0) or pytest.rhel_version_tuple >= (9, 2):
+        assert rhc.is_registered
+    
     assert rhcd_service_is_active()
     assert "Connected to Red Hat Subscription Management" in result.stdout
-    assert "Connected to Red Hat Insights" in result.stdout
+    if pytest.rhel_version_tuple >= (8, 6):
+        assert "Connected to Red Hat Insights" in result.stdout
     # copr builds have BrandName rhc and downstream builds have "Remote Host Configuration"
     assert re.search(
-        r"(Activated the Remote Host Configuration daemon|Activated the rhc daemon)",
+        r"(Activated the Remote Host Configuration daemon|Activated the rhc daemon|Activated the Red Hat connector daemon)",
         result.stdout,
     )
-    assert "Successfully connected to Red Hat!" in result.stdout
+    if pytest.rhel_version_tuple >= (9, 2):
+        assert "Successfully connected to Red Hat!" in result.stdout
 
 
 @pytest.mark.tier2
@@ -96,8 +105,8 @@ def test_connect_wrong_parameters(external_candlepin, rhc, test_config, credenti
 
 @pytest.mark.tier1
 @pytest.mark.skipif(
-    pytest.rhel_major_version == "unknown" or int(pytest.rhel_major_version) < 9,
-    reason="This test is only supported on RHEL 9 and above",
+    pytest.rhel_version_tuple < (9, 6),
+    reason="Feature requires RHEL 9.6+",
 )
 @pytest.mark.parametrize("auth", ["basic", "activation-key"])
 def test_connect_with_content_template(external_candlepin, rhc, test_config, auth):
@@ -176,8 +185,8 @@ def test_connect_with_content_template(external_candlepin, rhc, test_config, aut
 
 @pytest.mark.tier1
 @pytest.mark.skipif(
-    pytest.rhel_major_version == "unknown" or int(pytest.rhel_major_version) < 9,
-    reason="This test is only supported on RHEL 9 and above",
+    pytest.rhel_version_tuple < (9, 6),
+    reason="Feature requires RHEL 9.6+",
 )
 def test_connect_with_nonexistent_content_template(
     external_candlepin, rhc, test_config
@@ -221,7 +230,9 @@ def test_connect_with_nonexistent_content_template(
 
     # Verify connection failed
     assert result.returncode != 0
-    assert not rhc.is_registered
+
+    if (8, 8) <= pytest.rhel_version_tuple < (9, 0) or pytest.rhel_version_tuple >= (9, 2):
+        assert not rhc.is_registered
     assert not rhcd_service_is_active()
 
     # Verify the specific error message

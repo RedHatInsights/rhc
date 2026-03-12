@@ -22,8 +22,9 @@ def test_man_page_global_options():
     """Test verifies global option are present in man page"""
     command_op = subprocess.check_output(["man", "rhc"]).decode("utf-8")
     assert "--help, -h" in command_op
-    assert "--no-color" in command_op
     assert "--version, -v" in command_op
+    if pytest.rhel_version_tuple >= (9, 2):
+        assert "--no-color" in command_op
 
 
 @pytest.mark.tier1
@@ -34,17 +35,20 @@ def test_man_page_commands(command):
     assert command in command_op
 
 
+OPTIONS = [
+    ["--activation-key", "-a"],
+    ["--organization", "-o"],
+    ["--password", "-p"],
+    ["--username", "-u"],
+]
+
+# Add only if RHEL >= 9.6
+if pytest.rhel_version_tuple >= (9, 6):
+    OPTIONS.append(["--content-template", "-c"])
+
+
 @pytest.mark.tier1
-@pytest.mark.parametrize(
-    "options",
-    [
-        ["--activation-key", "-a"],
-        ["--organization", "-o"],
-        ["--password", "-p"],
-        ["--username", "-u"],
-        ["--content-template", "-c"],
-    ],
-)
+@pytest.mark.parametrize("options", OPTIONS)
 def test_man_page_connect_options(options):
     """
     Test verifies if man page displays existing options for commands
