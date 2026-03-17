@@ -14,6 +14,7 @@ import (
 	"github.com/coreos/go-systemd/v22/activation"
 	govarlink "github.com/emersion/go-varlink"
 
+	"github.com/redhatinsights/rhc/internal/util"
 	"github.com/redhatinsights/rhc/varlink/internalapi"
 )
 
@@ -118,11 +119,15 @@ func acquirePIDLock() (func(), error) {
 		return nil, fmt.Errorf("failed to open PID file: %w", err)
 	}
 
-	// Try to acquire an exclusive lock (non-blocking)
-	if err := syscall.Flock(int(pidFile.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
-		_ = pidFile.Close()
+	// Try to acquire an exclusive lock (LOCK_EX) and return immediately on error (LOCK_NB).
+	if err = syscall.Flock(int(pidFile.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+		defer func() { _ = pidFile.Close() }()
 		if errors.Is(err, syscall.EWOULDBLOCK) {
-			return nil, fmt.Errorf("another instance of rhc-server is already running")
+			errMsg := "another instance of rhc-server is already running"
+			if pid := util.MustReadFile(pidFile); pid != "" {
+				errMsg += fmt.Sprintf(" (pid=%s)", pid)
+			}
+			return nil, errors.New(errMsg)
 		}
 		return nil, fmt.Errorf("failed to lock PID file: %w", err)
 	}
