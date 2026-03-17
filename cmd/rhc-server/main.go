@@ -180,8 +180,24 @@ func acquirePIDLock() (func(), error) {
 	return cleanup, nil
 }
 
-// trySystemdActivation attempts to get a listener from systemd socket activation.
-func trySystemdActivation() (net.Listener, error) {
+// getListener attempts to get a listener via systemd socket activation and falls back
+// to a unix socket if executed on its own.
+func getListener() (net.Listener, error) {
+	// Try systemd socket activation first
+	listener, err := getSocketActivatedListener()
+	if err != nil {
+		return nil, err
+	}
+	if listener != nil {
+		return listener, nil
+	}
+
+	// Fall back to creating our own unix socket
+	return getUnixSocketListener(socketPath)
+}
+
+// getSocketActivatedListener attempts to get a listener via systemd socket activation.
+func getSocketActivatedListener() (net.Listener, error) {
 	listeners, err := activation.Listeners()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get systemd listeners: %w", err)
@@ -212,8 +228,8 @@ func ensureSocketDirectory(path string) error {
 	return nil
 }
 
-// createUnixSocket creates a unix socket at the specified path.
-func createUnixSocket(path string) (net.Listener, error) {
+// getUnixSocketListener creates a unix socket at the specified path.
+func getUnixSocketListener(path string) (net.Listener, error) {
 	slog.Info("Creating unix socket", "path", path)
 
 	// Ensure the directory exists
@@ -242,20 +258,4 @@ func createUnixSocket(path string) (net.Listener, error) {
 	}
 
 	return listener, nil
-}
-
-// getListener tries to get a listener from systemd socket activation,
-// falls back to creating a unix socket.
-func getListener() (net.Listener, error) {
-	// Try systemd socket activation first
-	listener, err := trySystemdActivation()
-	if err != nil {
-		return nil, err
-	}
-	if listener != nil {
-		return listener, nil
-	}
-
-	// Fall back to creating our own unix socket
-	return createUnixSocket(socketPath)
 }
