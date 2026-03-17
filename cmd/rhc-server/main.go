@@ -30,7 +30,7 @@ const (
 )
 
 func main() {
-	// Acquire PID lock to ensure only one instance runs
+	// Acquire PID lock to ensure at most one instance runs at any given time
 	cleanup, err := acquirePIDLock()
 	if err != nil {
 		slog.Error("Failed to acquire PID lock", "error", err)
@@ -45,10 +45,7 @@ func main() {
 }
 
 func run() error {
-	// Create backend
 	backend := NewBackend()
-
-	// Create registry and register the internal API
 	registry := govarlink.NewRegistry(&govarlink.RegistryOptions{
 		Vendor:  "Red Hat",
 		Product: "rhc",
@@ -56,14 +53,10 @@ func run() error {
 		URL:     "https://github.com/redhatinsights/rhc",
 	})
 
-	// Register internal API
 	handler := internalapi.Handler{Backend: backend}
 	handler.Register(registry)
 
-	// Create server
-	varlinkServer := &govarlink.Server{
-		Handler: registry,
-	}
+	varlinkServer := &govarlink.Server{Handler: registry}
 
 	// Try to get listener from systemd socket activation first
 	listener, err := getListener()
@@ -79,11 +72,11 @@ func run() error {
 	slog.Info("rhc-server starting", "version", Version)
 	slog.Info("Listening on socket", "address", listener.Addr())
 
-	// Setup graceful shutdown
+	// Set up a graceful shutdown
 	_, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Setup signal handler for graceful shutdown on SIGINT/SIGTERM
+	// Set up a signal handler for graceful shutdown on SIGINT/SIGTERM
 	sigChan := make(chan os.Signal, signalChanBuffer)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
@@ -113,7 +106,7 @@ func run() error {
 // acquirePIDLock creates and locks a PID file to ensure only one instance runs.
 // Returns a cleanup function that should be deferred to release the lock.
 func acquirePIDLock() (func(), error) {
-	// Ensure the directory exists
+	// Ensure the PID directory exists
 	dirPath := filepath.Dir(pidFilePath)
 	if err := os.MkdirAll(dirPath, socketDirPerms); err != nil {
 		return nil, fmt.Errorf("failed to create PID file directory: %w", err)
@@ -134,8 +127,7 @@ func acquirePIDLock() (func(), error) {
 		return nil, fmt.Errorf("failed to lock PID file: %w", err)
 	}
 
-	// release defines a local helper to unlock and close the PID file
-	// during error handling or normal shutdown.
+	// Create a closure to unlock and close the PID file on exit
 	release := func() {
 		_ = syscall.Flock(int(pidFile.Fd()), syscall.LOCK_UN)
 		_ = pidFile.Close()
@@ -153,7 +145,7 @@ func acquirePIDLock() (func(), error) {
 		return nil, fmt.Errorf("failed to seek PID file: %w", err)
 	}
 
-	// Save current process ID to the lock file
+	// Save the current process ID to the lock file
 	pid := os.Getpid()
 	if _, err := fmt.Fprintf(pidFile, "%d\n", pid); err != nil {
 		release()
@@ -232,20 +224,19 @@ func ensureSocketDirectory(path string) error {
 func getUnixSocketListener(path string) (net.Listener, error) {
 	slog.Info("Creating unix socket", "path", path)
 
-	// Ensure the directory exists
+	// Ensure the socket directory exists
 	if err := ensureSocketDirectory(path); err != nil {
 		return nil, err
 	}
 
-	// Remove existing socket file if it exists.
-	// This is safe because we hold the PID lock, ensuring no other
-	// rhc-server instance is running. The socket exists only because
-	// a previous instance was terminated abnormally.
+	// Remove the old socket file, if present. Since we already own the PID lock
+	// through acquirePIDLock() called in main(), no other instance we would be
+	// stealing a lock from is running.
 	if err := os.RemoveAll(path); err != nil {
 		return nil, fmt.Errorf("failed to remove existing socket: %w", err)
 	}
 
-	// Create unix socket
+	// Create the Varlink socket
 	listener, err := net.Listen("unix", path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create unix socket: %w", err)
