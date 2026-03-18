@@ -46,6 +46,7 @@ to Red Hat Subscription Management and Red Hat Lightspeed.
 export GO_LDFLAGS="-X main.Version=%{version} -X main.ServiceName=yggdrasil"
 %gobuild -o %{gobuilddir}/bin/rhc %{goipath}/cmd/rhc
 %gobuild -o %{gobuilddir}/bin/rhc-server %{goipath}/cmd/rhc-server
+%gobuild -o %{gobuilddir}/bin/rhc-collector %{goipath}/cmd/rhc-collector
 
 # Generate man page
 %{gobuilddir}/bin/rhc --generate-man-page > rhc.1
@@ -58,6 +59,7 @@ install -m 0755 -vd                     %{buildroot}%{_bindir}
 install -m 0755 -vp _build/bin/rhc      %{buildroot}%{_bindir}/
 install -m 0755 -vd                     %{buildroot}%{_libexecdir}/%{name}
 install -m 0755 -vp _build/bin/rhc-server %{buildroot}%{_libexecdir}/%{name}/
+install -m 0755 -vp _build/bin/rhc-collector %{buildroot}%{_libexecdir}/%{name}/
 # Bash completion
 install -m 0755 -vd                     %{buildroot}%{bash_completions_dir}/
 install -m 0644 -vp data/completion/rhc.bash  %{buildroot}%{bash_completions_dir}/%{name}
@@ -113,6 +115,7 @@ fi
 # Binaries
 %{_bindir}/rhc
 %{_libexecdir}/%{name}/rhc-server
+%{_libexecdir}/%{name}/rhc-collector
 # Bash completion
 %{bash_completions_dir}/%{name}
 # Man page

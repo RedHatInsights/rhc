@@ -8,6 +8,7 @@ VERSION := $(shell rpmspec rhc.spec --query --queryformat '%{version}')
 build:
 	go build -ldflags "-X main.Version=$(VERSION)" -o rhc ./cmd/rhc
 	go build -ldflags "-X main.Version=${VERSION}" -o rhc-server ./cmd/rhc-server
+	go build -ldflags "-X main.Version=${VERSION}" -o rhc-collector ./cmd/rhc-collector
 
 .PHONY: archive
 archive:
@@ -23,4 +24,5 @@ srpm: archive
 clean:
 	rm -f rhc
 	rm -f rhc-server
+	rm -f rhc-collector
 	rm -f rhc-*.tar*
