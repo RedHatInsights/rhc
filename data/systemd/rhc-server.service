@@ -6,7 +6,7 @@ After=rhc-server.socket
 
 [Service]
 Type=simple
-ExecStart=/usr/libexec/rhc/rhc-server
+ExecStart=/usr/libexec/rhc/rhc-server --varlink=unix:/run/rhc/com.redhat.rhc
 StandardOutput=journal
 StandardError=journal
 ReadWritePaths=/run/rhc
