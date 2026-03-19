@@ -190,7 +190,7 @@ func getListener() (net.Listener, error) {
 
 // getSocketActivatedListener attempts to get a listener via systemd socket activation.
 func getSocketActivatedListener() (net.Listener, error) {
-	listeners, err := activation.Listeners()
+	listeners, err := activation.ListenersWithNames()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get systemd listeners: %w", err)
 	}
@@ -200,15 +200,20 @@ func getSocketActivatedListener() (net.Listener, error) {
 		return nil, nil // No systemd socket available
 	}
 
-	// Find the first unix socket listener
-	for _, listener := range listeners {
-		if listener.Addr().Network() == "unix" {
-			slog.Info("Using systemd socket activation", "address", listener.Addr())
-			return listener, nil
+	// Look for the socket named "varlink" as per varlink spec
+	if varlinkListeners, ok := listeners["varlink"]; ok && len(varlinkListeners) > 0 {
+		for _, listener := range varlinkListeners {
+			if listener.Addr().Network() == "unix" {
+				slog.Info("Using systemd socket activation", "address", listener.Addr(), "name", "varlink")
+				return listener, nil
+			}
+			slog.Warn("Skipping non-unix listener found in varlink group", "network", listener.Addr().Network())
+			_ = listener.Close()
 		}
+		return nil, fmt.Errorf("no unix socket found within 'varlink' listeners")
 	}
 
-	return nil, fmt.Errorf("no unix socket found in systemd listeners")
+	return nil, fmt.Errorf("no socket named 'varlink' found in systemd listeners")
 }
 
 // ensureSocketDirectory creates the directory for the socket if it doesn't exist.
