@@ -7,3 +7,6 @@ error InvalidParameter (parameter: string)
 
 # Test method - returns the input string as-is
 method Test(input: string) -> (output: string)
+
+# Foo method - does not have any parameter
+method Foo() -> (output: string)

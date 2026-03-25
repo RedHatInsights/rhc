@@ -15,6 +15,11 @@ func (err *InvalidParameterError) Error() string {
 	return "varlink call failed: com.redhat.rhc.internal.InvalidParameter"
 }
 
+type FooIn struct{}
+type FooOut struct {
+	Output string `json:"output"`
+}
+
 type TestIn struct {
 	Input string `json:"input"`
 }
@@ -43,6 +48,14 @@ func unmarshalError(err error) error {
 	}
 	return v
 }
+func (c Client) Foo(in *FooIn) (*FooOut, error) {
+	if in == nil {
+		in = new(FooIn)
+	}
+	out := new(FooOut)
+	err := c.Client.Do("com.redhat.rhc.internal.Foo", in, out)
+	return out, unmarshalError(err)
+}
 func (c Client) Test(in *TestIn) (*TestOut, error) {
 	if in == nil {
 		in = new(TestIn)
@@ -53,6 +66,7 @@ func (c Client) Test(in *TestIn) (*TestOut, error) {
 }
 
 type Backend interface {
+	Foo(*FooIn) (*FooOut, error)
 	Test(*TestIn) (*TestOut, error)
 }
 
@@ -79,6 +93,12 @@ func (h Handler) HandleVarlink(call *govarlink.ServerCall, req *govarlink.Server
 		err error
 	)
 	switch req.Method {
+	case "com.redhat.rhc.internal.Foo":
+		in := new(FooIn)
+		if err := json.Unmarshal(req.Parameters, in); err != nil {
+			return err
+		}
+		out, err = h.Backend.Foo(in)
 	case "com.redhat.rhc.internal.Test":
 		in := new(TestIn)
 		if err := json.Unmarshal(req.Parameters, in); err != nil {
@@ -99,7 +119,7 @@ func (h Handler) HandleVarlink(call *govarlink.ServerCall, req *govarlink.Server
 
 func (h Handler) Register(reg *govarlink.Registry) {
 	reg.Add(&govarlink.RegistryInterface{
-		Definition: "interface com.redhat.rhc.internal\n# Internal API for rhc-server\n# This API is temporary and unstable\n\n# Generic error for invalid parameters\nerror InvalidParameter (parameter: string)\n\n# Test method - returns the input string as-is\nmethod Test(input: string) -> (output: string)\n",
+		Definition: "interface com.redhat.rhc.internal\n# Internal API for rhc-server\n# This API is temporary and unstable\n\n# Generic error for invalid parameters\nerror InvalidParameter (parameter: string)\n\n# Test method - returns the input string as-is\nmethod Test(input: string) -> (output: string)\n\n# Foo method - does not have any parameter\nmethod Foo() -> (output: string)\n",
 		Name:       "com.redhat.rhc.internal",
 	}, h)
 }

@@ -25,3 +25,7 @@ func (b *Backend) Test(in *internalapi.TestIn) (*internalapi.TestOut, error) {
 	output := fmt.Sprintf("Echo from rhc-server: %s", in.Input)
 	return &internalapi.TestOut{Output: output}, nil
 }
+
+func (b *Backend) Foo(_ *internalapi.FooIn) (*internalapi.FooOut, error) {
+	return &internalapi.FooOut{Output: "bar"}, nil
+}
