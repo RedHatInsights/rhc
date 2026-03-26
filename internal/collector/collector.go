@@ -142,7 +142,7 @@ func GetConfig(id string) (Config, error) {
 
 // ReadTimerCache loads timer data from the cache for the specified collector ID.
 func ReadTimerCache(id string) (*Timer, error) {
-	id, err := validateID(id)
+	id, err := ValidateID(id)
 	if err != nil {
 		return nil, err
 	}
@@ -155,7 +155,7 @@ func ReadTimerCache(id string) (*Timer, error) {
 
 // WriteTimerCache saves timer data to the cache for the specified collector ID.
 func WriteTimerCache(id string, timer Timer) error {
-	id, err := validateID(id)
+	id, err := ValidateID(id)
 	if err != nil {
 		return err
 	}
@@ -174,9 +174,9 @@ func WriteTimerCache(id string, timer Timer) error {
 	return writeTimerToFile(id, dto)
 }
 
-// validateID validates and sanitizes a collector ID.
+// ValidateID validates and sanitizes a collector ID.
 // Returns the sanitized ID and an error if validation fails.
-func validateID(id string) (string, error) {
+func ValidateID(id string) (string, error) {
 	re := regexp.MustCompile(`^[a-z0-9]+\.[a-z0-9]+(\.[a-z0-9]+)*$`)
 	if !re.MatchString(id) {
 		slog.Debug("Invalid collector ID", "id", id)

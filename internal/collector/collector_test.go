@@ -823,7 +823,7 @@ func TestValidateID(t *testing.T) {
 	valid := [5]string{"com.redhat", "com.redhat.advisor", "org.example.collector.v1", "a.b", "v1.example2.collector3"}
 	for _, id := range valid {
 		t.Run("valid_"+id, func(t *testing.T) {
-			gotId, err := validateID(id)
+			gotId, err := ValidateID(id)
 			if err != nil {
 				t.Errorf("validateCollectorID(%q) got unexpected error: %v", id, err)
 			}
@@ -840,7 +840,7 @@ func TestValidateID(t *testing.T) {
 	}
 	for _, id := range invalid {
 		t.Run("invalid_"+id, func(t *testing.T) {
-			gotId, err := validateID(id)
+			gotId, err := ValidateID(id)
 			if err == nil {
 				t.Errorf("validateCollectorID(%q) expected error but got none", id)
 			}

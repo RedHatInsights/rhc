@@ -15,6 +15,7 @@ import (
 	govarlink "github.com/emersion/go-varlink"
 
 	"github.com/redhatinsights/rhc/internal/util"
+	"github.com/redhatinsights/rhc/varlink/collectorapi"
 	"github.com/redhatinsights/rhc/varlink/internalapi"
 )
 
@@ -54,8 +55,11 @@ func run() error {
 		URL:     "https://github.com/redhatinsights/rhc",
 	})
 
-	handler := internalapi.Handler{Backend: backend}
-	handler.Register(registry)
+	internalHandler := internalapi.Handler{Backend: backend}
+	internalHandler.Register(registry)
+
+	collectorHandler := collectorapi.Handler{Backend: backend}
+	collectorHandler.Register(registry)
 
 	varlinkServer := &govarlink.Server{Handler: registry}
 
