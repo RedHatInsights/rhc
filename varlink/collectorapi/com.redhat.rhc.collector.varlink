@@ -1,0 +1,27 @@
+interface com.redhat.rhc.collector
+# Collector API for rhc-server
+# This API is temporary and unstable
+
+# Generic error for invalid parameters
+error InvalidParameter (parameter: string)
+
+# Error when a collector is not found
+error NoSuchCollector (id: string)
+
+# Detailed collector information
+type CollectorInfo (
+    id: string,
+    name: string,
+    feature: ?string,
+    last_run: ?int,
+    next_run: ?int,
+    config_path: string,
+    service_name: string,
+    timer_name: string
+)
+
+# List all available collectors with full details
+method List() -> (collectors: []CollectorInfo)
+
+# Get detailed information about a specific collector
+method Info(id: string) -> (info: CollectorInfo)
