@@ -111,7 +111,12 @@ Environment=HTTPS_PROXY={proxy_url}
 Environment=HTTP_PROXY={proxy_url}
 """
     YGGDRASIL_OVERRIDE.write_text(override)
-    subprocess.run(["systemctl", "daemon-reload"], check=True)
+    try:
+        subprocess.run(["systemctl", "daemon-reload"], check=True)
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        # No systemd inside a container build; the override file is on disk
+        # and systemd will read it at boot.
+        print("systemctl daemon-reload skipped (no systemd); override file written.")
 
 
 def main() -> int:
