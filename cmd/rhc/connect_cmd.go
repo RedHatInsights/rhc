@@ -209,7 +209,7 @@ func (connectResult *ConnectResult) TryActivateServices() {
 // constants.go module
 func beforeConnectAction(ctx *cli.Context) error {
 	// First check if machine-readable format is used
-	err := setupFormatOption(ctx)
+	err := checkFormatFlag(ctx)
 	if err != nil {
 		return err
 	}

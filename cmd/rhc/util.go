@@ -76,8 +76,8 @@ func checkForUnknownArgs(ctx *cli.Context) error {
 	return nil
 }
 
-// setupFormatOption ensures the user has supplied a correct `--format` flag.
-func setupFormatOption(ctx *cli.Context) error {
+// checkFormatFlag ensures the user has supplied a correct `--format` flag.
+func checkFormatFlag(ctx *cli.Context) error {
 	format := ctx.String("format")
 	switch format {
 	case "", "json":
