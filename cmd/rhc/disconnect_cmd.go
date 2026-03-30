@@ -167,7 +167,7 @@ func (disconnectResult *DisconnectResult) TryUnregisterRHSM() error {
 
 // beforeDisconnectAction ensures the user has supplied a correct `--format` flag
 func beforeDisconnectAction(ctx *cli.Context) error {
-	err := setupFormatOption(ctx)
+	err := checkFormatFlag(ctx)
 	if err != nil {
 		return err
 	}

@@ -231,7 +231,7 @@ func printJSONStatus(systemStatus *SystemStatus) error {
 
 // beforeStatusAction ensures the user has supplied a correct `--format` flag.
 func beforeStatusAction(ctx *cli.Context) error {
-	err := setupFormatOption(ctx)
+	err := checkFormatFlag(ctx)
 	if err != nil {
 		return err
 	}
