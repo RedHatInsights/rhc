@@ -13,6 +13,14 @@ The easiest way to create a development build of `rhc` is to call `go build` dir
 $ go build ./cmd/rhc
 ```
 
+## Translating
+
+We use [Fedora Weblate](https://translate.fedoraproject.org/engage/rhc/) to manage localization.
+
+<a href="https://translate.fedoraproject.org/engage/rhc/">
+<img src="https://translate.fedoraproject.org/widget/rhc/rhc/multi-auto.svg" alt="Translation status" />
+</a>
+
 ## Packaging
 
 ```shell
