@@ -1,7 +1,7 @@
 .ONESHELL:
 .SHELLFLAGS := -e -c
 
-VERSION := $(shell rpmspec rhc.spec --query --queryformat '%{version}')
+VERSION := $(shell rpmspec rhc.spec --query --srpm --queryformat '%{version}')
 
 # The 'build' target is not used during packaging; it is present for upstream development purposes.
 .PHONY: build
