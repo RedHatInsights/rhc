@@ -166,7 +166,7 @@ func serviceStatus(systemStatus *SystemStatus) error {
 		loadState := properties["LoadState"]
 		if loadState == "loaded" {
 			systemStatus.YggdrasilRunning = false
-			warnMsg := "The yggdrasil service is inactive but not loaded"
+			warnMsg := "The yggdrasil service is inactive but loaded"
 			slog.Warn(warnMsg)
 			ui.Printf("%s[ ] Remote Management ... %v\n", ui.Indent.Medium, warnMsg)
 		} else {
