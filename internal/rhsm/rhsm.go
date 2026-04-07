@@ -27,6 +27,7 @@ func GetConsumerUUID() (string, error) {
 	if err != nil {
 		return "", err
 	}
+	// godbus implements SystemBus as a singleton, do not call conn.Close()
 
 	locale := localization.GetLocale()
 
@@ -97,6 +98,7 @@ func registerUsernamePassword(username, password, organization string, environme
 	if err != nil {
 		return orgs, err
 	}
+	// godbus implements SystemBus as a singleton, do not call conn.Close()
 
 	uuid, err := GetConsumerUUID()
 	if err != nil {
@@ -215,6 +217,7 @@ func registerActivationKey(orgID string, activationKeys []string, environments [
 	if err != nil {
 		return err
 	}
+	// godbus implements SystemBus as a singleton, do not call conn.Close()
 
 	uuid, err := GetConsumerUUID()
 	if err != nil {
@@ -295,6 +298,7 @@ func Unregister() error {
 	if err != nil {
 		return err
 	}
+	// godbus implements SystemBus as a singleton, do not call conn.Close()
 
 	uuid, err := GetConsumerUUID()
 	if err != nil {
