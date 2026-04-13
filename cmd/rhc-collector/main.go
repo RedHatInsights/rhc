@@ -7,6 +7,7 @@ import (
 	"os/exec"
 
 	"github.com/redhatinsights/rhc/internal/collector"
+	httpapi "github.com/redhatinsights/rhc/internal/http"
 )
 
 // FIXME: Make these configurable (use the values from "rhc configure")
@@ -15,6 +16,11 @@ const (
 	clientCertPath = "/etc/pki/consumer/cert.pem"
 	clientKeyPath  = "/etc/pki/consumer/key.pem"
 	rhcTmpDir      = "/var/tmp/rhc"
+)
+
+var (
+	// Version is set at build time.
+	Version = "dev"
 )
 
 func main() {
@@ -48,7 +54,7 @@ func run(collectorId, command string) error {
 		return err
 	}
 	defer cleanup(archivePath)
-	if err = uploadArchive(archivePath, config.ContentType); err != nil {
+	if err = uploadArchive(archivePath, config); err != nil {
 		return err
 	}
 	return nil
@@ -107,17 +113,18 @@ func getArchivePath(tmpDir string) (string, error) {
 
 // uploadArchive uploads the created archive to Red Hat Hybrid Cloud Console.
 // Returns an error if the upload fails.
-func uploadArchive(archivePath, contentType string) error {
+func uploadArchive(archivePath string, collectorConfig collector.Config) error {
 	archive := collector.ArchiveDto{
 		Path:        archivePath,
-		ContentType: contentType,
+		ContentType: collectorConfig.ContentType,
 	}
 	serviceConfig := collector.ServiceConfig{
 		URL:            ingressUrl,
 		ClientCertPath: clientCertPath,
 		ClientKeyPath:  clientKeyPath,
 	}
-	if err := collector.UploadArchive(archive, serviceConfig); err != nil {
+	userAgent := httpapi.GetUserAgent("rhc-collector", Version, collectorConfig.ID)
+	if err := collector.UploadArchive(archive, serviceConfig, userAgent); err != nil {
 		slog.Error("failed to upload archive", "error", err)
 		return fmt.Errorf("failed to upload archive: %w", err)
 	}

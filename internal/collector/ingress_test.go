@@ -93,50 +93,91 @@ func TestSendUploadRequest(t *testing.T) {
 }
 
 func TestCreateUploadRequest(t *testing.T) {
-	testData := multipartData{
-		Buffer:      bytes.NewBufferString("test form data"),
-		ContentType: "multipart/form-data; boundary=test123",
-	}
 	testConfig := ServiceConfig{
 		URL:            "https://test.example.com/upload",
 		ClientCertPath: "/test/cert.pem",
 		ClientKeyPath:  "/test/key.pem",
 	}
 
-	req, err := createUploadRequest(testData, testConfig)
-	if err != nil {
-		t.Fatalf("createUploadRequest failed: %v", err)
+	tests := []struct {
+		name                string
+		userAgent           string
+		expectedComponent   string
+		expectedTriggeredBy string
+	}{
+		{
+			name:                "collector upload",
+			userAgent:           "rhc-collector/1.2.3 (triggered-by: test.collector) rhel/9.3",
+			expectedComponent:   "rhc-collector",
+			expectedTriggeredBy: "test.collector",
+		},
+		{
+			name:                "varlink upload",
+			userAgent:           "rhc-server/1.2.3 (triggered-by: sample.api.method) rhel/9.3",
+			expectedComponent:   "rhc-server",
+			expectedTriggeredBy: "sample.api.method",
+		},
 	}
 
-	// Verify HTTP method
-	if req.Method != "POST" {
-		t.Errorf("Expected method POST, got %s", req.Method)
-	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create a fresh buffer for each test case
+			testData := multipartData{
+				Buffer:      bytes.NewBufferString("test form data"),
+				ContentType: "multipart/form-data; boundary=test123",
+			}
 
-	// Verify URL
-	if req.URL.String() != testConfig.URL {
-		t.Errorf("Expected URL %s, got %s", testConfig.URL, req.URL.String())
-	}
+			req, err := createUploadRequest(testData, testConfig, tt.userAgent)
+			if err != nil {
+				t.Fatalf("createUploadRequest failed: %v", err)
+			}
 
-	// Verify Content-Type header
-	contentType := req.Header.Get("Content-Type")
-	if contentType != testData.ContentType {
-		t.Errorf("Expected Content-Type %s, got %s", testData.ContentType, contentType)
-	}
+			// Verify HTTP method
+			if req.Method != "POST" {
+				t.Errorf("Expected method POST, got %s", req.Method)
+			}
 
-	// Verify Accept header
-	accept := req.Header.Get("Accept")
-	if accept != "application/json" {
-		t.Errorf("Expected Accept application/json, got %s", accept)
-	}
+			// Verify URL
+			if req.URL.String() != testConfig.URL {
+				t.Errorf("Expected URL %s, got %s", testConfig.URL, req.URL.String())
+			}
 
-	// Verify body
-	body, err := io.ReadAll(req.Body)
-	if err != nil {
-		t.Fatalf("Failed to read request body: %v", err)
-	}
-	if string(body) != "test form data" {
-		t.Errorf("Expected body 'test form data', got %s", string(body))
+			// Verify Content-Type header
+			contentType := req.Header.Get("Content-Type")
+			if contentType != testData.ContentType {
+				t.Errorf("Expected Content-Type %s, got %s", testData.ContentType, contentType)
+			}
+
+			// Verify Accept header
+			accept := req.Header.Get("Accept")
+			if accept != "application/json" {
+				t.Errorf("Expected Accept application/json, got %s", accept)
+			}
+
+			// Verify User-Agent header is set
+			userAgent := req.Header.Get("User-Agent")
+			if userAgent == "" {
+				t.Error("Expected User-Agent header to be set")
+			}
+			if !strings.Contains(userAgent, tt.expectedComponent) {
+				t.Errorf("Expected User-Agent to contain '%s', got %s", tt.expectedComponent, userAgent)
+			}
+			if !strings.Contains(userAgent, "triggered-by:") {
+				t.Errorf("Expected User-Agent to contain 'triggered-by:', got %s", userAgent)
+			}
+			if !strings.Contains(userAgent, tt.expectedTriggeredBy) {
+				t.Errorf("Expected User-Agent to contain '%s', got %s", tt.expectedTriggeredBy, userAgent)
+			}
+
+			// Verify body
+			body, err := io.ReadAll(req.Body)
+			if err != nil {
+				t.Fatalf("Failed to read request body: %v", err)
+			}
+			if string(body) != "test form data" {
+				t.Errorf("Expected body 'test form data', got %s", string(body))
+			}
+		})
 	}
 }
 
