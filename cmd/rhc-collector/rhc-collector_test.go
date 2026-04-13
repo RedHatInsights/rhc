@@ -231,6 +231,9 @@ func TestCleanup(t *testing.T) {
 	})
 
 	t.Run("handles error gracefully", func(t *testing.T) {
+		if os.Getuid() == 0 {
+			t.Skip("this test does not work when run as root")
+		}
 		tmpDir := t.TempDir()
 		testDir := filepath.Join(tmpDir, "test")
 		if err := os.Mkdir(testDir, 0755); err != nil {
