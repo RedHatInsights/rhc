@@ -187,17 +187,21 @@ func getArchivePathFromTmpDir(t *testing.T) string {
 }
 
 func TestUploadArchive(t *testing.T) {
+	testConfig := collector.Config{
+		ID:          "test.collector",
+		Name:        "Test Collector",
+		ContentType: "application/vnd.redhat.advisor.collection",
+	}
+
 	t.Run("upload with valid parameters", func(t *testing.T) {
 		archivePath := getArchivePathFromTmpDir(t)
-		contentType := "application/vnd.redhat.advisor.collection"
-		err := uploadArchive(archivePath, contentType)
+		err := uploadArchive(archivePath, testConfig)
 		t.Logf("UploadArchive() result: %v", err)
 	})
 
 	t.Run("upload with nonexistent archive", func(t *testing.T) {
 		nonexistentArchive := "/nonexistent/archive.tar.xz"
-		contentType := "application/vnd.redhat.advisor.collection"
-		err := uploadArchive(nonexistentArchive, contentType)
+		err := uploadArchive(nonexistentArchive, testConfig)
 		if err == nil {
 			t.Error("uploadArchive() expected error for nonexistent archive")
 		}
@@ -205,7 +209,12 @@ func TestUploadArchive(t *testing.T) {
 
 	t.Run("upload with empty content type", func(t *testing.T) {
 		archivePath := getArchivePathFromTmpDir(t)
-		err := uploadArchive(archivePath, "")
+		emptyContentTypeConfig := collector.Config{
+			ID:          "test.collector",
+			Name:        "Test Collector",
+			ContentType: "",
+		}
+		err := uploadArchive(archivePath, emptyContentTypeConfig)
 		if err == nil {
 			t.Error("uploadArchive() expected error for empty content type")
 		}

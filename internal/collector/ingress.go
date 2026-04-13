@@ -39,7 +39,7 @@ type ServiceConfig struct {
 }
 
 // UploadArchive uploads an archive file to the Red Hat Hybrid Cloud Console.
-func UploadArchive(archive ArchiveDto, config ServiceConfig) error {
+func UploadArchive(archive ArchiveDto, config ServiceConfig, userAgent string) error {
 	if err := validateArchive(archive); err != nil {
 		return err
 	}
@@ -54,7 +54,7 @@ func UploadArchive(archive ArchiveDto, config ServiceConfig) error {
 		return err
 	}
 	client := httpapi.NewHTTPClient(tlsConfig)
-	req, err := createUploadRequest(formData, config)
+	req, err := createUploadRequest(formData, config, userAgent)
 	if err != nil {
 		return err
 	}
@@ -165,8 +165,7 @@ func createMultipartForm(archive ArchiveDto) (multipartData, error) {
 
 // createUploadRequest creates an HTTP POST request for uploading multipart form data.
 // Returns an error if request creation fails.
-func createUploadRequest(formData multipartData, config ServiceConfig) (*http.Request, error) {
-	// FIXME: Add proper User-Agent header to identify the rhc
+func createUploadRequest(formData multipartData, config ServiceConfig, userAgent string) (*http.Request, error) {
 	req, err := http.NewRequest("POST", config.URL, formData.Buffer)
 	if err != nil {
 		slog.Error("Failed to create request", "error", err)
@@ -174,6 +173,8 @@ func createUploadRequest(formData multipartData, config ServiceConfig) (*http.Re
 	}
 	req.Header.Set("Content-Type", formData.ContentType)
 	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", userAgent)
+
 	return req, nil
 }
 
