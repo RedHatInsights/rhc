@@ -1,18 +1,36 @@
-# To get started with Dependabot version updates, you'll need to specify which
-# package ecosystems to update and where the package manifests are located.
-# Please see the documentation for all configuration options:
 # https://docs.github.com/github/administering-a-repository/configuration-options-for-dependency-updates
 
 version: 2
 updates:
-  # Configuration for rhc go code
   - package-ecosystem: "gomod"
-    directory: "/" # Location of go.mod and go.sum
+    directory: "/"
+    target-branch: "main"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "gomod"
+    directory: "/"
+    target-branch: "release-0.2"
     schedule:
       interval: "weekly"
 
-  # Configuration for GitHub actions
+  - package-ecosystem: "pip"
+    directory: "/integration-tests"
+    target-branch: "main"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "pip"
+    directory: "/integration-tests"
+    target-branch: "release-0.2"
+    schedule:
+      interval: "weekly"
+
   - package-ecosystem: "github-actions"
     directory: "/"
+    target-branch: "main"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    target-branch: "release-0.2"
     schedule:
       interval: "weekly"
