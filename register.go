@@ -115,7 +115,7 @@ func registerUsernamePassword(username, password, organization string, environme
 	if err != nil {
 		return orgs, err
 	}
-	defer privConn.Close()
+	defer func() { _ = privConn.Close() }()
 
 	if err := privConn.Auth(nil); err != nil {
 		return orgs, err
@@ -218,7 +218,7 @@ func registerActivationKey(orgID string, activationKeys []string, environments [
 	if err != nil {
 		return err
 	}
-	defer privConn.Close()
+	defer func() { _ = privConn.Close() }()
 
 	if err := privConn.Auth(nil); err != nil {
 		return err
@@ -313,19 +313,17 @@ func configureRHSM(serverURL string) error {
 		if err != nil {
 			return fmt.Errorf("cannot open file for reading: %w", err)
 		}
-		defer src.Close()
+		defer func() { _ = src.Close() }()
 
 		dst, err := os.Create("/etc/rhsm/rhsm.conf.orig")
 		if err != nil {
 			return fmt.Errorf("cannot open file for writing: %w", err)
 		}
-		defer dst.Close()
+		defer func() { _ = dst.Close() }()
 
 		if _, err := io.Copy(dst, src); err != nil {
 			return fmt.Errorf("cannot backup rhsm.conf: %w", err)
 		}
-		src.Close()
-		dst.Close()
 	}
 
 	URL, err := url.Parse(serverURL)

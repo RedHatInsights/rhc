@@ -124,7 +124,7 @@ func getConfProfile(client *http.Client) (map[string]interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 
 	if res.StatusCode != 200 {
 		return nil, fmt.Errorf("cannot get system profile: %s", res.Status)
