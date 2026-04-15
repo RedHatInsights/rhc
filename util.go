@@ -25,7 +25,7 @@ func isTerminal(fd uintptr) bool {
 // and then recursively calls itself on each subcommand.
 func BashCompleteCommand(cmd *cli.Command, w io.Writer) {
 	for _, name := range cmd.Names() {
-		fmt.Fprintf(w, "%v\n", name)
+		_, _ = fmt.Fprintf(w, "%v\n", name)
 	}
 
 	PrintFlagNames(cmd.VisibleFlags(), w)
@@ -40,9 +40,9 @@ func PrintFlagNames(flags []cli.Flag, w io.Writer) {
 	for _, flag := range flags {
 		for _, name := range flag.Names() {
 			if len(name) > 1 {
-				fmt.Fprintf(w, "--%v\n", name)
+				_, _ = fmt.Fprintf(w, "--%v\n", name)
 			} else {
-				fmt.Fprintf(w, "-%v\n", name)
+				_, _ = fmt.Fprintf(w, "-%v\n", name)
 			}
 		}
 	}
