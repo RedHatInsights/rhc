@@ -18,6 +18,9 @@ const (
 	ExitCodeProtocol    = 76 // remote error in protocol
 	ExitCodeNoPerm      = 77 // permission denied
 	ExitCodeConfig      = 78 // configuration error
+
+	// ConnectFeaturesPrefsPath is the path to the feature preferences cache file
+	ConnectFeaturesPrefsPath = "/var/lib/rhc/rhc-connect-features-prefs.json"
 )
 
 var (

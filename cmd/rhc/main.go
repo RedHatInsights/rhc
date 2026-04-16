@@ -6,12 +6,12 @@ import (
 	"os"
 	"strings"
 
-	"github.com/redhatinsights/rhc/internal/features"
 	"github.com/urfave/cli/v2"
 	"github.com/urfave/cli/v2/altsrc"
 
 	"github.com/redhatinsights/rhc/internal/conf"
 	"github.com/redhatinsights/rhc/internal/ui"
+	"github.com/redhatinsights/rhc/pkg/feature"
 )
 
 const (
@@ -143,8 +143,8 @@ func main() {
 		"Run '" + app.Name + " command --help' for more details."
 
 	var featureIdSlice []string
-	for _, featureID := range features.KnownFeatures {
-		featureIdSlice = append(featureIdSlice, featureID.ID)
+	for _, f := range feature.All() {
+		featureIdSlice = append(featureIdSlice, f.ID())
 	}
 	featureIDs := strings.Join(featureIdSlice, ", ")
 
@@ -259,6 +259,42 @@ func main() {
 			Description: "The disconnect command disconnects the system from Red Hat Subscription Management, Red Hat Lightspeed (formerly Insights) and Red Hat and deactivates the yggdrasil service. Red Hat will no longer be able to interact with the system.",
 			Before:      beforeDisconnectAction,
 			Action:      disconnectAction,
+		},
+		{
+			Name:        "configure",
+			Usage:       "Configure system features",
+			UsageText:   fmt.Sprintf("%v configure COMMAND", app.Name),
+			Description: "The configure command allows you to manage feature preferences before or after system registration.",
+			Subcommands: []*cli.Command{
+				{
+					Name:        "features",
+					Usage:       "Manage feature levels",
+					UsageText:   fmt.Sprintf("%v configure features COMMAND", app.Name),
+					Description: "Enable or disable content management, analytics, or remote management.",
+					Subcommands: []*cli.Command{
+						{
+							Name:   "status",
+							Usage:  "Show status",
+							Before: beforeFeaturesStatusAction,
+							Action: featuresStatusAction,
+						},
+						{
+							Name:      "enable",
+							Usage:     "Enable a feature",
+							ArgsUsage: fmt.Sprintf("FEATURE (allowed values: %s)", featureIDs),
+							Before:    beforeFeaturesEnableAction,
+							Action:    featuresEnableAction,
+						},
+						{
+							Name:      "disable",
+							Usage:     "Disable a feature",
+							ArgsUsage: fmt.Sprintf("FEATURE (allowed values: %s)", featureIDs),
+							Before:    beforeFeaturesDisableAction,
+							Action:    featuresDisableAction,
+						},
+					},
+				},
+			},
 		},
 		{
 			Name:        "canonical-facts",
