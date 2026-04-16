@@ -5,7 +5,7 @@ go 1.21
 require (
 	git.sr.ht/~spc/go-ini v0.0.0-20210406163956-61abbbf0b164
 	git.sr.ht/~spc/go-log v0.1.1
-	github.com/briandowns/spinner v1.23.0
+	github.com/briandowns/spinner v1.23.2
 	github.com/coreos/go-systemd/v22 v22.5.0
 	github.com/godbus/dbus/v5 v5.1.0
 	github.com/google/go-cmp v0.7.0
