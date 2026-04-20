@@ -23,6 +23,10 @@ const (
 	ConnectFeaturesPrefsPath = "/var/lib/rhc/rhc-connect-features-prefs.json"
 )
 
+const (
+	ctxConnectCache = "connect-cache"
+)
+
 var (
 	// Version is the version as described by git.
 	Version string

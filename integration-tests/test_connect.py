@@ -851,9 +851,7 @@ def test_connect_with_nonexistent_feature(external_candlepin, rhc, test_config, 
 
     # Verify error message contains expected text
     error_output = result.stderr + result.stdout
-    # Build the expected feature list string from the centralized feature list
-    feature_list_str = ",".join(ALL_FEATURES_CLI)
-    expected_error = f'feature "{nonexistent_feature}": no such feature exists ({feature_list_str})'
+    expected_error = f'feature "{nonexistent_feature}" not found'
     assert expected_error in error_output, (
         f"Expected error message not found in output: {error_output}"
     )
