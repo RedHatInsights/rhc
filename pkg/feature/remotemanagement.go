@@ -16,7 +16,7 @@ func (r RemoteManagement) Description() string {
 }
 
 func (r RemoteManagement) Requires() []string {
-	return []string{"analytics"}
+	return []string{"content", "analytics"}
 }
 
 func (r RemoteManagement) RequiredBy() []string {

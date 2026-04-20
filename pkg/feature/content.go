@@ -20,7 +20,7 @@ func (c Content) Requires() []string {
 }
 
 func (c Content) RequiredBy() []string {
-	return []string{}
+	return []string{"remote-management"}
 }
 
 func (c Content) Enable() error {
