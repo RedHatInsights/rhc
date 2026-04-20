@@ -28,6 +28,7 @@ func UnregisterInsightsClient() error {
 // returned, otherwise `false` is returned, and `error` is filled with
 // an error value.
 func InsightsClientIsRegistered() (bool, error) {
+	// TODO Consider checking for existence of .registered
 	var errBuffer bytes.Buffer
 	slog.Debug("Executing /usr/bin/insights-client --status")
 	cmd := exec.Command("/usr/bin/insights-client", "--status")

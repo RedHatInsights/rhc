@@ -473,10 +473,10 @@ func connectAction(ctx *cli.Context) error {
 	}
 
 	if !ui.IsOutputMachineReadable() {
-		/* 5. Show footer message */
-		fmt.Printf("\nManage your connected systems: https://red.ht/connector\n")
+		// Display footer
+		ui.Printf("\nManage your connected systems: https://red.ht/connector\n")
 
-		/* 6. Optionally display duration time of each sub-action */
+		// If enabled, display time statistics
 		showTimeDuration(durations)
 	}
 

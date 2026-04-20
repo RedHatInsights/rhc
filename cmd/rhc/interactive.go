@@ -13,7 +13,7 @@ import (
 	"github.com/redhatinsights/rhc/internal/ui"
 )
 
-// showTimeDuration shows table with duration of each sub-action
+// showTimeDuration shows a table with the duration of each sub-action
 func showTimeDuration(durations map[string]time.Duration) {
 	if conf.Config.LogLevel <= slog.LevelDebug {
 		fmt.Println()
