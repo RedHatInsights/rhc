@@ -27,9 +27,10 @@ type indent struct {
 }
 
 type icons struct {
-	Ok    string
-	Info  string
-	Error string
+	Ok      string
+	Info    string
+	Error   string
+	Warning string
 }
 
 var Icons icons
@@ -66,14 +67,16 @@ func ConfigureOutput(rich bool, colored bool, machine bool) {
 	}
 
 	Icons = icons{
-		Ok:    "✓",
-		Info:  "●",
-		Error: "𐄂",
+		Ok:      "✓",
+		Info:    "●",
+		Warning: "!",
+		Error:   "𐄂",
 	}
 	if rich && colored {
 		Icons.Ok = colorGreen + Icons.Ok + colorReset
 		Icons.Info = colorYellow + Icons.Info + colorReset
 		Icons.Error = colorRed + Icons.Error + colorReset
+		Icons.Warning = colorRed + Icons.Warning + colorReset
 	}
 }
 
