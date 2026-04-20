@@ -53,9 +53,9 @@ func isTerminal(fd uintptr) bool {
 	return err == nil
 }
 
-// ConfigureOutput sets up global state for communicating information to the user.
-// 'rich' represents output's ability to display animations or colors,
-// 'colored' represents user's preference to display colors, and requires 'rich' to be true,
+// ConfigureOutput sets up a global state for communicating information to the user.
+// 'rich' represents the output's ability to display animations or colors,
+// 'colored' represents the user's preference to display colors, and requires 'rich' to be true,
 // 'machine' is true when the output is formatted as JSON or similar machine-readable format.
 func ConfigureOutput(rich bool, colored bool, machine bool) {
 	if machine {
@@ -104,7 +104,7 @@ func Printf(
 	fmt.Printf(format, a...)
 }
 
-// Spinner calls a function and displays a spinner with explanatory message.
+// Spinner calls a function and displays a spinner with an explanatory message.
 // The spinner is not displayed if the output isn't a rich terminal.
 func Spinner(
 	function func() error,

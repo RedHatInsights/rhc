@@ -21,6 +21,7 @@ type IFeature interface {
 	IsEnabled() (bool, error)
 }
 
+// Individual features self-register here in their init()s
 var registered = []IFeature{
 	Content{},
 	Analytics{},

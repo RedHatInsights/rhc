@@ -139,6 +139,7 @@ func featuresEnableActionNotRegistered(_ *cli.Context, targetName string) error 
 			if err = cache.Set(requiredName, true); err != nil {
 				return cli.Exit(fmt.Sprintf("error: failed to update preference: %v", err), ExitCodeSoftware)
 			}
+			slog.Debug("enabling feature", "name", requiredName)
 		}
 	}
 	// enable target feature
@@ -152,6 +153,7 @@ func featuresEnableActionNotRegistered(_ *cli.Context, targetName string) error 
 			if err = cache.Set(targetName, true); err != nil {
 				return cli.Exit(fmt.Sprintf("error: failed to update preference: %v", err), ExitCodeSoftware)
 			}
+			slog.Debug("enabling feature", "name", targetName)
 		}
 	}
 
@@ -252,6 +254,7 @@ func featuresDisableActionNotRegistered(_ *cli.Context, targetName string) error
 			if err = cache.Set(dependentName, false); err != nil {
 				return cli.Exit(fmt.Sprintf("error: failed to update preference: %v", err), ExitCodeSoftware)
 			}
+			slog.Debug("disabling feature", "name", dependentName)
 		}
 	}
 	// disable target feature
@@ -265,6 +268,7 @@ func featuresDisableActionNotRegistered(_ *cli.Context, targetName string) error
 			if err = cache.Set(targetName, false); err != nil {
 				return cli.Exit(fmt.Sprintf("error: failed to update preference: %v", err), ExitCodeSoftware)
 			}
+			slog.Debug("disabling feature", "name", targetName)
 		}
 	}
 

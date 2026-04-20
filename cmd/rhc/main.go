@@ -40,11 +40,13 @@ func mainAction(c *cli.Context) error {
 	return nil
 }
 
+// configureUI sets up the global UI state by calling ui.ConfigureOutput
+// with appropriate parameters.
 func configureUI(ctx *cli.Context) {
 	ui.ConfigureOutput(
-		// Rich output (animations) are only enabled when all are true:
+		// Rich output (animations) is only enabled when all are true:
 		// - we're printing in human-friendly format,
-		// - stdout is interactive console.
+		// - stdout is an interactive console.
 		!ctx.IsSet("format") && ui.IsInteractive(),
 		// Colors are only enabled when all are true:
 		// output is rich,
