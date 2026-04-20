@@ -13,8 +13,11 @@ import os
 import time
 import textwrap
 
+from utils.varlink import run_varlinkctl
+from utils.systemctl import is_service_active
 
-@pytest.fixture(scope="module", autouse=True)
+
+@pytest.fixture(scope="module")
 def rhc_server_socket():
     """
     Fixture to ensure rhc-server.socket is enabled and running before collector tests.
@@ -23,13 +26,7 @@ def rhc_server_socket():
     socket_name = "rhc-server.socket"
 
     # Check if socket is already active
-    result = subprocess.run(
-        ["systemctl", "is-active", socket_name],
-        capture_output=True,
-        text=True,
-    )
-
-    was_active = result.returncode == 0
+    was_active = is_service_active(socket_name)
 
     if not was_active:
         # Enable and start the socket
@@ -50,28 +47,8 @@ def rhc_server_socket():
         )
 
 
-def run_varlinkctl(method, params=None, check=True):
-    """
-    Helper function to call varlinkctl and return parsed JSON response.
-
-    :param method: The varlink method to call (e.g., "com.redhat.rhc.collector.List")
-    :param params: Optional parameters as a dictionary
-    :param check: If True, raise exception on non-zero exit code (default: True)
-    :return: Parsed JSON response if check=True, otherwise CompletedProcess object
-    """
-    cmd = ["varlinkctl", "call", "unix:/run/rhc/com.redhat.rhc", method]
-
-    if params:
-        cmd.append(json.dumps(params))
-    else:
-        cmd.append("{}")
-
-    result = subprocess.run(cmd, capture_output=True, text=True, check=check)
-
-    if check:
-        return json.loads(result.stdout)
-    else:
-        return result
+# Ensure rhc_server_socket fixture is used for all tests in this module
+pytestmark = pytest.mark.usefixtures("rhc_server_socket")
 
 
 @pytest.fixture
