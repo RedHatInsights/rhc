@@ -1,6 +1,11 @@
 name: Lint
 
-on: pull_request
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   lint-commits:
@@ -19,8 +24,10 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
       - run: go mod download
+
       - name: Run commitsar
         uses: aevea/commitsar@v1.0.3
+
   lint-code:
     name: Lint code
     runs-on: ubuntu-latest
@@ -28,18 +35,21 @@ jobs:
       - name: Set up go
         uses: actions/setup-go@v6
         with:
-          go-version: "1.19"
+          go-version: "stable"
       - name: Check out code
         uses: actions/checkout@v6
+
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v9.2.0
         with:
           version: "latest"
           args: "--verbose"
+
       - name: Install shellcheck
         run: sudo apt install shellcheck
       - name: Check shell bash scripts
         run: shellcheck ./rhc.bash
+
   lint-language:
     name: Lint language
     runs-on: ubuntu-latest
