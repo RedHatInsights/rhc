@@ -1,6 +1,6 @@
 module github.com/redhatinsights/rhc
 
-go 1.21
+go 1.25.0
 
 require (
 	git.sr.ht/~spc/go-ini v0.0.0-20210406163956-61abbbf0b164
@@ -11,7 +11,7 @@ require (
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.4.0
 	github.com/urfave/cli/v2 v2.25.7
-	golang.org/x/sys v0.14.0
+	golang.org/x/sys v0.43.0
 	golang.org/x/term v0.14.0
 )
 
