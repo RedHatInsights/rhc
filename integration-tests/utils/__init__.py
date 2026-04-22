@@ -18,26 +18,6 @@ def yggdrasil_service_is_active():
         return False
 
 
-def check_yggdrasil_journalctl_logs(
-    str_to_check, since_datetime=None, must_exist_in_log=True
-):
-    """This method helps in verifying strings in journalctl logs
-    :param str_to_check: string to be searched in logs
-    :param since_datetime: start time for logs
-    :param must_exist_in_log: True if str_to_check should exist in log else false
-    :return: True/False
-    """
-    if since_datetime:
-        logs = sh.journalctl("-u", "yggdrasil", "--since", since_datetime)
-    else:
-        logs = sh.journalctl("-u", "yggdrasil")
-
-    if must_exist_in_log:
-        return str_to_check in logs
-    else:
-        return str_to_check not in logs
-
-
 def prepare_args_for_connect(
     test_config,
     auth: str = "activation-key",
