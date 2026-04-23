@@ -35,7 +35,7 @@ func mainAction(c *cli.Context) error {
 	}
 	data, err := generationFunc()
 	if err != nil {
-		return cli.Exit(err, 1)
+		return cli.Exit(err, ExitCodeErr)
 	}
 	fmt.Println(data)
 	return nil
@@ -154,7 +154,7 @@ func main() {
 	defaultConfigFilePath, err := ConfigPath()
 	if err != nil {
 		slog.Error(err.Error())
-		os.Exit(1)
+		os.Exit(ExitCodeErr)
 	}
 
 	app.Flags = []cli.Flag{

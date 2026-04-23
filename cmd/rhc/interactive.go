@@ -47,5 +47,5 @@ func showErrorMessages(action string, errorMessages map[string]string) error {
 		fmt.Printf("Please see %s for full details.\n", logFile.Name())
 	}
 
-	return cli.Exit("", 1)
+	return cli.Exit("", ExitCodeErr)
 }

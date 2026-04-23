@@ -44,7 +44,7 @@ func (disconnectResult *DisconnectResult) Error() string {
 	case "":
 		break
 	default:
-		result = "error: unsupported document format: " + disconnectResult.format
+		result = "unsupported document format: " + disconnectResult.format
 	}
 	return result
 }
@@ -188,27 +188,25 @@ func disconnectAction(ctx *cli.Context) error {
 	uid := os.Getuid()
 	if uid != 0 {
 		errMsg := "non-root user cannot disconnect system"
-		exitCode := 1
 		slog.Error(errMsg)
 		if ui.IsOutputMachineReadable() {
 			disconnectResult.UID = uid
 			disconnectResult.UIDError = errMsg
-			return cli.Exit(disconnectResult, exitCode)
+			return cli.Exit(disconnectResult, ExitCodeErr)
 		} else {
-			return cli.Exit(fmt.Errorf("error: %s", errMsg), exitCode)
+			return cli.Exit(fmt.Errorf("%s", errMsg), ExitCodeErr)
 		}
 	}
 
 	hostname, err := os.Hostname()
 	disconnectResult.Hostname = hostname
 	if err != nil {
-		exitCode := 1
-		slog.Error("Error retrieving system hostname", "err", err)
+		slog.Error("error retrieving system hostname", "err", err)
 		if ui.IsOutputMachineReadable() {
 			disconnectResult.HostnameError = err.Error()
-			return cli.Exit(disconnectResult, exitCode)
+			return cli.Exit(disconnectResult, ExitCodeErr)
 		} else {
-			return cli.Exit(err, exitCode)
+			return cli.Exit(err, ExitCodeErr)
 		}
 	}
 

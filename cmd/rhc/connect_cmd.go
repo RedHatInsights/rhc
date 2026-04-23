@@ -54,7 +54,7 @@ func (connectResult *ConnectResult) Error() string {
 	case "":
 		break
 	default:
-		result = "error: unsupported document format: " + connectResult.format
+		result = "unsupported document format: " + connectResult.format
 	}
 	return result
 }
@@ -292,16 +292,16 @@ func beforeConnectAction(ctx *cli.Context) error {
 	if len(ctx.StringSlice("enable-feature")) > 0 || len(ctx.StringSlice("disable-feature")) > 0 {
 		cache, err = prefcache.NewDefaultCache(ConnectFeaturesPrefsPath)
 		if err != nil {
-			return cli.Exit(fmt.Sprintf("error: failed to create default cache: %v", err), ExitCodeSoftware)
+			return cli.Exit(fmt.Sprintf("failed to create default cache: %v", err), ExitCodeSoftware)
 		}
 		for _, f := range ctx.StringSlice("enable-feature") {
 			if err = cache.Set(f, true); err != nil {
-				return cli.Exit(fmt.Sprintf("error: %v", err), ExitCodeDataErr)
+				return cli.Exit(err.Error(), ExitCodeDataErr)
 			}
 		}
 		for _, f := range ctx.StringSlice("disable-feature") {
 			if err = cache.Set(f, false); err != nil {
-				return cli.Exit(fmt.Sprintf("error: %v", err), ExitCodeDataErr)
+				return cli.Exit(err.Error(), ExitCodeDataErr)
 			}
 		}
 		ui.Printf("Notice: ignoring preferences set via 'rhc configure features'.\n")
@@ -310,7 +310,7 @@ func beforeConnectAction(ctx *cli.Context) error {
 		// No flags provided, load cache from file (or defaults if file doesn't exist)
 		cache, err = prefcache.LoadCache(ConnectFeaturesPrefsPath)
 		if err != nil {
-			return cli.Exit(fmt.Sprintf("error: failed to load preferences: %v", err), ExitCodeSoftware)
+			return cli.Exit(fmt.Sprintf("failed to load preferences: %v", err), ExitCodeSoftware)
 		}
 	}
 	ctx.App.Metadata[ctxConnectCache] = cache
@@ -318,10 +318,10 @@ func beforeConnectAction(ctx *cli.Context) error {
 	// Error out if we're trying to set content templates without having enabling content
 	contentEnabled, err := cache.Get("content")
 	if err != nil {
-		return cli.Exit(fmt.Sprintf("error: failed to get content preference: %v", err), ExitCodeSoftware)
+		return cli.Exit(fmt.Sprintf("failed to get content preference: %v", err), ExitCodeSoftware)
 	}
 	if !contentEnabled && len(contentTemplates) > 0 {
-		return cli.Exit("error: content feature is disabled, cannot use --content-template", ExitCodeUsage)
+		return cli.Exit("content feature is disabled, cannot use --content-template", ExitCodeUsage)
 	}
 
 	err = checkForUnknownArgs(ctx)
@@ -359,7 +359,7 @@ func connectAction(ctx *cli.Context) error {
 			connectResult.UIDError = errMsg
 			return cli.Exit(connectResult, ExitCodeErr)
 		}
-		return cli.Exit(fmt.Errorf("error: %s", errMsg), ExitCodeErr)
+		return cli.Exit(fmt.Errorf("%s", errMsg), ExitCodeErr)
 	}
 
 	// Gather hostname
@@ -378,21 +378,21 @@ func connectAction(ctx *cli.Context) error {
 	var toEnableList []string
 	contentEnabled, err := cache.Get("content")
 	if err != nil {
-		return cli.Exit(fmt.Sprintf("error: failed to get content preference: %v", err), ExitCodeSoftware)
+		return cli.Exit(fmt.Sprintf("failed to get content preference: %v", err), ExitCodeSoftware)
 	}
 	if contentEnabled {
 		toEnableList = append(toEnableList, "content")
 	}
 	analyticsEnabled, err := cache.Get("analytics")
 	if err != nil {
-		return cli.Exit(fmt.Sprintf("error: failed to get analytics preference: %v", err), ExitCodeSoftware)
+		return cli.Exit(fmt.Sprintf("failed to get analytics preference: %v", err), ExitCodeSoftware)
 	}
 	if analyticsEnabled {
 		toEnableList = append(toEnableList, "analytics")
 	}
 	remoteManagementEnabled, err := cache.Get("remote-management")
 	if err != nil {
-		return cli.Exit(fmt.Sprintf("error: failed to get remote-management preference: %v", err), ExitCodeSoftware)
+		return cli.Exit(fmt.Sprintf("failed to get remote-management preference: %v", err), ExitCodeSoftware)
 	}
 	if remoteManagementEnabled {
 		toEnableList = append(toEnableList, "remote management")
@@ -411,7 +411,7 @@ func connectAction(ctx *cli.Context) error {
 		start = time.Now()
 		contentRequested, err := cache.Get("content")
 		if err != nil {
-			return cli.Exit(fmt.Sprintf("error: failed to get content preference: %v", err), ExitCodeSoftware)
+			return cli.Exit(fmt.Sprintf("failed to get content preference: %v", err), ExitCodeSoftware)
 		}
 		connectResult.TryRegisterRHSM(
 			ctx,
@@ -423,7 +423,7 @@ func connectAction(ctx *cli.Context) error {
 	// Enable data collection
 	analyticsRequested, err := cache.Get("analytics")
 	if err != nil {
-		return cli.Exit(fmt.Sprintf("error: failed to get analytics preference: %v", err), ExitCodeSoftware)
+		return cli.Exit(fmt.Sprintf("failed to get analytics preference: %v", err), ExitCodeSoftware)
 	}
 	if analyticsRequested {
 		start = time.Now()
@@ -436,7 +436,7 @@ func connectAction(ctx *cli.Context) error {
 	// Enable remote management
 	remoteManagementRequested, err := cache.Get("remote-management")
 	if err != nil {
-		return cli.Exit(fmt.Sprintf("error: failed to get remote-management preference: %v", err), ExitCodeSoftware)
+		return cli.Exit(fmt.Sprintf("failed to get remote-management preference: %v", err), ExitCodeSoftware)
 	}
 	if remoteManagementRequested {
 		if !connectResult.Features.Content.Successful {

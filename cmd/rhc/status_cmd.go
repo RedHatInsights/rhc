@@ -273,11 +273,11 @@ func statusAction(ctx *cli.Context) (err error) {
 			if err != nil {
 				err = cli.Exit(
 					fmt.Errorf("unable to print status as %s document: %s", format, err.Error()),
-					1)
+					ExitCodeErr)
 			}
-			// When any of status is not correct, then return 1 exit code
+			// When any of status is not correct, then return ExitCodeErr exit code
 			if systemStatus.returnCode != 0 {
-				err = cli.Exit("", 1)
+				err = cli.Exit("", ExitCodeErr)
 			}
 		}(&systemStatus)
 	}
@@ -287,7 +287,7 @@ func statusAction(ctx *cli.Context) (err error) {
 		if ui.IsOutputMachineReadable() {
 			systemStatus.HostnameError = err.Error()
 		} else {
-			return cli.Exit(err, 1)
+			return cli.Exit(err, ExitCodeErr)
 		}
 	}
 
@@ -344,9 +344,9 @@ func statusAction(ctx *cli.Context) (err error) {
 	ui.Printf("\nManage your connected systems: https://red.ht/connector\n")
 
 	// At the end check if all statuses are correct.
-	// If not, return 1 exit code without any message.
+	// If not, return ExitCodeErr exit code without any message.
 	if systemStatus.returnCode != 0 {
-		return cli.Exit("", 1)
+		return cli.Exit("", ExitCodeErr)
 	}
 
 	return nil

@@ -70,7 +70,7 @@ func ConfigPath() (string, error) {
 // checkForUnknownArgs returns an error if any unknown arguments are present.
 func checkForUnknownArgs(ctx *cli.Context) error {
 	if ctx.Args().Len() != 0 {
-		return fmt.Errorf("error: unknown option(s): %s",
+		return fmt.Errorf("unknown option(s): %s",
 			strings.Join(ctx.Args().Slice(), " "))
 	}
 	return nil

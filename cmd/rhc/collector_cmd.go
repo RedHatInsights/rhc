@@ -8,10 +8,11 @@ import (
 	"strings"
 
 	"github.com/emersion/go-varlink"
+	"github.com/urfave/cli/v2"
+
 	"github.com/redhatinsights/rhc/internal/collector"
 	"github.com/redhatinsights/rhc/internal/ui"
 	"github.com/redhatinsights/rhc/varlink/collectorapi"
-	"github.com/urfave/cli/v2"
 )
 
 const rhcServerSocket = "/run/rhc/com.redhat.rhc"

@@ -4,8 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/redhatinsights/rhc/internal/canonical_facts"
 	"github.com/urfave/cli/v2"
+
+	"github.com/redhatinsights/rhc/internal/canonical_facts"
 )
 
 // canonicalFactAction tries to gather canonical facts about system,
@@ -14,7 +15,7 @@ func canonicalFactAction(_ *cli.Context) error {
 	// NOTE: CLI context is not useful for anything
 	facts, err := canonical_facts.GetCanonicalFacts()
 	if err != nil {
-		return cli.Exit(fmt.Errorf("cannot generate canonical facts: %v", err), 1)
+		return cli.Exit(fmt.Errorf("cannot generate canonical facts: %v", err), ExitCodeErr)
 	}
 	data, err := json.MarshalIndent(facts, "", "   ")
 	if err != nil {
