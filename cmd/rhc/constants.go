@@ -21,9 +21,7 @@ const (
 
 	// ConnectFeaturesPrefsPath is the path to the feature preferences cache file
 	ConnectFeaturesPrefsPath = "/var/lib/rhc/rhc-connect-features-prefs.json"
-)
 
-const (
 	ctxConnectCache = "connect-cache"
 )
 

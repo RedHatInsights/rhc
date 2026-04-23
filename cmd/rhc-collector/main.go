@@ -22,13 +22,13 @@ const (
 func main() {
 	if len(os.Args) <= 2 {
 		slog.Error("usage: rhc-collector COLLECTOR-ID COMMAND")
-		os.Exit(1)
+		os.Exit(ExitCodeUsage)
 	}
 	collectorId, command := os.Args[1], os.Args[2]
 	slog.Info("starting rhc-collector", slog.String("id", collectorId))
 	if err := run(collectorId, command); err != nil {
 		slog.Error("rhc-collector exited with error", "error", err)
-		os.Exit(1)
+		os.Exit(ExitCodeErr)
 	}
 }
 

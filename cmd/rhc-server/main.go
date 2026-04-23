@@ -37,13 +37,13 @@ func main() {
 	cleanup, err := acquirePIDLock()
 	if err != nil {
 		slog.Error("Failed to acquire PID lock", "error", err)
-		os.Exit(1)
+		os.Exit(ExitCodeErr)
 	}
 	defer cleanup()
 
 	if err := run(); err != nil {
 		slog.Error("rhc-server error", "error", err)
-		os.Exit(1)
+		os.Exit(ExitCodeErr)
 	}
 }
 
@@ -98,7 +98,7 @@ func run() error {
 	select {
 	case err := <-errChan:
 		if err != nil {
-			return fmt.Errorf("server error: %w", err)
+			return fmt.Errorf("%w", err)
 		}
 	case sig := <-sigChan:
 		slog.Info("Received signal, shutting down gracefully", "signal", sig)
