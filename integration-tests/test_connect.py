@@ -8,19 +8,15 @@
 
 import contextlib
 import json
-import time
 import logging
 import pytest
-from datetime import datetime
 from itertools import combinations
-import sh
 import subprocess
 from pytest_client_tools.restclient import RestClient
 
 from utils import (
     yggdrasil_service_is_active,
     prepare_args_for_connect,
-    check_yggdrasil_journalctl_logs,
     configure_proxy_rhsm
 
 )
@@ -131,7 +127,14 @@ def is_remote_management_fully_enabled(enabled_features):
         ("activation-key", "json"),
     ]
 )
-def test_connect(external_candlepin, rhc, test_config, auth, output_format):
+def test_connect(
+    external_candlepin,
+    rhc,
+    test_config,
+    auth,
+    output_format,
+    is_rhc_version_at_least,
+):
     """
     :id: e74695bf-384c-4d9f-aeb4-2348027052dc
     :title: Verify successful RHC connection using basic auth and activation key
@@ -175,7 +178,10 @@ def test_connect(external_candlepin, rhc, test_config, auth, output_format):
     if output_format is None:
         # Verify connection messages
         assert "Connected to Red Hat Subscription Management" in result.stdout
-        assert "Connected to Red Hat Lightspeed (formerly Insights)" in result.stdout
+        if is_rhc_version_at_least("0.3.8"):
+            assert "Connected to Red Hat Lightspeed (formerly Insights)" in result.stdout
+        else:
+            assert "Connected to Red Hat Insights" in result.stdout
         assert "Activated the yggdrasil service" in result.stdout
 
         # Verify final success message
@@ -256,7 +262,12 @@ def test_connect(external_candlepin, rhc, test_config, auth, output_format):
     ],
 )
 def test_connect_wrong_parameters(
-    external_candlepin, rhc, test_config, credentials, return_code
+    external_candlepin,
+    rhc,
+    test_config,
+    credentials,
+    return_code,
+    is_rhc_version_at_least,
 ):
     """
     :id: 9631c021-72a1-4030-90d7-8d14bd3d1304
@@ -297,12 +308,13 @@ def test_connect_wrong_parameters(
         assert result.returncode != 0
     assert not yggdrasil_service_is_active()
 
-    # Regression: success message must not appear when connect fails
-    assert "Successfully connected to Red Hat!" not in result.stdout
+    # Regression check is reliable on streams where the fix exists (after 0.3.8).
+    if is_rhc_version_at_least("0.3.9"):
+        assert "Successfully connected to Red Hat!" not in result.stdout
 
 
 def test_connect_failure_does_not_print_success_message(
-    external_candlepin, rhc, test_config
+    external_candlepin, rhc, test_config, is_rhc_version_at_least
 ):
     """
     :id: connect-failure-no-success-msg
@@ -337,7 +349,8 @@ def test_connect_failure_does_not_print_success_message(
     result = rhc.run(*command, check=False)
 
     assert result.returncode != 0
-    assert "Successfully connected to Red Hat!" not in result.stdout
+    if is_rhc_version_at_least("0.3.9"):
+        assert "Successfully connected to Red Hat!" not in result.stdout
 
     output = result.stdout + result.stderr
     assert (
@@ -467,7 +480,7 @@ def test_connect_with_content_template(external_candlepin, rhc, test_config, aut
     )
 
     command = ["connect"] + command_args
-    result = rhc.run(*command)
+    rhc.run(*command)
 
     # Verify connection
     assert rhc.is_registered
@@ -708,7 +721,7 @@ def test_connect_with_single_feature_disabled(external_candlepin, rhc, test_conf
 )
 def test_connect_with_feature_enabled_disabled_combinations(
     external_candlepin, rhc, test_config, enabled_features, disabled_features,
-    expected_states, should_fail
+    expected_states, should_fail, is_rhc_version_at_least
 ):
     """
     :id: 64798f07-709d-4ad6-ad5d-9423602803bf
@@ -760,11 +773,26 @@ def test_connect_with_feature_enabled_disabled_combinations(
         # Special cases that should fail: e.g. remote-management enabled when content or analytics feature disabled
         result = rhc.run(*command, check=False)
 
-        # Verify command failed with return code 64
-        assert result.returncode == 64, (
-            f"Expected return code 64 for invalid feature combination, "
-            f"but got {result.returncode}"
-        )
+        # Return code behavior for invalid feature combinations stabilized over time:
+        # - rhc >= 0.3.6: return code 64
+        # - 0.3.3 <= rhc < 0.3.6: non-zero return code
+        # - rhc < 0.3.3: some builds may still return 0; use state/output checks below
+        if is_rhc_version_at_least("0.3.6"):
+            assert result.returncode == 64, (
+                f"Expected return code 64 for invalid feature combination, "
+                f"but got {result.returncode}"
+            )
+        elif is_rhc_version_at_least("0.3.3"):
+            assert result.returncode != 0, (
+                f"Expected non-zero return code for invalid feature combination, "
+                f"but got {result.returncode}"
+            )
+        else:
+            logger.info(
+                "Skipping strict return-code assertion for invalid feature combination "
+                "on rhc < 0.3.3 (got returncode=%s)",
+                result.returncode,
+            )
 
         # Verify system is not registered
         assert not rhc.is_registered, (
@@ -800,7 +828,9 @@ def test_connect_with_feature_enabled_disabled_combinations(
 
 @pytest.mark.tier1
 @pytest.mark.parametrize("flag", ["--enable-feature", "--disable-feature"],)
-def test_connect_with_nonexistent_feature(external_candlepin, rhc, test_config, flag):
+def test_connect_with_nonexistent_feature(
+    external_candlepin, rhc, test_config, flag, is_rhc_version_at_least
+):
     """
     :id: 1ff23e4c-d3ab-436e-b90c-000958fd829f
     :title: Verify RHC connect fails with appropriate error for non-existent features
@@ -841,10 +871,20 @@ def test_connect_with_nonexistent_feature(external_candlepin, rhc, test_config, 
     command = ["connect"] + command_args
     result = rhc.run(*command, check=False)
 
-    # Verify command failed
-    assert result.returncode != 0, (
-        f"Command should fail when using {flag} with non-existent feature '{nonexistent_feature}'"
-    )
+    # Non-zero return code behavior is guaranteed from rhc 0.3.3+.
+    if is_rhc_version_at_least("0.3.3"):
+        assert result.returncode != 0, (
+            f"Expected non-zero return code when using {flag} with non-existent feature "
+            f"'{nonexistent_feature}', but got {result.returncode}"
+        )
+    else:
+        # Older streams (e.g. 0.3.1) may return 0 even though the command is invalid.
+        # Keep behavior checks below (not registered + expected error text) as source of truth.
+        logger.info(
+            "Skipping strict return-code assertion for non-existent feature on rhc < 0.3.3 "
+            "(got returncode=%s)",
+            result.returncode,
+        )
 
     assert not rhc.is_registered
     assert not yggdrasil_service_is_active()

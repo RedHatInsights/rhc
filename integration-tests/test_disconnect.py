@@ -14,10 +14,16 @@ from utils import yggdrasil_service_is_active
 
 @pytest.mark.tier1
 @pytest.mark.parametrize(
-    "output_format",[None, "json"],
+    "output_format", [None, "json"],
     ids=["output-format=None", "output-format=json"],
 )
-def test_rhc_disconnect(external_candlepin, rhc, test_config, output_format):
+def test_rhc_disconnect(
+    external_candlepin,
+    rhc,
+    test_config,
+    output_format,
+    is_rhc_version_at_least,
+):
     """
     :id: 3eb1c32c-fff4-40ae-a659-8b2872d409bf
     :title: Verify that RHC disconnect command disconnects host from server
@@ -62,20 +68,29 @@ def test_rhc_disconnect(external_candlepin, rhc, test_config, output_format):
     if output_format is None:
         # plain text checks
         assert "Deactivated the yggdrasil service" in disconnect_result.stdout
-        assert "Disconnected from Red Hat Lightspeed (formerly Insights)" in disconnect_result.stdout
+        if is_rhc_version_at_least("0.3.8"):
+            assert "Disconnected from Red Hat Lightspeed (formerly Insights)" in disconnect_result.stdout
+        else:
+            assert "Disconnected from Red Hat Insights" in disconnect_result.stdout
         assert (
             "Disconnected from Red Hat Subscription Management"
             in disconnect_result.stdout
         )
-        assert (
-            "Manage your connected systems: https://red.ht/connector"
-            not in disconnect_result.stdout
-        )
+        if is_rhc_version_at_least("0.3.9"):
+            assert (
+                "Manage your connected systems: https://red.ht/connector"
+                not in disconnect_result.stdout
+            )
     elif output_format == "json":
         # JSON checks
         json_output = json.loads(disconnect_result.stdout)
-        assert json_output["rhsm_disconnected"] is True
-        assert json_output["insights_disconnected"] is True
+        if is_rhc_version_at_least("0.3.5"):
+            assert json_output["rhsm_disconnected"] is True
+            assert json_output["insights_disconnected"] is True
+        else:
+            # Older 0.3.x streams had inconsistent disconnect booleans in JSON output.
+            assert "rhsm_disconnected" in json_output
+            assert "insights_disconnected" in json_output
         assert json_output["yggdrasil_stopped"] is True
 
 
@@ -84,7 +99,11 @@ def test_rhc_disconnect(external_candlepin, rhc, test_config, output_format):
     [None, "json"],
     ids=["output-format=None", "output-format=json"],
 )
-def test_disconnect_when_already_disconnected(rhc, output_format):
+def test_disconnect_when_already_disconnected(
+    rhc,
+    output_format,
+    is_rhc_version_at_least,
+):
     """
     :id: 99e6e998-691c-4800-9a81-45c668e6968b
     :title: Test RHC disconnect command when the host is already disconnected
@@ -122,18 +141,27 @@ def test_disconnect_when_already_disconnected(rhc, output_format):
     if output_format is None:
         # plain text checks
         assert "The yggdrasil service is already inactive" in disconnect_result.stdout
-        assert "Already disconnected from Red Hat Lightspeed (formerly Insights)" in disconnect_result.stdout
+        if is_rhc_version_at_least("0.3.8"):
+            assert "Already disconnected from Red Hat Lightspeed (formerly Insights)" in disconnect_result.stdout
+        else:
+            assert "Already disconnected from Red Hat Insights" in disconnect_result.stdout
         assert (
             "Already disconnected from Red Hat Subscription Management"
             in disconnect_result.stdout
         )
-        assert (
-            "Manage your connected systems: https://red.ht/connector"
-            not in disconnect_result.stdout
-        )
+        if is_rhc_version_at_least("0.3.9"):
+            assert (
+                "Manage your connected systems: https://red.ht/connector"
+                not in disconnect_result.stdout
+            )
     elif output_format == "json":
         # JSON checks
         json_output = json.loads(disconnect_result.stdout)
-        assert json_output["rhsm_disconnected"] is True
-        assert json_output["insights_disconnected"] is True
+        if is_rhc_version_at_least("0.3.5"):
+            assert json_output["rhsm_disconnected"] is True
+            assert json_output["insights_disconnected"] is True
+        else:
+            # Older 0.3.x streams had inconsistent disconnect booleans in JSON output.
+            assert "rhsm_disconnected" in json_output
+            assert "insights_disconnected" in json_output
         assert json_output["yggdrasil_stopped"] is True
