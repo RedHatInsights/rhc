@@ -102,6 +102,7 @@ def test_man_page_connect_options(options):
     for option in options:
         assert option in command_op
 
+
 @pytest.mark.parametrize(
     "feature_id",
     [

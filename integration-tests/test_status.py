@@ -14,7 +14,7 @@ from utils import yggdrasil_service_is_active
 
 
 @pytest.mark.tier1
-def test_status_connected(external_candlepin, rhc, test_config):
+def test_status_connected(external_candlepin, rhc, test_config, is_rhc_version_at_least):
     """
     :id: b352465d-d1ae-424b-b741-cef7451a2a18
     :title: Verify RHC status command output when the host is connected
@@ -47,12 +47,18 @@ def test_status_connected(external_candlepin, rhc, test_config):
     status_result = rhc.run("status", check=False)
     assert status_result.returncode == 0
     assert "Connected to Red Hat Subscription Management" in status_result.stdout
-    assert "Red Hat repository file generated" in status_result.stdout
-    assert "Connected to Red Hat Lightspeed (formerly Insights)" in status_result.stdout
+    if is_rhc_version_at_least("0.3.3"):
+        assert "Red Hat repository file generated" in status_result.stdout
+    if is_rhc_version_at_least("0.3.8"):
+        assert "Connected to Red Hat Lightspeed (formerly Insights)" in status_result.stdout
+    else:
+        assert "Connected to Red Hat Insights" in status_result.stdout
     assert "The yggdrasil service is active" in status_result.stdout
 
 
-def test_status_connected_format_json(external_candlepin, rhc, test_config):
+def test_status_connected_format_json(
+    external_candlepin, rhc, test_config, is_rhc_version_at_least
+):
     """
     :id: 6807fc50-156c-41a0-bc58-8f408e417a70
     :title: Verify RHC status command output in JSON format when the host is connected
@@ -88,9 +94,10 @@ def test_status_connected_format_json(external_candlepin, rhc, test_config):
     assert "rhsm_connected" in status_json
     assert type(status_json["rhsm_connected"]) == bool
     assert status_json["rhsm_connected"] == True
-    assert "content_enabled" in status_json
-    assert type(status_json["content_enabled"]) == bool
-    assert status_json["content_enabled"] == True
+    if is_rhc_version_at_least("0.3.3"):
+        assert "content_enabled" in status_json
+        assert type(status_json["content_enabled"]) == bool
+        assert status_json["content_enabled"] == True
     assert "insights_connected" in status_json
     assert type(status_json["insights_connected"]) == bool
     assert status_json["insights_connected"] == True
@@ -99,7 +106,9 @@ def test_status_connected_format_json(external_candlepin, rhc, test_config):
     assert status_json["yggdrasil_running"] == True
 
 
-def test_status_disconnected_format_json(external_candlepin, rhc, test_config):
+def test_status_disconnected_format_json(
+    external_candlepin, rhc, test_config, is_rhc_version_at_least
+):
     """
     :id: 4ba5fcb5-3cc3-456c-8873-f03abd7c9451
     :title: Verify RHC status command output in JSON format when the host is disconnected
@@ -132,9 +141,10 @@ def test_status_disconnected_format_json(external_candlepin, rhc, test_config):
     assert "rhsm_connected" in status_json
     assert type(status_json["rhsm_connected"]) == bool
     assert status_json["rhsm_connected"] == False
-    assert "content_enabled" in status_json
-    assert type(status_json["content_enabled"]) == bool
-    assert status_json["content_enabled"] == False
+    if is_rhc_version_at_least("0.3.3"):
+        assert "content_enabled" in status_json
+        assert type(status_json["content_enabled"]) == bool
+        assert status_json["content_enabled"] == False
     assert "insights_connected" in status_json
     assert type(status_json["insights_connected"]) == bool
     assert status_json["insights_connected"] == False
@@ -144,7 +154,7 @@ def test_status_disconnected_format_json(external_candlepin, rhc, test_config):
 
 
 @pytest.mark.tier1
-def test_status_disconnected(rhc):
+def test_status_disconnected(rhc, is_rhc_version_at_least):
     """
     :id: b2587673-4d9e-4b18-bebd-dfe4b8874622
     :title: Verify RHC status command output when the host is disconnected
@@ -173,8 +183,12 @@ def test_status_disconnected(rhc):
     status_result = rhc.run("status", check=False)
     assert status_result.returncode != 0
     assert "Not connected to Red Hat Subscription Management" in status_result.stdout
-    assert "Red Hat repository file not generated" in status_result.stdout
-    assert "Not connected to Red Hat Lightspeed (formerly Insights)" in status_result.stdout
+    if is_rhc_version_at_least("0.3.3"):
+        assert "Red Hat repository file not generated" in status_result.stdout
+    if is_rhc_version_at_least("0.3.8"):
+        assert "Not connected to Red Hat Lightspeed (formerly Insights)" in status_result.stdout
+    else:
+        assert "Not connected to Red Hat Insights" in status_result.stdout
     assert "The yggdrasil service is inactive" in status_result.stdout
 
 
@@ -189,7 +203,10 @@ def unmask_rhsm_service():
 
 @pytest.mark.tier1
 @pytest.mark.usefixtures("unmask_rhsm_service")
-def test_status_connected_rhsm_masked(external_candlepin, rhc, test_config):
+@pytest.mark.usefixtures("require_rhsm_masked_support")
+def test_status_connected_rhsm_masked(
+    external_candlepin, rhc, test_config, is_rhc_version_at_least
+):
     """
     :id: 81e1ef2a-cc29-4f9c-9780-cfd027aa08ec
     :title: Verify RHC status command output when the host is connected and rhsm service is masked
@@ -232,14 +249,18 @@ def test_status_connected_rhsm_masked(external_candlepin, rhc, test_config):
     assert "Could not activate remote peer" in status_result.stdout
 
     # Test other features
-    assert "Connected to Red Hat Lightspeed (formerly Insights)" in status_result.stdout
+    if is_rhc_version_at_least("0.3.8"):
+        assert "Connected to Red Hat Lightspeed (formerly Insights)" in status_result.stdout
+    else:
+        assert "Connected to Red Hat Insights" in status_result.stdout
     assert yggdrasil_service_is_active()
     assert "The yggdrasil service is active" in status_result.stdout
 
 
 @pytest.mark.tier1
 @pytest.mark.usefixtures("unmask_rhsm_service")
-def test_status_disconnected_rhsm_masked(rhc):
+@pytest.mark.usefixtures("require_rhsm_masked_support")
+def test_status_disconnected_rhsm_masked(rhc, is_rhc_version_at_least):
     """
     :id: 704a91e5-d509-4635-a401-82368c7bdd75
     :title: Verify RHC status command output when the host is disconnected and rhsm service is masked
@@ -275,13 +296,17 @@ def test_status_disconnected_rhsm_masked(rhc):
     status_result = rhc.run("status", check=False)
     assert status_result.returncode != 0
     assert "Could not activate remote peer" in status_result.stdout
-    assert "Not connected to Red Hat Lightspeed (formerly Insights)" in status_result.stdout
+    if is_rhc_version_at_least("0.3.8"):
+        assert "Not connected to Red Hat Lightspeed (formerly Insights)" in status_result.stdout
+    else:
+        assert "Not connected to Red Hat Insights" in status_result.stdout
     assert "The yggdrasil service is inactive" in status_result.stdout
 
 
 @pytest.mark.tier1
 @pytest.mark.usefixtures("unmask_rhsm_service")
-def test_status_disconnected_rhsm_masked_format_json(rhc):
+@pytest.mark.usefixtures("require_rhsm_masked_support")
+def test_status_disconnected_rhsm_masked_format_json(rhc, is_rhc_version_at_least):
     """
     :id: 0ec86207-827f-4839-a49d-041c0525c1a8
     :title: Verify RHC status command output in JSON format when the host is disconnected and rhsm service is masked
@@ -333,12 +358,13 @@ def test_status_disconnected_rhsm_masked_format_json(rhc):
     assert "Could not activate remote peer" in status_json["rhsm_error"]
 
     # content
-    assert "content_enabled" in status_json
-    assert type(status_json["content_enabled"]) == bool
-    assert status_json["content_enabled"] == False
-    assert "content_error" in status_json
-    assert type(status_json["content_error"]) == str
-    assert "Could not activate remote peer" in status_json["content_error"]
+    if is_rhc_version_at_least("0.3.3"):
+        assert "content_enabled" in status_json
+        assert type(status_json["content_enabled"]) == bool
+        assert status_json["content_enabled"] == False
+        assert "content_error" in status_json
+        assert type(status_json["content_error"]) == str
+        assert "Could not activate remote peer" in status_json["content_error"]
 
     # insights
     assert "insights_connected" in status_json
@@ -362,7 +388,13 @@ def unmask_yggdrasil_service():
 
 @pytest.mark.tier1
 @pytest.mark.usefixtures("unmask_yggdrasil_service")
-def test_status_connected_yggdrasil_masked(external_candlepin, rhc, test_config):
+def test_status_connected_yggdrasil_masked(
+    external_candlepin,
+    rhc,
+    test_config,
+    is_rhc_version_at_least,
+    require_rhc_version_at_least,
+):
     """
     :id: 316993d3-cc8d-4a10-9166-2117fa43396a
     :title: Verify RHC status command output when the host is connected and yggdrasil service is masked
@@ -390,6 +422,11 @@ def test_status_connected_yggdrasil_masked(external_candlepin, rhc, test_config)
         6.  The 'yggdrasil.service' is unmasked.
     """
 
+    require_rhc_version_at_least(
+        "0.3.3",
+        reason="masked yggdrasil status expectations are supported from rhc 0.3.3",
+    )
+
     rhc.connect(
         activationkey=test_config.get("candlepin.activation_keys")[0],
         org=test_config.get("candlepin.org"),
@@ -404,9 +441,13 @@ def test_status_connected_yggdrasil_masked(external_candlepin, rhc, test_config)
     assert status_result.returncode != 0
     # RHSM
     assert "Connected to Red Hat Subscription Management" in status_result.stdout
-    assert "Red Hat repository file generated" in status_result.stdout
+    if is_rhc_version_at_least("0.3.3"):
+        assert "Red Hat repository file generated" in status_result.stdout
     # Insights
-    assert "Connected to Red Hat Lightspeed (formerly Insights)" in status_result.stdout
+    if is_rhc_version_at_least("0.3.8"):
+        assert "Connected to Red Hat Lightspeed (formerly Insights)" in status_result.stdout
+    else:
+        assert "Connected to Red Hat Insights" in status_result.stdout
     # yggdrasil
     assert not yggdrasil_service_is_active()
     assert "Unit yggdrasil.service is masked" in status_result.stdout
@@ -414,7 +455,13 @@ def test_status_connected_yggdrasil_masked(external_candlepin, rhc, test_config)
 
 @pytest.mark.tier1
 @pytest.mark.usefixtures("unmask_yggdrasil_service")
-def test_status_connected_yggdrasil_masked_format_json(external_candlepin, rhc, test_config):
+def test_status_connected_yggdrasil_masked_format_json(
+    external_candlepin,
+    rhc,
+    test_config,
+    is_rhc_version_at_least,
+    require_rhc_version_at_least,
+):
     """
     :id: ff0d0da8-6396-4f3a-80e6-dce27157bc30
     :title: Verify RHC status command output in JSON format when the host is connected
@@ -445,6 +492,11 @@ def test_status_connected_yggdrasil_masked_format_json(external_candlepin, rhc, 
         7.  The 'yggdrasil.service' is unmasked.
     """
 
+    require_rhc_version_at_least(
+        "0.3.3",
+        reason="masked yggdrasil JSON status expectations are supported from rhc 0.3.3",
+    )
+
     rhc.connect(
         activationkey=test_config.get("candlepin.activation_keys")[0],
         org=test_config.get("candlepin.org"),
@@ -460,9 +512,10 @@ def test_status_connected_yggdrasil_masked_format_json(external_candlepin, rhc, 
     assert "rhsm_connected" in status_json
     assert type(status_json["rhsm_connected"]) == bool
     assert status_json["rhsm_connected"] == True
-    assert "content_enabled" in status_json
-    assert type(status_json["content_enabled"]) == bool
-    assert status_json["content_enabled"] == True
+    if is_rhc_version_at_least("0.3.3"):
+        assert "content_enabled" in status_json
+        assert type(status_json["content_enabled"]) == bool
+        assert status_json["content_enabled"] == True
     assert "insights_connected" in status_json
     assert type(status_json["insights_connected"]) == bool
     assert status_json["insights_connected"] == True

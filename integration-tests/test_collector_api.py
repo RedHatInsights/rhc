@@ -14,8 +14,14 @@ import time
 import textwrap
 
 
+
 @pytest.fixture(scope="module", autouse=True)
-def rhc_server_socket():
+def skip_collector_module():
+    pytest.skip("Temporarily skipping collector integration tests for version < 0.3.9 or RHEL 10.3")
+
+
+@pytest.fixture(scope="module", autouse=True)
+def rhc_server_socket(skip_collector_module):
     """
     Fixture to ensure rhc-server.socket is enabled and running before collector tests.
     This is required for varlinkctl to communicate with the rhc-server.

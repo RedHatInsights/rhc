@@ -17,6 +17,7 @@ from utils import prepare_args_for_connect
 
 LOG_FILE_PATH = "/var/log/rhc/rhc.log"
 LOGROTATE_CONFIG_PATH = "/etc/logrotate.d/rhc"
+pytestmark = pytest.mark.usefixtures("require_rhc_logging_support")
 
 
 class LogMonitor:
@@ -812,4 +813,3 @@ def test_log_no_sensitive_information(
         assert activation_key not in content, (
             "Activation key should NOT appear in the log file"
         )
-

@@ -2,8 +2,10 @@ import pytest
 import subprocess
 import logging
 import os
+from pytest_client_tools.util import Version
 
 logger = logging.getLogger(__name__)
+
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -77,3 +79,59 @@ Environment=HTTP_PROXY={proxy_url}
 
     except Exception as e:
         logger.error(f"Error during yggdrasil proxy cleanup: {e}")
+
+
+@pytest.fixture
+def require_rhc_logging_support(rhc_version):
+    """
+    Skip test when rhc logging feature is not supported.
+
+    Use this fixture in logging tests that require rhc 0.3.8+.
+    """
+    if rhc_version < Version("0.3.8"):
+        pytest.skip("rhc logging is supported only on rhc >= 0.3.8")
+
+
+@pytest.fixture
+def rhc_version(rhc):
+    """
+    Current rhc version as pytest_client_tools.util.Version.
+    """
+    return rhc.version
+
+
+@pytest.fixture
+def is_rhc_version_at_least(rhc_version):
+    """
+    Helper for inline rhc version checks in tests.
+    """
+
+    def _is_at_least(min_version: str) -> bool:
+        return rhc_version >= Version(min_version)
+
+    return _is_at_least
+
+
+@pytest.fixture
+def require_rhc_version_at_least(rhc_version):
+    """
+    Skip test when installed rhc is lower than the minimum required version.
+    """
+
+    def _require(min_version: str, reason: str = "feature not supported by installed rhc"):
+        min_ver = Version(min_version)
+        if rhc_version < min_ver:
+            pytest.skip(f"{reason} (rhc={rhc_version}, requires>={min_ver})")
+
+    return _require
+
+
+@pytest.fixture
+def require_rhsm_masked_support(require_rhc_version_at_least):
+    """
+    Skip RHSM-masked status tests when feature behavior is not supported.
+    """
+    require_rhc_version_at_least(
+        "0.3.3",
+        reason="RHSM masked status tests are supported only on rhc >= 0.3.3",
+    )
