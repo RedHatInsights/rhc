@@ -64,10 +64,10 @@ func (connectResult *ConnectResult) errorMessages() map[string]string {
 	if connectResult.RHSMConnectError != "" {
 		errorMessages["rhsm"] = connectResult.RHSMConnectError
 	}
-	if connectResult.Features.Analytics.Error != "" {
+	if connectResult.Features.Analytics.Error != "" && !connectResult.Features.Analytics.Skipped {
 		errorMessages["insights"] = connectResult.Features.Analytics.Error
 	}
-	if connectResult.Features.RemoteManagement.Error != "" {
+	if connectResult.Features.RemoteManagement.Error != "" && !connectResult.Features.RemoteManagement.Skipped {
 		errorMessages["yggdrasil"] = connectResult.Features.RemoteManagement.Error
 	}
 	return errorMessages
