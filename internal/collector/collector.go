@@ -1,6 +1,7 @@
 package collector
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
+	"github.com/redhatinsights/rhc/internal/systemd"
 )
 
 // ConfigDir is the default directory path where collector configuration files are stored.
@@ -345,4 +347,27 @@ func newConfig(id string, dto *configDto) (Config, error) {
 		Group:              group,
 		ContentType:        dto.Ingress.ContentType,
 	}, nil
+}
+
+// ValidateCollectorAndConnect validates that the collector exists and systemd is available,
+// then establishes a systemd connection for timer operations.
+// Returns the systemd connection, timer unit name, and any validation errors.
+func ValidateCollectorAndConnect(collectorID string) (*systemd.Conn, string, error) {
+	if !systemd.IsSystemdAvailable() {
+		return nil, "", fmt.Errorf("automatic execution requires systemd, which is not present in your environment")
+	}
+
+	_, err := GetConfig(collectorID)
+	if err != nil {
+		return nil, "", fmt.Errorf("collector %s not found", collectorID)
+	}
+
+	ctxSystemd := context.Background()
+	conn, err := systemd.NewConnectionContext(ctxSystemd, systemd.ConnectionTypeSystem)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to connect to systemd: %w", err)
+	}
+
+	timerName := fmt.Sprintf("rhc-collector-%s.timer", collectorID)
+	return conn, timerName, nil
 }
