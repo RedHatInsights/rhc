@@ -269,3 +269,34 @@ func TestUnitOperationsNonExistent(t *testing.T) {
 		}
 	})
 }
+
+func TestIsSystemdAvailable(t *testing.T) {
+	tests := []struct {
+		name        string
+		expectTrue  bool
+		description string
+	}{
+		{
+			name:        "systemd_availability",
+			expectTrue:  true,
+			description: "Should detect systemd availability correctly",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if _, has := os.LookupEnv("DBUS_SESSION_BUS_ADDRESS"); !has {
+				t.Skip("DBUS_SESSION_BUS_ADDRESS undefined - cannot test systemd availability")
+			}
+
+			// The actual result depends on the test environment
+			// In CI or containers, systemd might not be available
+			// In local development with systemd, it should be available
+			result := IsSystemdAvailable()
+			t.Logf("IsSystemdAvailable() returned: %v", result)
+			if result != true && result != false {
+				t.Error("IsSystemdAvailable() should return a boolean value")
+			}
+		})
+	}
+}

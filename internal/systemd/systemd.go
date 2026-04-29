@@ -173,3 +173,15 @@ func (c *Conn) waitForState(unit string, wantState string, timeout time.Duration
 		}
 	}
 }
+
+// IsSystemdAvailable checks if systemd is available in the current environment.
+// It returns false in containers or environments where systemd is not running.
+func IsSystemdAvailable() bool {
+	conn, err := NewConnectionContext(context.Background(), ConnectionTypeSystem)
+	if err != nil {
+		return false
+	}
+	defer conn.Close()
+	_, err = conn.GetUnitState("systemd.service")
+	return err == nil
+}
