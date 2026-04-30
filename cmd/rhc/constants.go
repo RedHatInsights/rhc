@@ -3,8 +3,10 @@ package main
 const (
 	// ConnectFeaturesPrefsPath is the path to the feature preferences cache file
 	ConnectFeaturesPrefsPath = "/var/lib/rhc/rhc-connect-features-prefs.json"
+)
 
-	ctxConnectCache = "connect-cache"
+const (
+	connectCacheKey = "connect-cache"
 )
 
 var (

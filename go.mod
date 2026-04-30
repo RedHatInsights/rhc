@@ -10,9 +10,12 @@ require (
 	github.com/godbus/dbus/v5 v5.2.2
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
-	github.com/urfave/cli/v2 v2.27.7
-	golang.org/x/sys v0.44.0
-	golang.org/x/term v0.43.0
+	github.com/pelletier/go-toml v1.9.5
+	github.com/urfave/cli-altsrc/v3 v3.1.0
+	github.com/urfave/cli-docs/v3 v3.1.0
+	github.com/urfave/cli/v3 v3.8.0
+	golang.org/x/sys v0.43.0
+	golang.org/x/term v0.42.0
 )
 
 require (
@@ -21,6 +24,4 @@ require (
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
-	github.com/xrash/smetrics v0.0.0-20240521201337-686a1a2994c1 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

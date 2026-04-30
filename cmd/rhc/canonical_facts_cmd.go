@@ -1,18 +1,18 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
-	"github.com/urfave/cli/v2"
-
 	"github.com/redhatinsights/rhc/internal/canonical_facts"
 	"github.com/redhatinsights/rhc/pkg/exitcode"
+	"github.com/urfave/cli/v3"
 )
 
 // canonicalFactAction tries to gather canonical facts about system,
 // and it prints JSON with facts to stdout.
-func canonicalFactAction(_ *cli.Context) error {
+func canonicalFactAction(_ context.Context, _ *cli.Command) error {
 	// NOTE: CLI context is not useful for anything
 	facts, err := canonical_facts.GetCanonicalFacts()
 	if err != nil {

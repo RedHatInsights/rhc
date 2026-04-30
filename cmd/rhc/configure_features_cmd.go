@@ -1,12 +1,13 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"os"
 	"text/tabwriter"
 
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 
 	"github.com/redhatinsights/rhc/internal/rhsm"
 	"github.com/redhatinsights/rhc/pkg/exitcode"
@@ -22,30 +23,30 @@ import (
 // TODO Use ui.Icons.Ok when we have UTF-8 capable tabwriter
 
 // beforeFeaturesStatusAction validates inputs before executing the status action.
-func beforeFeaturesStatusAction(ctx *cli.Context) error {
-	err := checkFormatFlag(ctx)
+func beforeFeaturesStatusAction(goctx context.Context, cmd *cli.Command) (context.Context, error) {
+	err := checkFormatFlag(cmd)
 	if err != nil {
-		return err
+		return goctx, err
 	}
-	configureUI(ctx)
-	return checkForUnknownArgs(ctx)
+	configureUI(cmd)
+	return goctx, checkForUnknownArgs(cmd)
 }
 
 // featuresStatusAction displays the current status or preferences of all features.
-func featuresStatusAction(ctx *cli.Context) error {
-	logCommandStart(ctx)
+func featuresStatusAction(goctx context.Context, cmd *cli.Command) error {
+	logCommandStart(cmd)
 	isRegistered, err := rhsm.IsRHSMRegistered()
 	if err != nil {
 		return err
 	}
 
 	if isRegistered {
-		return featuresStatusActionRegistered(ctx)
+		return featuresStatusActionRegistered(goctx, cmd)
 	}
-	return featuresStatusActionNotRegistered(ctx)
+	return featuresStatusActionNotRegistered(goctx, cmd)
 }
 
-func featuresStatusActionNotRegistered(_ *cli.Context) error {
+func featuresStatusActionNotRegistered(_ context.Context, _ *cli.Command) error {
 	cache, err := prefcache.LoadCache(ConnectFeaturesPrefsPath)
 	if err != nil {
 		return err
@@ -69,7 +70,7 @@ func featuresStatusActionNotRegistered(_ *cli.Context) error {
 	return nil
 }
 
-func featuresStatusActionRegistered(_ *cli.Context) error {
+func featuresStatusActionRegistered(_ context.Context, _ *cli.Command) error {
 	fmt.Println("Connected to Red Hat.")
 	fmt.Println("")
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
@@ -89,39 +90,39 @@ func featuresStatusActionRegistered(_ *cli.Context) error {
 }
 
 // beforeFeaturesEnableAction validates inputs before executing the enable action.
-func beforeFeaturesEnableAction(ctx *cli.Context) error {
-	err := checkFormatFlag(ctx)
+func beforeFeaturesEnableAction(goctx context.Context, cmd *cli.Command) (context.Context, error) {
+	err := checkFormatFlag(cmd)
 	if err != nil {
-		return err
+		return goctx, err
 	}
-	configureUI(ctx)
+	configureUI(cmd)
 
-	if ctx.Args().Len() != 1 {
-		return cli.Exit("this command requires a single FEATURE argument", exitcode.Usage)
+	if cmd.Args().Len() != 1 {
+		return goctx, cli.Exit("this command requires a single FEATURE argument", exitcode.Usage)
 	}
-	if _, err = feature.Get(ctx.Args().First()); err != nil {
-		return cli.Exit(err.Error(), exitcode.DataErr)
+	if _, err = feature.Get(cmd.Args().First()); err != nil {
+		return goctx, cli.Exit(err.Error(), exitcode.DataErr)
 	}
-	return nil
+	return goctx, nil
 }
 
 // featuresEnableAction enables a single feature.
-func featuresEnableAction(ctx *cli.Context) error {
-	logCommandStart(ctx)
+func featuresEnableAction(goctx context.Context, cmd *cli.Command) error {
+	logCommandStart(cmd)
 	isRegistered, err := rhsm.IsRHSMRegistered()
 	if err != nil {
 		return cli.Exit(fmt.Sprintf("failed to check registration status: %v", err), exitcode.Software)
 	}
 
-	requestedFeature := ctx.Args().First()
+	requestedFeature := cmd.Args().First()
 	if isRegistered {
-		return featuresEnableActionRegistered(ctx, requestedFeature)
+		return featuresEnableActionRegistered(goctx, cmd, requestedFeature)
 	}
-	return featuresEnableActionNotRegistered(ctx, requestedFeature)
+	return featuresEnableActionNotRegistered(goctx, cmd, requestedFeature)
 }
 
 // featuresEnableActionNotRegistered handles enabling a feature on a non-registered system.
-func featuresEnableActionNotRegistered(_ *cli.Context, targetName string) error {
+func featuresEnableActionNotRegistered(_ context.Context, _ *cli.Command, targetName string) error {
 	cache, err := prefcache.LoadCache(ConnectFeaturesPrefsPath)
 	if err != nil {
 		return cli.Exit(fmt.Sprintf("failed to load feature preferences: %v", err), exitcode.Software)
@@ -165,7 +166,7 @@ func featuresEnableActionNotRegistered(_ *cli.Context, targetName string) error 
 }
 
 // featuresEnableActionRegistered handles enabling a feature on a registered system.
-func featuresEnableActionRegistered(_ *cli.Context, targetName string) error {
+func featuresEnableActionRegistered(_ context.Context, _ *cli.Command, targetName string) error {
 	target := feature.MustGet(targetName)
 
 	// enable required features
@@ -204,39 +205,39 @@ func featuresEnableActionRegistered(_ *cli.Context, targetName string) error {
 }
 
 // beforeFeaturesDisableAction validates inputs before executing the disable action.
-func beforeFeaturesDisableAction(ctx *cli.Context) error {
-	err := checkFormatFlag(ctx)
+func beforeFeaturesDisableAction(goctx context.Context, cmd *cli.Command) (context.Context, error) {
+	err := checkFormatFlag(cmd)
 	if err != nil {
-		return err
+		return goctx, err
 	}
-	configureUI(ctx)
+	configureUI(cmd)
 
-	if ctx.Args().Len() != 1 {
-		return cli.Exit("this command requires a single FEATURE argument", exitcode.Usage)
+	if cmd.Args().Len() != 1 {
+		return goctx, cli.Exit("this command requires a single FEATURE argument", exitcode.Usage)
 	}
-	if _, err = feature.Get(ctx.Args().First()); err != nil {
-		return cli.Exit(err.Error(), exitcode.DataErr)
+	if _, err = feature.Get(cmd.Args().First()); err != nil {
+		return goctx, cli.Exit(err.Error(), exitcode.DataErr)
 	}
-	return nil
+	return goctx, nil
 }
 
 // featuresDisableAction disables a single feature.
-func featuresDisableAction(ctx *cli.Context) error {
-	logCommandStart(ctx)
+func featuresDisableAction(goctx context.Context, cmd *cli.Command) error {
+	logCommandStart(cmd)
 	isRegistered, err := rhsm.IsRHSMRegistered()
 	if err != nil {
 		return cli.Exit(fmt.Sprintf("failed to check registration status: %v", err), exitcode.Software)
 	}
 
-	requestedFeature := ctx.Args().First()
+	requestedFeature := cmd.Args().First()
 	if isRegistered {
-		return featuresDisableActionRegistered(ctx, requestedFeature)
+		return featuresDisableActionRegistered(goctx, cmd, requestedFeature)
 	}
-	return featuresDisableActionNotRegistered(ctx, requestedFeature)
+	return featuresDisableActionNotRegistered(goctx, cmd, requestedFeature)
 }
 
 // featuresDisableActionNotRegistered handles disabling a feature on a non-registered system.
-func featuresDisableActionNotRegistered(_ *cli.Context, targetName string) error {
+func featuresDisableActionNotRegistered(_ context.Context, _ *cli.Command, targetName string) error {
 	cache, err := prefcache.LoadCache(ConnectFeaturesPrefsPath)
 	if err != nil {
 		return cli.Exit(fmt.Sprintf("failed to load feature preferences: %v", err), exitcode.Software)
@@ -280,7 +281,7 @@ func featuresDisableActionNotRegistered(_ *cli.Context, targetName string) error
 }
 
 // featuresDisableActionRegistered handles disabling a feature on a registered system.
-func featuresDisableActionRegistered(_ *cli.Context, targetName string) error {
+func featuresDisableActionRegistered(_ context.Context, _ *cli.Command, targetName string) error {
 	target := feature.MustGet(targetName)
 
 	// disable dependent features

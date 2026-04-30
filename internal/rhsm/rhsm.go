@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/briandowns/spinner"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 	"golang.org/x/term"
 
 	"github.com/godbus/dbus/v5"
@@ -361,7 +361,7 @@ func UnpackDBusError(err error) error {
 }
 
 // RegisterRHSM tries to register system against Red Hat Subscription Management server (candlepin server)
-func RegisterRHSM(ctx *cli.Context, enableContent bool) (string, error) {
+func RegisterRHSM(cmd *cli.Command, enableContent bool) (string, error) {
 	uuid, err := GetConsumerUUID()
 	if err != nil {
 		return "unable to get consumer UUID", cli.Exit(err, exitcode.Err)
@@ -369,11 +369,11 @@ func RegisterRHSM(ctx *cli.Context, enableContent bool) (string, error) {
 	var successMsg string
 
 	if uuid == "" {
-		username := ctx.String("username")
-		password := ctx.String("password")
-		organization := ctx.String("organization")
-		activationKeys := ctx.StringSlice("activation-key")
-		contentTemplates := ctx.StringSlice("content-template")
+		username := cmd.String("username")
+		password := cmd.String("password")
+		organization := cmd.String("organization")
+		activationKeys := cmd.StringSlice("activation-key")
+		contentTemplates := cmd.StringSlice("content-template")
 
 		if len(activationKeys) == 0 {
 			if username == "" {
@@ -408,7 +408,7 @@ func RegisterRHSM(ctx *cli.Context, enableContent bool) (string, error) {
 			slog.Debug("Registering system with activation keys")
 			err = registerActivationKey(
 				organization,
-				ctx.StringSlice("activation-key"),
+				cmd.StringSlice("activation-key"),
 				contentTemplates,
 				enableContent)
 		} else {

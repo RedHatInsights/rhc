@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log/slog"
@@ -8,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 	"golang.org/x/sys/unix"
 
 	"github.com/redhatinsights/rhc/pkg/exitcode"
@@ -29,7 +30,7 @@ func BashCompleteCommand(cmd *cli.Command, w io.Writer) {
 
 	PrintFlagNames(cmd.VisibleFlags(), w)
 
-	for _, command := range cmd.Subcommands {
+	for _, command := range cmd.Commands {
 		BashCompleteCommand(command, w)
 	}
 }
@@ -49,12 +50,12 @@ func PrintFlagNames(flags []cli.Flag, w io.Writer) {
 
 // BashComplete prints all commands, subcommands and flags to the application
 // writer.
-func BashComplete(c *cli.Context) {
-	for _, command := range c.App.VisibleCommands() {
-		BashCompleteCommand(command, c.App.Writer)
+func ShellComplete(ctx context.Context, cmd *cli.Command) {
+	for _, command := range cmd.Root().Commands {
+		BashCompleteCommand(command, cmd.Root().Writer)
 
 		// global flags
-		PrintFlagNames(c.App.VisibleFlags(), c.App.Writer)
+		PrintFlagNames(cmd.Root().Flags, cmd.Root().Writer)
 	}
 }
 
@@ -70,17 +71,17 @@ func ConfigPath() (string, error) {
 }
 
 // checkForUnknownArgs returns an error if any unknown arguments are present.
-func checkForUnknownArgs(ctx *cli.Context) error {
-	if ctx.Args().Len() != 0 {
+func checkForUnknownArgs(cmd *cli.Command) error {
+	if cmd.Args().Len() != 0 {
 		return fmt.Errorf("unknown option(s): %s",
-			strings.Join(ctx.Args().Slice(), " "))
+			strings.Join(cmd.Args().Slice(), " "))
 	}
 	return nil
 }
 
 // checkFormatFlag ensures the user has supplied a correct `--format` flag.
-func checkFormatFlag(ctx *cli.Context) error {
-	format := ctx.String("format")
+func checkFormatFlag(cmd *cli.Command) error {
+	format := cmd.String("format")
 	switch format {
 	case "", "json":
 		return nil
@@ -96,11 +97,11 @@ func checkFormatFlag(ctx *cli.Context) error {
 
 // getFullCommandName uses ctx.Lineage() to reconstruct the full command name including parent commands,
 // excluding flags and arguments
-func getFullCommandName(ctx *cli.Context) string {
+func getFullCommandName(cmd *cli.Command) string {
 	var commandParts []string
-	for _, c := range ctx.Lineage() {
-		if c.Command != nil {
-			commandParts = append([]string{c.Command.Name}, commandParts...)
+	for _, c := range cmd.Lineage() {
+		if c != nil {
+			commandParts = append([]string{c.Name}, commandParts...)
 		}
 	}
 
@@ -110,22 +111,22 @@ func getFullCommandName(ctx *cli.Context) string {
 // logCommandStart logs the start of a command execution. This should be called at the beginning
 // of each command's Action function to ensure the full command name (including all subcommands)
 // is properly logged.
-func logCommandStart(ctx *cli.Context) {
-	fullCommandName := getFullCommandName(ctx)
+func logCommandStart(cmd *cli.Command) {
+	fullCommandName := getFullCommandName(cmd)
 	slog.Info(fmt.Sprintf("Command '%s' started", fullCommandName))
 }
 
 // validateCollectorCommand performs common validation for collector commands.
-func validateCollectorCommand(ctx *cli.Context, requiresCollectorID, requiresFormat bool) error {
+func validateCollectorCommand(cmd *cli.Command, requiresCollectorID, requiresFormat bool) error {
 	if requiresFormat {
-		if err := checkFormatFlag(ctx); err != nil {
+		if err := checkFormatFlag(cmd); err != nil {
 			return err
 		}
 	}
-	if requiresCollectorID && ctx.Args().Len() == 0 {
-		commandName := getFullCommandName(ctx)
+	if requiresCollectorID && cmd.Args().Len() == 0 {
+		commandName := getFullCommandName(cmd)
 		return cli.Exit(fmt.Sprintf("%s requires a collector ID", commandName), exitcode.Usage)
 	}
-	configureUI(ctx)
+	configureUI(cmd)
 	return nil
 }

@@ -1,13 +1,14 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
 	"time"
 
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 
 	"github.com/redhatinsights/rhc/internal/datacollection"
 	"github.com/redhatinsights/rhc/internal/remotemanagement"
@@ -167,24 +168,24 @@ func (disconnectResult *DisconnectResult) TryUnregisterRHSM() error {
 }
 
 // beforeDisconnectAction ensures the user has supplied a correct `--format` flag
-func beforeDisconnectAction(ctx *cli.Context) error {
-	err := checkFormatFlag(ctx)
+func beforeDisconnectAction(goctx context.Context, cmd *cli.Command) (context.Context, error) {
+	err := checkFormatFlag(cmd)
 	if err != nil {
-		return err
+		return goctx, err
 	}
 
-	configureUI(ctx)
+	configureUI(cmd)
 
-	return checkForUnknownArgs(ctx)
+	return goctx, checkForUnknownArgs(cmd)
 }
 
 // disconnectAction tries to stop (yggdrasil) rhcd service, disconnect from Red Hat Lightspeed,
 // and finally it unregisters system from Red Hat Subscription Management
-func disconnectAction(ctx *cli.Context) error {
-	logCommandStart(ctx)
+func disconnectAction(goctx context.Context, cmd *cli.Command) error {
+	logCommandStart(cmd)
 
 	var disconnectResult DisconnectResult
-	disconnectResult.format = ctx.String("format")
+	disconnectResult.format = cmd.String("format")
 
 	uid := os.Getuid()
 	if uid != 0 {
