@@ -21,12 +21,12 @@ def test_man_page_synopsis():
         1.  Display the `rhc` man page content.
     :expectedresults:
         1.  The man page content includes the exact synopsis string:
-            "rhc [GLOBAL OPTIONS] command [COMMAND OPTIONS] [ARGUMENTS...]"
+            "rhc [GLOBAL OPTIONS] [command [COMMAND OPTIONS]] [ARGUMENTS...]"
     """
 
     command_op = subprocess.check_output(["man", "rhc"]).decode("utf-8")
     assert (
-        "rhc [GLOBAL OPTIONS] command [COMMAND OPTIONS] " "[ARGUMENTS...]"
+        "rhc [GLOBAL OPTIONS] [command [COMMAND OPTIONS]] " "[ARGUMENTS...]"
     ) in command_op
 
 

@@ -1,13 +1,19 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 
-	"github.com/urfave/cli/v2"
-	"github.com/urfave/cli/v2/altsrc"
+	"github.com/pelletier/go-toml"
+	altsrc "github.com/urfave/cli-altsrc/v3"
+	altsrctoml "github.com/urfave/cli-altsrc/v3/toml"
+	docs "github.com/urfave/cli-docs/v3"
+	"github.com/urfave/cli/v3"
 
 	"github.com/redhatinsights/rhc/internal/conf"
 	"github.com/redhatinsights/rhc/internal/ui"
@@ -24,17 +30,17 @@ const (
 )
 
 // mainAction is triggered in the case, when no sub-command is specified
-func mainAction(c *cli.Context) error {
-	type GenerationFunc func() (string, error)
+func mainAction(ctx context.Context, cmd *cli.Command) error {
+	type GenerationFunc func(*cli.Command) (string, error)
 	var generationFunc GenerationFunc
-	if c.Bool("generate-man-page") {
-		generationFunc = c.App.ToMan
-	} else if c.Bool("generate-markdown") {
-		generationFunc = c.App.ToMarkdown
+	if cmd.Bool("generate-man-page") {
+		generationFunc = docs.ToMan
+	} else if cmd.Bool("generate-markdown") {
+		generationFunc = docs.ToMarkdown
 	} else {
-		cli.ShowAppHelpAndExit(c, 0)
+		cli.ShowAppHelpAndExit(cmd, 0)
 	}
-	data, err := generationFunc()
+	data, err := generationFunc(cmd.Root())
 	if err != nil {
 		return cli.Exit(err, exitcode.Err)
 	}
@@ -44,61 +50,57 @@ func mainAction(c *cli.Context) error {
 
 // configureUI sets up the global UI state by calling ui.ConfigureOutput
 // with appropriate parameters.
-func configureUI(ctx *cli.Context) {
+func configureUI(cmd *cli.Command) {
 	ui.ConfigureOutput(
 		// Rich output (animations) is only enabled when all are true:
 		// - we're printing in human-friendly format,
 		// - stdout is an interactive console.
-		!ctx.IsSet("format") && ui.IsInteractive(),
+		!cmd.IsSet("format") && ui.IsInteractive(),
 		// Colors are only enabled when all are true:
 		// output is rich,
 		// --no-color/$NO_COLOR are not set.
-		!ctx.IsSet("no-color"),
+		!cmd.IsSet("no-color"),
 		// Machine-readable output is enabled when all are true:
 		// - we're printing in JSON or other parseable format.
-		ctx.IsSet("format"),
+		cmd.IsSet("format"),
 	)
 }
 
 // beforeAction is triggered before other actions are triggered
-func beforeAction(c *cli.Context) error {
+func beforeAction(ctx context.Context, cmd *cli.Command) (context.Context, error) {
 	// check if --log-level was set via command line
 	var logLevelSrc string
-	if c.IsSet(cliLogLevel) {
+	if cmd.IsSet(cliLogLevel) {
 		logLevelSrc = "command line"
 	}
 
-	/* Load the configuration values from the config file specified*/
-	filePath := c.String("config")
-	if filePath != "" {
-		inputSource, err := altsrc.NewTomlSourceFromFile(filePath)
-		if err != nil {
-			return err
-		}
-		if err := altsrc.ApplyInputSourceValues(c, inputSource, c.App.Flags); err != nil {
-			return err
+	// validate file is parseable TOML
+	configPath := cmd.String("config")
+	if configPath != "" {
+		if _, err := toml.LoadFile(configPath); err != nil {
+			return ctx, fmt.Errorf("invalid config file %s: %w", configPath, err)
 		}
 	}
 
 	// check if log-level was set via config file (command line has precedence)
-	if logLevelSrc == "" && c.IsSet(cliLogLevel) {
-		logLevelSrc = fmt.Sprintf("config file: '%s'", c.String("config"))
+	if logLevelSrc == "" && cmd.IsSet(cliLogLevel) {
+		logLevelSrc = fmt.Sprintf("config file: '%s'", cmd.String("config"))
 	}
 
 	conf.Config = conf.Conf{
-		CertFile: c.String(cliCertFile),
-		KeyFile:  c.String(cliKeyFile),
+		CertFile: cmd.String(cliCertFile),
+		KeyFile:  cmd.String(cliKeyFile),
 	}
 
-	logLevelStr := c.String(cliLogLevel)
+	logLevelStr := cmd.String(cliLogLevel)
 	if err := conf.Config.LogLevel.UnmarshalText([]byte(logLevelStr)); err != nil {
 		slog.Error(fmt.Sprintf("invalid log level '%s' set via %s", logLevelStr, logLevelSrc))
 		conf.Config.LogLevel = slog.LevelInfo
 	}
 
-	if !c.Bool("generate-man-page") && !c.Bool("generate-markdown") {
+	if !cmd.Bool("generate-man-page") && !cmd.Bool("generate-markdown") {
 		configureFileLogging(conf.Config.LogLevel)
-		slog.Info(c.App.Name+" started", "version", version.Version, "pid", os.Getpid())
+		slog.Info(cmd.Root().Name+" started", "version", version.Version, "pid", os.Getpid())
 	}
 
 	// When environment variable NO_COLOR or --no-color CLI option is set, then do not display colors
@@ -107,25 +109,25 @@ func beforeAction(c *cli.Context) error {
 	// When no-color is not set, then try to detect if the output goes to some file. In this case
 	// colors nor animations will not be printed to file.
 	if !isTerminal(os.Stdout.Fd()) {
-		err := c.Set("no-color", "true")
+		err := cmd.Set("no-color", "true")
 		if err != nil {
 			slog.Debug("Unable to set no-color flag to \"true\"")
 		}
 	}
 
 	// Set up standard output preference: colors, icons, etc.
-	configureUI(c)
+	configureUI(cmd)
 
-	return nil
+	return ctx, nil
 }
 
 // afterAction is triggered after other actions are triggered
-func afterAction(c *cli.Context) error {
+func afterAction(ctx context.Context, cmd *cli.Command) error {
 	return closeLogFile()
 }
 
 // exitErrHandler is triggered when an action returns a cli.ExitCoder (e.g cli.Exit("error", 1))
-func exitErrHandler(c *cli.Context, err error) {
+func exitErrHandler(ctx context.Context, cmd *cli.Command, err error) {
 	_ = closeLogFile()
 
 	// continue with default ExitErrHandler behavior
@@ -133,7 +135,7 @@ func exitErrHandler(c *cli.Context, err error) {
 }
 
 func main() {
-	app := cli.NewApp()
+	app := &cli.Command{}
 	app.Name = "rhc"
 	app.Version = version.Version
 	app.Usage = "control the system's connection to Red Hat"
@@ -152,11 +154,13 @@ func main() {
 	}
 	featureIDs := strings.Join(featureIdSlice, ", ")
 
-	defaultConfigFilePath, err := ConfigPath()
+	configFilePath, err := ConfigPath()
 	if err != nil {
 		slog.Error(err.Error())
 		os.Exit(exitcode.Err)
 	}
+
+	configSource := altsrc.NewStringPtrSourcer(&configFilePath)
 
 	app.Flags = []cli.Flag{
 		&cli.BoolFlag{
@@ -171,31 +175,41 @@ func main() {
 			Name:    "no-color",
 			Hidden:  false,
 			Value:   false,
-			EnvVars: []string{"NO_COLOR"},
+			Sources: cli.EnvVars("NO_COLOR"),
 		},
 		&cli.StringFlag{
-			Name:      "config",
-			Hidden:    true,
-			Value:     defaultConfigFilePath,
-			TakesFile: true,
-			Usage:     "Read config values from `FILE`",
+			Name:        "config",
+			Hidden:      true,
+			Value:       configFilePath,
+			Destination: &configFilePath,
+			TakesFile:   true,
+			Usage:       "Read config values from `FILE`",
 		},
-		altsrc.NewStringFlag(&cli.StringFlag{
+		&cli.StringFlag{
 			Name:   cliCertFile,
 			Hidden: true,
 			Usage:  "Use `FILE` as the client certificate",
-		}),
-		altsrc.NewStringFlag(&cli.StringFlag{
+			Sources: cli.NewValueSourceChain(
+				altsrctoml.TOML(cliCertFile, configSource),
+			),
+		},
+		&cli.StringFlag{
 			Name:   cliKeyFile,
 			Hidden: true,
 			Usage:  "Use `FILE` as the client's private key",
-		}),
-		altsrc.NewStringFlag(&cli.StringFlag{
+			Sources: cli.NewValueSourceChain(
+				altsrctoml.TOML(cliKeyFile, configSource),
+			),
+		},
+		&cli.StringFlag{
 			Name:   cliLogLevel,
 			Value:  "info",
 			Hidden: true,
 			Usage:  "Set the logging output level to `LEVEL`",
-		}),
+			Sources: cli.NewValueSourceChain(
+				altsrctoml.TOML(cliLogLevel, configSource),
+			),
+		},
 	}
 
 	app.Commands = []*cli.Command{
@@ -269,13 +283,13 @@ func main() {
 			Usage:       "Configure system features",
 			UsageText:   fmt.Sprintf("%v configure COMMAND", app.Name),
 			Description: "The configure command allows you to manage feature preferences before or after system registration.",
-			Subcommands: []*cli.Command{
+			Commands: []*cli.Command{
 				{
 					Name:        "features",
 					Usage:       "Manage feature levels",
 					UsageText:   fmt.Sprintf("%v configure features COMMAND", app.Name),
 					Description: "Enable or disable content management, analytics, or remote management.",
-					Subcommands: []*cli.Command{
+					Commands: []*cli.Command{
 						{
 							Name:   "status",
 							Usage:  "Show status",
@@ -327,7 +341,7 @@ func main() {
 			Name:      "collector",
 			Usage:     "Collect data for analysis",
 			UsageText: fmt.Sprintf("%v collector COMMAND [command options]", app.Name),
-			Subcommands: []*cli.Command{
+			Commands: []*cli.Command{
 				{
 					Name: "info",
 					Flags: []cli.Flag{
@@ -399,14 +413,17 @@ func main() {
 			},
 		},
 	}
-	app.EnableBashCompletion = true
-	app.BashComplete = BashComplete
+	app.EnableShellCompletion = true
+	app.ShellComplete = ShellComplete
 	app.Action = mainAction
 	app.Before = beforeAction
 	app.After = afterAction
 	app.ExitErrHandler = exitErrHandler
 
-	if err := app.Run(os.Args); err != nil {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	if err := app.Run(ctx, os.Args); err != nil {
 		slog.Error(err.Error())
 	}
 }

@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/godbus/dbus/v5"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 
 	"github.com/briandowns/spinner"
 	systemd "github.com/coreos/go-systemd/v22/dbus"
@@ -231,15 +231,15 @@ func printJSONStatus(systemStatus *SystemStatus) error {
 }
 
 // beforeStatusAction ensures the user has supplied a correct `--format` flag.
-func beforeStatusAction(ctx *cli.Context) error {
-	err := checkFormatFlag(ctx)
+func beforeStatusAction(goctx context.Context, cmd *cli.Command) (context.Context, error) {
+	err := checkFormatFlag(cmd)
 	if err != nil {
-		return err
+		return goctx, err
 	}
 
-	configureUI(ctx)
+	configureUI(cmd)
 
-	return checkForUnknownArgs(ctx)
+	return goctx, checkForUnknownArgs(cmd)
 }
 
 // statusAction tries to print status of system. It means that it gives
@@ -249,13 +249,13 @@ func beforeStatusAction(ctx *cli.Context) error {
 // 3. Is yggdrasil.service (rhcd.service) running?
 // Status can be printed as human-readable text or machine-readable JSON document.
 // Format is influenced by --format json CLI option stored in CLI context
-func statusAction(ctx *cli.Context) (err error) {
-	logCommandStart(ctx)
+func statusAction(goctx context.Context, cmd *cli.Command) (err error) {
+	logCommandStart(cmd)
 
 	var systemStatus SystemStatus
 	var machineReadablePrintFunc func(systemStatus *SystemStatus) error
 
-	format := ctx.String("format")
+	format := cmd.String("format")
 	switch format {
 	case "json":
 		machineReadablePrintFunc = printJSONStatus

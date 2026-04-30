@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -8,12 +9,12 @@ import (
 	"strings"
 
 	"github.com/emersion/go-varlink"
-	"github.com/urfave/cli/v2"
 
 	"github.com/redhatinsights/rhc/internal/collector"
 	"github.com/redhatinsights/rhc/internal/ui"
 	"github.com/redhatinsights/rhc/pkg/exitcode"
 	"github.com/redhatinsights/rhc/varlink/collectorapi"
+	"github.com/urfave/cli/v3"
 )
 
 const rhcServerSocket = "/run/rhc/com.redhat.rhc"
@@ -37,19 +38,19 @@ func newCollectorClient() (*collectorapi.Client, func(), error) {
 }
 
 // beforeCollectorInfoAction validates the collector info command arguments and configuration.
-func beforeCollectorInfoAction(ctx *cli.Context) error {
-	return validateCollectorCommand(ctx, true, true)
+func beforeCollectorInfoAction(ctx context.Context, cmd *cli.Command) (context.Context, error) {
+	return ctx, validateCollectorCommand(cmd, true, true)
 }
 
 // collectorInfoAction retrieves and displays information for a specific collector.
-func collectorInfoAction(ctx *cli.Context) error {
-	logCommandStart(ctx)
+func collectorInfoAction(ctx context.Context, cmd *cli.Command) error {
+	logCommandStart(cmd)
 	client, cleanup, err := newCollectorClient()
 	if err != nil {
 		return cli.Exit(fmt.Sprintf("failed to connect to rhc-server: %v", err), exitcode.Unavailable)
 	}
 	defer cleanup()
-	response, err := client.Info(&collectorapi.InfoIn{Id: ctx.Args().First()})
+	response, err := client.Info(&collectorapi.InfoIn{Id: cmd.Args().First()})
 	if err != nil {
 		return cli.Exit(fmt.Sprintf("failed to get collector info: %v", err), exitcode.Err)
 	}
@@ -58,13 +59,13 @@ func collectorInfoAction(ctx *cli.Context) error {
 }
 
 // beforeCollectorListAction validates the collector list command configuration.
-func beforeCollectorListAction(ctx *cli.Context) error {
-	return validateCollectorCommand(ctx, false, true)
+func beforeCollectorListAction(ctx context.Context, cmd *cli.Command) (context.Context, error) {
+	return ctx, validateCollectorCommand(cmd, false, true)
 }
 
 // collectorListAction retrieves and displays a list of all available collectors.
-func collectorListAction(ctx *cli.Context) error {
-	logCommandStart(ctx)
+func collectorListAction(ctx context.Context, cmd *cli.Command) error {
+	logCommandStart(cmd)
 
 	client, cleanup, err := newCollectorClient()
 	if err != nil {
@@ -102,13 +103,13 @@ func collectorListAction(ctx *cli.Context) error {
 }
 
 // beforeCollectorTimersAction validates the collector timers command configuration.
-func beforeCollectorTimersAction(ctx *cli.Context) error {
-	return validateCollectorCommand(ctx, false, true)
+func beforeCollectorTimersAction(ctx context.Context, cmd *cli.Command) (context.Context, error) {
+	return ctx, validateCollectorCommand(cmd, false, true)
 }
 
 // collectorTimersAction retrieves and displays timer information for all collectors.
-func collectorTimersAction(ctx *cli.Context) error {
-	logCommandStart(ctx)
+func collectorTimersAction(ctx context.Context, cmd *cli.Command) error {
+	logCommandStart(cmd)
 
 	client, cleanup, err := newCollectorClient()
 	if err != nil {
@@ -132,15 +133,15 @@ func collectorTimersAction(ctx *cli.Context) error {
 }
 
 // beforeCollectorEnableAction validates the collector enable command arguments.
-func beforeCollectorEnableAction(ctx *cli.Context) error {
-	return validateCollectorCommand(ctx, true, false)
+func beforeCollectorEnableAction(ctx context.Context, cmd *cli.Command) (context.Context, error) {
+	return ctx, validateCollectorCommand(cmd, true, false)
 }
 
 // collectorEnableAction enables a collector timer and optionally triggers immediate collection.
-func collectorEnableAction(ctx *cli.Context) error {
-	logCommandStart(ctx)
-	collectorId := ctx.Args().First()
-	nowFlag := ctx.Bool("now")
+func collectorEnableAction(ctx context.Context, cmd *cli.Command) error {
+	logCommandStart(cmd)
+	collectorId := cmd.Args().First()
+	nowFlag := cmd.Bool("now")
 	conn, timerName, err := collector.ValidateCollectorAndConnect(collectorId)
 	if err != nil {
 		return cli.Exit(fmt.Sprintf("%v", err), exitcode.Err)
@@ -169,15 +170,15 @@ func collectorEnableAction(ctx *cli.Context) error {
 }
 
 // beforeCollectorDisableAction validates the collector disable command arguments.
-func beforeCollectorDisableAction(ctx *cli.Context) error {
-	return validateCollectorCommand(ctx, true, false)
+func beforeCollectorDisableAction(ctx context.Context, cmd *cli.Command) (context.Context, error) {
+	return ctx, validateCollectorCommand(cmd, true, false)
 }
 
 // collectorDisableAction disables a collector timer and optionally stops immediate collection.
-func collectorDisableAction(ctx *cli.Context) error {
-	logCommandStart(ctx)
-	collectorId := ctx.Args().First()
-	nowFlag := ctx.Bool("now")
+func collectorDisableAction(ctx context.Context, cmd *cli.Command) error {
+	logCommandStart(cmd)
+	collectorId := cmd.Args().First()
+	nowFlag := cmd.Bool("now")
 	conn, timerName, err := collector.ValidateCollectorAndConnect(collectorId)
 	if err != nil {
 		return cli.Exit(fmt.Sprintf("%v", err), exitcode.Err)
