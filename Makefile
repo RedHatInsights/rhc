@@ -1,7 +1,7 @@
 .ONESHELL:
 .SHELLFLAGS := -e -c
 
-VERSION := $(shell rpmspec rhc.spec --query --queryformat '%{version}')
+VERSION := $(shell rpmspec rhc.spec --query --queryformat '%{version}\n' | head -n 1)
 
 # The 'build' target is not used during packaging; it is present for upstream development purposes.
 .PHONY: build
@@ -9,6 +9,13 @@ build:
 	go build -ldflags "-X main.Version=$(VERSION)" -o rhc ./cmd/rhc
 	go build -ldflags "-X main.Version=${VERSION}" -o rhc-server ./cmd/rhc-server
 	go build -ldflags "-X main.Version=${VERSION}" -o rhc-collector ./cmd/rhc-collector
+
+# Compile translation files (.po -> .mo)
+.PHONY: i18n
+i18n:
+	@for file in po/*/LC_MESSAGES/*.po; do \
+		msgfmt --check -o $${file%.po}.mo $$file; \
+	done
 
 .PHONY: archive
 archive:
@@ -26,3 +33,4 @@ clean:
 	rm -f rhc-server
 	rm -f rhc-collector
 	rm -f rhc-*.tar*
+	find po -name "*.mo" -type f -delete
