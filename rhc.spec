@@ -35,6 +35,13 @@ Requires: yggdrasil-worker-package-manager
 Client tool to register Fedora, CentOS Stream or Red Hat Enterprise Linux
 to Red Hat Subscription Management and Red Hat Lightspeed.
 
+%package tests
+Summary: Tests for rhc
+
+%description tests
+Tests for rhc integration testing. Note that those tests have their own dependencies that are not in form of RPM
+dependency as those tests depend on content available in pip.
+
 %prep
 %goprep -A
 %setup -q -T -D -a1 %{forgesetupargs}
@@ -83,6 +90,15 @@ install -m 0755 -vd                     %{buildroot}%{_sysconfdir}/%{name}/
 install -m 0755 -vd %{buildroot}%{_unitdir}/yggdrasil.service.d/
 install -m 0644 -vp %{buildroot}%{_unitdir}/yggdrasil.service.d/rhcd.conf %{buildroot}%{_unitdir}/yggdrasil.service.d/
 %endif
+# Tests
+install -m 0755 -vd %{buildroot}%{_libexecdir}/%{name}
+install -m 0755 -vd %{buildroot}%{_libexecdir}/%{name}/systemtest/
+install -m 0755 -vp systemtest/tests/integration/test.sh %{buildroot}%{_libexecdir}/%{name}/systemtest/
+#install -m 0755 -vd %{buildroot}%{_datadir}/%{name}/systemtest/
+install -m 0755 -vd %{buildroot}%{_datadir}/%{name}/
+install -m 0644 -vp pytest.ini %{buildroot}%{_datadir}/%{name}/
+cp -rva systemtest %{buildroot}%{_datadir}/%{name}/systemtest
+cp -rva integration-tests %{buildroot}%{_datadir}/%{name}/integration-tests
 
 %check
 %go_vendor_license_check -c %{S:2}
@@ -132,6 +148,12 @@ fi
 %if 0%{?with_rhcd_compat}
 %{_unitdir}/yggdrasil.service.d/rhcd.conf
 %endif
+
+%files tests
+%{_libexecdir}/%{name}/systemtest
+%{_datadir}/%{name}/pytest.ini
+%{_datadir}/%{name}/systemtest
+%{_datadir}/%{name}/integration-tests
 
 %changelog
 %autochangelog
