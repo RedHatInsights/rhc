@@ -64,7 +64,7 @@ func getSystemdTimerRaw(timer string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, "systemctl", "list-timers", timer, "--output=json")
+	cmd := exec.CommandContext(ctx, "systemctl", "list-timers", timer, "--all", "--output=json")
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
