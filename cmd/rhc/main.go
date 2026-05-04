@@ -321,6 +321,81 @@ func main() {
 			Before:      beforeStatusAction,
 			Action:      statusAction,
 		},
+		{
+			Name:      "collector",
+			Usage:     "Collect data for analysis",
+			UsageText: fmt.Sprintf("%v collector COMMAND [command options]", app.Name),
+			Subcommands: []*cli.Command{
+				{
+					Name: "info",
+					Flags: []cli.Flag{
+						&cli.StringFlag{
+							Name:    "format",
+							Usage:   "prints collector information in machine-readable format (supported formats: \"json\")",
+							Aliases: []string{"f"},
+						},
+					},
+					Usage:     "Display collector information",
+					UsageText: fmt.Sprintf("%v collector info COLLECTOR", app.Name),
+					Before:    beforeCollectorInfoAction,
+					Action:    collectorInfoAction,
+				},
+				{
+					Name: "list",
+					Flags: []cli.Flag{
+						&cli.StringFlag{
+							Name:    "format",
+							Usage:   "prints list of collectors in machine-readable format (supported formats: \"json\")",
+							Aliases: []string{"f"},
+						},
+					},
+					Usage:     "List available collectors",
+					UsageText: fmt.Sprintf("%v collector list", app.Name),
+					Before:    beforeCollectorListAction,
+					Action:    collectorListAction,
+				},
+				{
+					Name: "timers",
+					Flags: []cli.Flag{
+						&cli.StringFlag{
+							Name:    "format",
+							Usage:   "prints list of collector timers in machine-readable format (supported formats: \"json\")",
+							Aliases: []string{"f"},
+						},
+					},
+					Usage:     "List collector timers",
+					UsageText: fmt.Sprintf("%v collector timers", app.Name),
+					Before:    beforeCollectorTimersAction,
+					Action:    collectorTimersAction,
+				},
+				{
+					Name: "enable",
+					Flags: []cli.Flag{
+						&cli.BoolFlag{
+							Name:  "now",
+							Usage: "enable collector and trigger immediate collection",
+						},
+					},
+					Usage:     "Enable timer-based collection",
+					UsageText: fmt.Sprintf("%v collector enable COLLECTOR", app.Name),
+					Before:    beforeCollectorEnableAction,
+					Action:    collectorEnableAction,
+				},
+				{
+					Name: "disable",
+					Flags: []cli.Flag{
+						&cli.BoolFlag{
+							Name:  "now",
+							Usage: "disable collector and stop the collection immediately",
+						},
+					},
+					Usage:     "Disable timer-based collection",
+					UsageText: fmt.Sprintf("%v collector disable COLLECTOR", app.Name),
+					Before:    beforeCollectorDisableAction,
+					Action:    collectorDisableAction,
+				},
+			},
+		},
 	}
 	app.EnableBashCompletion = true
 	app.BashComplete = BashComplete

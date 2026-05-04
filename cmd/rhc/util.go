@@ -112,3 +112,18 @@ func logCommandStart(ctx *cli.Context) {
 	fullCommandName := getFullCommandName(ctx)
 	slog.Info(fmt.Sprintf("Command '%s' started", fullCommandName))
 }
+
+// validateCollectorCommand performs common validation for collector commands.
+func validateCollectorCommand(ctx *cli.Context, requiresCollectorID, requiresFormat bool) error {
+	if requiresFormat {
+		if err := checkFormatFlag(ctx); err != nil {
+			return err
+		}
+	}
+	if requiresCollectorID && ctx.Args().Len() == 0 {
+		commandName := getFullCommandName(ctx)
+		return cli.Exit(fmt.Sprintf("%s requires a collector ID", commandName), ExitCodeUsage)
+	}
+	configureUI(ctx)
+	return nil
+}
