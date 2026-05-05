@@ -3,8 +3,10 @@ import subprocess
 import logging
 import distro
 import os
+import time
 
 logger = logging.getLogger(__name__)
+WORKER_PID_DIR = "/var/run/rhc/workers"
 
 # default values so import-time access does not crash
 pytest.rhel_version_tuple = (0, 0)
@@ -33,6 +35,41 @@ def pytest_configure(config):
         pytest.rhel_major_version = "unknown"
         pytest.rhel_minor_version = "unknown"
         pytest.rhel_version_tuple = (0, 0)
+
+
+@pytest.hookimpl(trylast=True)
+def pytest_runtest_teardown(item, nextitem):
+    if not os.path.isdir(WORKER_PID_DIR):
+        return
+
+    # Handle races where pid files are created/removed during teardown.
+    for _ in range(3):
+        removed_any = False
+        try:
+            names = os.listdir(WORKER_PID_DIR)
+        except OSError as e:
+            logger.warning(f"Failed to list pid files from {WORKER_PID_DIR}: {e}")
+            return
+
+        for name in names:
+            if not name.endswith(".pid"):
+                continue
+            pid_path = os.path.join(WORKER_PID_DIR, name)
+            try:
+                os.remove(pid_path)
+                removed_any = True
+            except FileNotFoundError:
+                # Another process removed it between listdir and remove.
+                logger.debug(
+                    "Worker pid file already removed or not found: %s",
+                    pid_path,
+                )
+            except OSError as e:
+                logger.warning(f"Failed to remove pid file {pid_path}: {e}")
+
+        if not removed_any:
+            break
+        time.sleep(0.1)
 
 
 @pytest.fixture(scope="session", autouse=True)
