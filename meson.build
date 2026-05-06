@@ -9,7 +9,7 @@ if get_option('vendor')
 endif
 
 goldflags = get_option('goldflags')
-goldflags += ' -X "main.Version=' + meson.project_version() + '"'
+goldflags += ' -X "github.com/redhatinsights/rhc/pkg/version.Version=' + meson.project_version() + '"'
 goldflags += ' -X "main.LogDir=/var/log/rhc/"'
 
 gobuildflags = get_option('gobuildflags')

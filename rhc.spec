@@ -43,7 +43,7 @@ to Red Hat Subscription Management and Red Hat Lightspeed.
 %go_vendor_license_buildrequires -c %{S:2}
 
 %build
-export GO_LDFLAGS="-X main.Version=%{version} -X main.ServiceName=yggdrasil"
+export GO_LDFLAGS="-X github.com/redhatinsights/rhc/pkg/version.Version=%{version} -X main.ServiceName=yggdrasil"
 %gobuild -o %{gobuilddir}/bin/rhc %{goipath}/cmd/rhc
 %gobuild -o %{gobuilddir}/bin/rhc-server %{goipath}/cmd/rhc-server
 %gobuild -o %{gobuilddir}/bin/rhc-collector %{goipath}/cmd/rhc-collector

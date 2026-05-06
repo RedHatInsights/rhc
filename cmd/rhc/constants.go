@@ -28,17 +28,11 @@ const (
 )
 
 var (
-	// Version is the version as described by git.
-	Version string
-
 	// LogDir points to the log file directory
 	LogDir string
 )
 
 func init() {
-	if Version == "" {
-		Version = "dev"
-	}
 	if LogDir == "" {
 		LogDir = "/var/log/rhc/"
 	}

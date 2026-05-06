@@ -2,13 +2,15 @@
 .SHELLFLAGS := -e -c
 
 VERSION := $(shell rpmspec rhc.spec --query --queryformat '%{version}')
+LDFLAGS := -ldflags "-X github.com/redhatinsights/rhc/pkg/version.Version=$(VERSION)"
+GO_BUILD := go build $(LDFLAGS)
 
 # The 'build' target is not used during packaging; it is present for upstream development purposes.
 .PHONY: build
 build:
-	go build -ldflags "-X main.Version=$(VERSION)" -o rhc ./cmd/rhc
-	go build -ldflags "-X main.Version=${VERSION}" -o rhc-server ./cmd/rhc-server
-	go build -ldflags "-X main.Version=${VERSION}" -o rhc-collector ./cmd/rhc-collector
+	$(GO_BUILD) -o rhc ./cmd/rhc
+	$(GO_BUILD) -o rhc-server ./cmd/rhc-server
+	$(GO_BUILD) -o rhc-collector ./cmd/rhc-collector
 
 .PHONY: archive
 archive:
