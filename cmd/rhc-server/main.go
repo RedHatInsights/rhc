@@ -15,6 +15,7 @@ import (
 	govarlink "github.com/emersion/go-varlink"
 
 	"github.com/redhatinsights/rhc/internal/util"
+	"github.com/redhatinsights/rhc/pkg/version"
 	"github.com/redhatinsights/rhc/varlink/collectorapi"
 	"github.com/redhatinsights/rhc/varlink/internalapi"
 )
@@ -51,7 +52,7 @@ func run() error {
 	registry := govarlink.NewRegistry(&govarlink.RegistryOptions{
 		Vendor:  "Red Hat",
 		Product: "rhc",
-		Version: Version,
+		Version: version.Version,
 		URL:     "https://github.com/redhatinsights/rhc",
 	})
 
@@ -74,7 +75,7 @@ func run() error {
 		}
 	}()
 
-	slog.Info("rhc-server starting", "version", Version)
+	slog.Info("rhc-server starting", "version", version.Version)
 	slog.Info("Listening on socket", "address", listener.Addr())
 
 	// Set up a graceful shutdown

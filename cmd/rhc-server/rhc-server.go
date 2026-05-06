@@ -9,11 +9,6 @@ import (
 	"github.com/redhatinsights/rhc/varlink/internalapi"
 )
 
-var (
-	// Version is set at build time.
-	Version = "dev"
-)
-
 // Backend implements the internal API backend.
 type Backend struct{}
 

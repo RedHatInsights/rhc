@@ -12,6 +12,7 @@ import (
 	"github.com/redhatinsights/rhc/internal/conf"
 	"github.com/redhatinsights/rhc/internal/ui"
 	"github.com/redhatinsights/rhc/pkg/feature"
+	"github.com/redhatinsights/rhc/pkg/version"
 )
 
 const (
@@ -96,7 +97,7 @@ func beforeAction(c *cli.Context) error {
 
 	if !c.Bool("generate-man-page") && !c.Bool("generate-markdown") {
 		configureFileLogging(conf.Config.LogLevel)
-		slog.Info(c.App.Name+" started", "version", Version, "pid", os.Getpid())
+		slog.Info(c.App.Name+" started", "version", version.Version, "pid", os.Getpid())
 	}
 
 	// When environment variable NO_COLOR or --no-color CLI option is set, then do not display colors
@@ -133,7 +134,7 @@ func exitErrHandler(c *cli.Context, err error) {
 func main() {
 	app := cli.NewApp()
 	app.Name = "rhc"
-	app.Version = Version
+	app.Version = version.Version
 	app.Usage = "control the system's connection to Red Hat"
 	app.Description = "The " + app.Name + " command controls the system's connection to Red Hat.\n\n" +
 		"To connect the system using an activation key:\n" +

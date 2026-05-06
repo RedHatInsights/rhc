@@ -8,6 +8,7 @@ import (
 
 	"github.com/redhatinsights/rhc/internal/collector"
 	httpapi "github.com/redhatinsights/rhc/internal/http"
+	"github.com/redhatinsights/rhc/pkg/version"
 )
 
 // FIXME: Make these configurable (use the values from "rhc configure")
@@ -16,11 +17,6 @@ const (
 	clientCertPath = "/etc/pki/consumer/cert.pem"
 	clientKeyPath  = "/etc/pki/consumer/key.pem"
 	rhcTmpDir      = "/var/tmp/rhc"
-)
-
-var (
-	// Version is set at build time.
-	Version = "dev"
 )
 
 func main() {
@@ -123,7 +119,7 @@ func uploadArchive(archivePath string, collectorConfig collector.Config) error {
 		ClientCertPath: clientCertPath,
 		ClientKeyPath:  clientKeyPath,
 	}
-	userAgent := httpapi.GetUserAgent("rhc-collector", Version, collectorConfig.ID)
+	userAgent := httpapi.GetUserAgent("rhc-collector", version.Version, collectorConfig.ID)
 	if err := collector.UploadArchive(archive, serviceConfig, userAgent); err != nil {
 		slog.Error("failed to upload archive", "error", err)
 		return fmt.Errorf("failed to upload archive: %w", err)
