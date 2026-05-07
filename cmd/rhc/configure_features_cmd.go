@@ -23,17 +23,17 @@ import (
 // TODO Use ui.Icons.Ok when we have UTF-8 capable tabwriter
 
 // beforeFeaturesStatusAction validates inputs before executing the status action.
-func beforeFeaturesStatusAction(goctx context.Context, cmd *cli.Command) (context.Context, error) {
+func beforeFeaturesStatusAction(ctx context.Context, cmd *cli.Command) (context.Context, error) {
 	err := checkFormatFlag(cmd)
 	if err != nil {
-		return goctx, err
+		return ctx, err
 	}
 	configureUI(cmd)
-	return goctx, checkForUnknownArgs(cmd)
+	return ctx, checkForUnknownArgs(cmd)
 }
 
 // featuresStatusAction displays the current status or preferences of all features.
-func featuresStatusAction(goctx context.Context, cmd *cli.Command) error {
+func featuresStatusAction(ctx context.Context, cmd *cli.Command) error {
 	logCommandStart(cmd)
 	isRegistered, err := rhsm.IsRHSMRegistered()
 	if err != nil {
@@ -41,9 +41,9 @@ func featuresStatusAction(goctx context.Context, cmd *cli.Command) error {
 	}
 
 	if isRegistered {
-		return featuresStatusActionRegistered(goctx, cmd)
+		return featuresStatusActionRegistered(ctx, cmd)
 	}
-	return featuresStatusActionNotRegistered(goctx, cmd)
+	return featuresStatusActionNotRegistered(ctx, cmd)
 }
 
 func featuresStatusActionNotRegistered(_ context.Context, _ *cli.Command) error {
@@ -90,24 +90,24 @@ func featuresStatusActionRegistered(_ context.Context, _ *cli.Command) error {
 }
 
 // beforeFeaturesEnableAction validates inputs before executing the enable action.
-func beforeFeaturesEnableAction(goctx context.Context, cmd *cli.Command) (context.Context, error) {
+func beforeFeaturesEnableAction(ctx context.Context, cmd *cli.Command) (context.Context, error) {
 	err := checkFormatFlag(cmd)
 	if err != nil {
-		return goctx, err
+		return ctx, err
 	}
 	configureUI(cmd)
 
 	if cmd.Args().Len() != 1 {
-		return goctx, cli.Exit("this command requires a single FEATURE argument", exitcode.Usage)
+		return ctx, cli.Exit("this command requires a single FEATURE argument", exitcode.Usage)
 	}
 	if _, err = feature.Get(cmd.Args().First()); err != nil {
-		return goctx, cli.Exit(err.Error(), exitcode.DataErr)
+		return ctx, cli.Exit(err.Error(), exitcode.DataErr)
 	}
-	return goctx, nil
+	return ctx, nil
 }
 
 // featuresEnableAction enables a single feature.
-func featuresEnableAction(goctx context.Context, cmd *cli.Command) error {
+func featuresEnableAction(ctx context.Context, cmd *cli.Command) error {
 	logCommandStart(cmd)
 	isRegistered, err := rhsm.IsRHSMRegistered()
 	if err != nil {
@@ -116,9 +116,9 @@ func featuresEnableAction(goctx context.Context, cmd *cli.Command) error {
 
 	requestedFeature := cmd.Args().First()
 	if isRegistered {
-		return featuresEnableActionRegistered(goctx, cmd, requestedFeature)
+		return featuresEnableActionRegistered(ctx, cmd, requestedFeature)
 	}
-	return featuresEnableActionNotRegistered(goctx, cmd, requestedFeature)
+	return featuresEnableActionNotRegistered(ctx, cmd, requestedFeature)
 }
 
 // featuresEnableActionNotRegistered handles enabling a feature on a non-registered system.
@@ -205,24 +205,24 @@ func featuresEnableActionRegistered(_ context.Context, _ *cli.Command, targetNam
 }
 
 // beforeFeaturesDisableAction validates inputs before executing the disable action.
-func beforeFeaturesDisableAction(goctx context.Context, cmd *cli.Command) (context.Context, error) {
+func beforeFeaturesDisableAction(ctx context.Context, cmd *cli.Command) (context.Context, error) {
 	err := checkFormatFlag(cmd)
 	if err != nil {
-		return goctx, err
+		return ctx, err
 	}
 	configureUI(cmd)
 
 	if cmd.Args().Len() != 1 {
-		return goctx, cli.Exit("this command requires a single FEATURE argument", exitcode.Usage)
+		return ctx, cli.Exit("this command requires a single FEATURE argument", exitcode.Usage)
 	}
 	if _, err = feature.Get(cmd.Args().First()); err != nil {
-		return goctx, cli.Exit(err.Error(), exitcode.DataErr)
+		return ctx, cli.Exit(err.Error(), exitcode.DataErr)
 	}
-	return goctx, nil
+	return ctx, nil
 }
 
 // featuresDisableAction disables a single feature.
-func featuresDisableAction(goctx context.Context, cmd *cli.Command) error {
+func featuresDisableAction(ctx context.Context, cmd *cli.Command) error {
 	logCommandStart(cmd)
 	isRegistered, err := rhsm.IsRHSMRegistered()
 	if err != nil {
@@ -231,9 +231,9 @@ func featuresDisableAction(goctx context.Context, cmd *cli.Command) error {
 
 	requestedFeature := cmd.Args().First()
 	if isRegistered {
-		return featuresDisableActionRegistered(goctx, cmd, requestedFeature)
+		return featuresDisableActionRegistered(ctx, cmd, requestedFeature)
 	}
-	return featuresDisableActionNotRegistered(goctx, cmd, requestedFeature)
+	return featuresDisableActionNotRegistered(ctx, cmd, requestedFeature)
 }
 
 // featuresDisableActionNotRegistered handles disabling a feature on a non-registered system.

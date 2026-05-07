@@ -168,20 +168,20 @@ func (disconnectResult *DisconnectResult) TryUnregisterRHSM() error {
 }
 
 // beforeDisconnectAction ensures the user has supplied a correct `--format` flag
-func beforeDisconnectAction(goctx context.Context, cmd *cli.Command) (context.Context, error) {
+func beforeDisconnectAction(ctx context.Context, cmd *cli.Command) (context.Context, error) {
 	err := checkFormatFlag(cmd)
 	if err != nil {
-		return goctx, err
+		return ctx, err
 	}
 
 	configureUI(cmd)
 
-	return goctx, checkForUnknownArgs(cmd)
+	return ctx, checkForUnknownArgs(cmd)
 }
 
 // disconnectAction tries to stop (yggdrasil) rhcd service, disconnect from Red Hat Lightspeed,
 // and finally it unregisters system from Red Hat Subscription Management
-func disconnectAction(goctx context.Context, cmd *cli.Command) error {
+func disconnectAction(ctx context.Context, cmd *cli.Command) error {
 	logCommandStart(cmd)
 
 	var disconnectResult DisconnectResult

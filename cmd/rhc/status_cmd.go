@@ -231,15 +231,15 @@ func printJSONStatus(systemStatus *SystemStatus) error {
 }
 
 // beforeStatusAction ensures the user has supplied a correct `--format` flag.
-func beforeStatusAction(goctx context.Context, cmd *cli.Command) (context.Context, error) {
+func beforeStatusAction(ctx context.Context, cmd *cli.Command) (context.Context, error) {
 	err := checkFormatFlag(cmd)
 	if err != nil {
-		return goctx, err
+		return ctx, err
 	}
 
 	configureUI(cmd)
 
-	return goctx, checkForUnknownArgs(cmd)
+	return ctx, checkForUnknownArgs(cmd)
 }
 
 // statusAction tries to print status of system. It means that it gives
@@ -249,7 +249,7 @@ func beforeStatusAction(goctx context.Context, cmd *cli.Command) (context.Contex
 // 3. Is yggdrasil.service (rhcd.service) running?
 // Status can be printed as human-readable text or machine-readable JSON document.
 // Format is influenced by --format json CLI option stored in CLI context
-func statusAction(goctx context.Context, cmd *cli.Command) (err error) {
+func statusAction(ctx context.Context, cmd *cli.Command) (err error) {
 	logCommandStart(cmd)
 
 	var systemStatus SystemStatus

@@ -211,11 +211,11 @@ func checkFeatureFlags(toEnable, toDisable []string) error {
 // beforeConnectAction ensures correct CLI flags have been passed in:
 // correct values, no conflicts. On error, this method invokes cli.Exit()
 // with appropriate message and error code.
-func beforeConnectAction(goctx context.Context, cmd *cli.Command) (context.Context, error) {
+func beforeConnectAction(ctx context.Context, cmd *cli.Command) (context.Context, error) {
 	// Verify --format contains valid value
 	err := checkFormatFlag(cmd)
 	if err != nil {
-		return goctx, err
+		return ctx, err
 	}
 	// Configure UI globals
 	configureUI(cmd)
@@ -226,21 +226,21 @@ func beforeConnectAction(goctx context.Context, cmd *cli.Command) (context.Conte
 		cmd.StringSlice("disable-feature"),
 	)
 	if err != nil {
-		return goctx, cli.Exit(err.Error(), exitcode.Usage)
+		return ctx, cli.Exit(err.Error(), exitcode.Usage)
 	}
 
 	// Do not continue if the host is already registered
 	slog.Info("Checking system connection status")
 	uuid, err := rhsm.GetConsumerUUID()
 	if err != nil {
-		return goctx, cli.Exit(
+		return ctx, cli.Exit(
 			fmt.Sprintf("unable to get consumer UUID: %s", err),
 			exitcode.Software,
 		)
 	}
 	if uuid != "" {
 		slog.Info("Consumer UUID is set, system is already connected")
-		return goctx, cli.Exit("this system is already connected", exitcode.Usage)
+		return ctx, cli.Exit("this system is already connected", exitcode.Usage)
 	}
 
 	username := cmd.String("username")
@@ -255,7 +255,7 @@ func beforeConnectAction(goctx context.Context, cmd *cli.Command) (context.Conte
 				"--username and --activation-key can not be used together",
 				exitcode.Usage,
 			)
-			return goctx, exitErr
+			return ctx, exitErr
 
 		}
 		if password != "" {
@@ -263,7 +263,7 @@ func beforeConnectAction(goctx context.Context, cmd *cli.Command) (context.Conte
 				"--password and --activation-key can not be used together",
 				exitcode.Usage,
 			)
-			return goctx, exitErr
+			return ctx, exitErr
 
 		}
 		if organization == "" {
@@ -271,7 +271,7 @@ func beforeConnectAction(goctx context.Context, cmd *cli.Command) (context.Conte
 				"--organization is required, when --activation-key is used",
 				exitcode.Usage,
 			)
-			return goctx, exitErr
+			return ctx, exitErr
 		}
 	}
 
@@ -283,7 +283,7 @@ func beforeConnectAction(goctx context.Context, cmd *cli.Command) (context.Conte
 				"--username/--password or --organization/--activation-key are required when a machine-readable format is used",
 				exitcode.Usage,
 			)
-			return goctx, exitErr
+			return ctx, exitErr
 		}
 	}
 
@@ -294,16 +294,16 @@ func beforeConnectAction(goctx context.Context, cmd *cli.Command) (context.Conte
 	if len(cmd.StringSlice("enable-feature")) > 0 || len(cmd.StringSlice("disable-feature")) > 0 {
 		cache, err = prefcache.NewDefaultCache(ConnectFeaturesPrefsPath)
 		if err != nil {
-			return goctx, cli.Exit(fmt.Sprintf("failed to create default cache: %v", err), exitcode.Software)
+			return ctx, cli.Exit(fmt.Sprintf("failed to create default cache: %v", err), exitcode.Software)
 		}
 		for _, f := range cmd.StringSlice("enable-feature") {
 			if err = cache.Set(f, true); err != nil {
-				return goctx, cli.Exit(err.Error(), exitcode.DataErr)
+				return ctx, cli.Exit(err.Error(), exitcode.DataErr)
 			}
 		}
 		for _, f := range cmd.StringSlice("disable-feature") {
 			if err = cache.Set(f, false); err != nil {
-				return goctx, cli.Exit(err.Error(), exitcode.DataErr)
+				return ctx, cli.Exit(err.Error(), exitcode.DataErr)
 			}
 		}
 		ui.Printf("Notice: ignoring preferences set via 'rhc configure features'.\n")
@@ -312,33 +312,34 @@ func beforeConnectAction(goctx context.Context, cmd *cli.Command) (context.Conte
 		// No flags provided, load cache from file (or defaults if file doesn't exist)
 		cache, err = prefcache.LoadCache(ConnectFeaturesPrefsPath)
 		if err != nil {
-			return goctx, cli.Exit(fmt.Sprintf("failed to load preferences: %v", err), exitcode.Software)
+			return ctx, cli.Exit(fmt.Sprintf("failed to load preferences: %v", err), exitcode.Software)
 		}
 	}
+
 	cmd.Root().Metadata[connectCacheKey] = cache
 
 	// Error out if we're trying to set content templates without having enabling content
 	contentEnabled, err := cache.Get("content")
 	if err != nil {
-		return goctx, cli.Exit(fmt.Sprintf("failed to get content preference: %v", err), exitcode.Software)
+		return ctx, cli.Exit(fmt.Sprintf("failed to get content preference: %v", err), exitcode.Software)
 	}
 	if !contentEnabled && len(contentTemplates) > 0 {
-		return goctx, cli.Exit("content feature is disabled, cannot use --content-template", exitcode.Usage)
+		return ctx, cli.Exit("content feature is disabled, cannot use --content-template", exitcode.Usage)
 	}
 
 	err = checkForUnknownArgs(cmd)
 	if err != nil {
-		return goctx, cli.Exit(err.Error(), exitcode.Usage)
+		return ctx, cli.Exit(err.Error(), exitcode.Usage)
 	}
 
-	return goctx, nil
+	return ctx, nil
 }
 
 // connectAction manages 'rhc connect' steps:
 // first we register against Red Hat Subscription Management,
 // then we enable data collection for Red Hat Lightspeed services,
 // then we start remote management service yggdrasil.
-func connectAction(goctx context.Context, cmd *cli.Command) error {
+func connectAction(ctx context.Context, cmd *cli.Command) error {
 	logCommandStart(cmd)
 	cache := cmd.Root().Metadata[connectCacheKey].(*prefcache.PreferenceCache)
 
