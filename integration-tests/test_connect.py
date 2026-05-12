@@ -8,21 +8,22 @@
 
 import contextlib
 import json
-import time
 import logging
+import time
+
 import pytest
+from pytest_client_tools.restclient import RestClient
 from datetime import datetime
 from itertools import combinations
 import sh
 import subprocess
-from pytest_client_tools.restclient import RestClient
 
 from utils import (
     yggdrasil_service_is_active,
     prepare_args_for_connect,
     check_yggdrasil_journalctl_logs,
-    configure_proxy_rhsm
-
+    configure_proxy_rhsm,
+    get_access_token_client_credentials,
 )
 
 logger = logging.getLogger(__name__)
@@ -419,6 +420,9 @@ def test_connect_with_content_template(external_candlepin, rhc, test_config, aut
         with both basic authentication and activation key. It verifies that the system
         is registered, yggdrasil service is active, and that repositories from the content
         template appear in the dnf repolist after connection.
+        Expected template repositories are resolved via the Console content-sources API
+        using OAuth2 client_credentials (``service_account.client_id``,
+        ``service_account.client_secret``, ``sso_token_url``).
     :tags: Tier 1
     :steps:
         1.  Get initial dnf repolist before connection.
@@ -451,11 +455,27 @@ def test_connect_with_content_template(external_candlepin, rhc, test_config, aut
         proxies = {"http": proxy_url, "https": proxy_url}
 
     template_name = test_config.get("rhc.template_name")
+    sso_token_url = test_config.get("sso_token_url")
+    if not sso_token_url:
+        pytest.skip(
+            "sso_token_url is not set; add the OpenID token URL to settings "
+            "(e.g. …/realms/redhat-external/protocol/openid-connect/token)"
+        )
+    client_id = test_config.get("service_account.client_id")
+    client_secret = test_config.get("service_account.client_secret")
+    if not client_id or not client_secret:
+        pytest.skip(
+            "service_account.client_id and service_account.client_secret must be set for "
+            "OAuth client_credentials against the content-sources templates API"
+        )
+
     template_repos = get_template_repos_by_name(
         template_name,
-        test_config.get("candlepin.username"),
-        test_config.get("candlepin.password"),
         test_config.get("rhc.template_url"),
+        sso_token_url,
+        client_id,
+        client_secret,
+        scope="openid api.iam.service_accounts",
         proxies=proxies,
     )
 
@@ -549,32 +569,54 @@ def get_enabled_repo_names():
     return repo_names
 
 
-def get_template_repos_by_name(template_name, username, password, template_url, proxies=None):
+def get_template_repos_by_name(
+    template_name,
+    template_url,
+    token_url,
+    client_id,
+    client_secret,
+    *,
+    scope="openid api.iam.service_accounts",
+    proxies=None,
+):
     """
     Fetch a content template by name from Red Hat Console and return
     the set of repository names in its snapshots.
 
+    Authenticates with OAuth2 client_credentials against ``token_url``, then uses
+    ``Authorization: Bearer …`` for the content-sources API.
+
     Args:
         template_name: Name of the content template to find
-        username: Username for authentication
-        password: Password for authentication
-        template_url: Base URL for the templates API
+        template_url: Base URL for the templates API (e.g. …/api/content-sources/v1.0/)
+        token_url: OpenID token endpoint (``sso_token_url`` in settings)
+        client_id: Service account client id (``service_account.client_id``)
+        client_secret: Client secret (``service_account.client_secret``)
+        scope: OAuth scope (default matches Red Hat IAM service account API access)
         proxies: Optional dict of proxies, e.g. {"http": "...", "https": "..."}
     """
+    access_token = get_access_token_client_credentials(
+        token_url,
+        client_id,
+        client_secret,
+        scope=scope,
+        proxies=proxies,
+    )
+    api_headers = {
+        "accept": "application/json",
+        "Authorization": f"Bearer {access_token}",
+    }
 
     client = RestClient(base_url=template_url, verify=True, proxies=proxies)
 
     try:
-        # Get all templates and find the one matching template_name
         response = client.get(
             "templates/",
-            auth=(username, password),
-            headers={"accept": "application/json"},
+            headers=api_headers,
         )
 
         templates_data = response.json()
 
-        # Handle the API response structure: {"data": [...]}
         if isinstance(templates_data, dict) and "data" in templates_data:
             templates = templates_data["data"]
         elif isinstance(templates_data, list):
@@ -582,20 +624,16 @@ def get_template_repos_by_name(template_name, username, password, template_url, 
         else:
             raise ValueError(f"Unexpected API response format: {type(templates_data)}")
 
-        # Find the template by name
         for template in templates:
             if isinstance(template, dict) and template.get("name") == template_name:
                 template_id = template.get("uuid")
 
-                # Fetch template details by ID
                 detail_resp = client.get(
                     f"templates/{template_id}",
-                    auth=(username, password),
-                    headers={"accept": "application/json"},
+                    headers=api_headers,
                 )
                 template_details = detail_resp.json()
 
-                # Extract repository names from snapshots
                 snapshots = template_details.get("snapshots", [])
                 repository_names = set()
 
@@ -605,7 +643,6 @@ def get_template_repos_by_name(template_name, username, password, template_url, 
 
                 return repository_names
 
-        # List available templates for debugging
         available_templates = [
             t.get("name", "Unknown") for t in templates if isinstance(t, dict)
         ]
