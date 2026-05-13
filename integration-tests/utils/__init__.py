@@ -1,3 +1,8 @@
+import json
+import urllib.error
+import urllib.parse
+import urllib.request
+
 import pytest
 import sh
 import time
@@ -112,3 +117,53 @@ def prepare_args_for_connect(
         args.extend(["--content-template", content_template])
 
     return args
+
+
+def get_access_token_client_credentials(
+    token_url,
+    client_id,
+    client_secret,
+    *,
+    scope="openid api.iam.service_accounts",
+    proxies=None,
+):
+    """
+    Obtain an access token for Consoledot content-sources API.
+
+    ``token_url`` is ``sso_token_url`` in settings; use with ``service_account.client_id``
+    and ``service_account.client_secret``.
+    """
+    body = urllib.parse.urlencode(
+        {
+            "grant_type": "client_credentials",
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "scope": scope,
+        }
+    ).encode()
+
+    request = urllib.request.Request(
+        token_url,
+        data=body,
+        method="POST",
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+    opener = urllib.request.build_opener()
+    if proxies:
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler(proxies))
+    try:
+        with opener.open(request, timeout=120) as resp:
+            payload = json.loads(resp.read().decode())
+    except urllib.error.HTTPError as e:
+        detail = e.read().decode(errors="replace")[:800]
+        raise RuntimeError(
+            f"SSO token exchange failed (HTTP {e.code}): {detail}"
+        ) from e
+
+    access = payload.get("access_token")
+    if not access:
+        raise ValueError(
+            "token response contained no access_token; "
+            f"keys={list(payload.keys())}"
+        )
+    return access
