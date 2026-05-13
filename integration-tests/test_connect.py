@@ -9,19 +9,15 @@
 import contextlib
 import json
 import logging
-import time
 
 import pytest
 from pytest_client_tools.restclient import RestClient
-from datetime import datetime
 from itertools import combinations
-import sh
 import subprocess
 
 from utils import (
     yggdrasil_service_is_active,
     prepare_args_for_connect,
-    check_yggdrasil_journalctl_logs,
     configure_proxy_rhsm,
     get_access_token_client_credentials,
 )
