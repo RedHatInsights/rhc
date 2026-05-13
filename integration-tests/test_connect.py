@@ -17,6 +17,7 @@ from utils import (
     rhcd_service_is_active,
     prepare_args_for_connect,
     check_rhcd_journalctl_logs,
+    get_access_token_client_credentials,
 )
 import re
 
@@ -150,12 +151,18 @@ def test_connect_with_content_template(external_candlepin, rhc, test_config, aut
         proxy_url = f"http://{proxy_host}:{proxy_port}"
         proxies = {"http": proxy_url, "https": proxy_url}
 
+    # Get template repositories by name using token based authentication
     template_name = test_config.get("rhc.template_name_el9")
+    sso_token_url = test_config.get("sso_token_url")
+    client_id = test_config.get("service_account.client_id")
+    client_secret = test_config.get("service_account.client_secret")
     template_repos = get_template_repos_by_name(
         template_name,
-        test_config.get("candlepin.username"),
-        test_config.get("candlepin.password"),
         test_config.get("rhc.template_url"),
+        sso_token_url,
+        client_id,
+        client_secret,
+        scope="openid api.iam.service_accounts",
         proxies=proxies,
     )
 
@@ -256,32 +263,53 @@ def get_enabled_repo_names():
 
 
 def get_template_repos_by_name(
-    template_name, username, password, template_url, proxies=None
+    template_name,
+    template_url,
+    token_url,
+    client_id,
+    client_secret,
+    *,
+    scope="openid api.iam.service_accounts",
+    proxies=None,
 ):
     """
     Fetch a content template by name from Red Hat Console and return
     the set of repository names in its snapshots.
 
+    Uses token based authentication for the content-sources API.
+
     Args:
         template_name: Name of the content template to find
-        username: Username for authentication
-        password: Password for authentication
-        template_url: Base URL for the templates API
+        template_url: Base URL for the templates API (e.g. …/api/content-sources/v1.0/)
+        token_url: OpenID token endpoint (``sso_token_url`` in settings)
+        client_id: Service account client id (``service_account.client_id``)
+        client_secret: Client secret (``service_account.client_secret``)
+        scope: openid api.iam.service_accounts,
         proxies: Optional dict of proxies, e.g. {"http": "...", "https": "..."}
     """
+    access_token = get_access_token_client_credentials(
+        token_url,
+        client_id,
+        client_secret,
+        scope=scope,
+        proxies=proxies,
+    )
+    api_headers = {
+        "accept": "application/json",
+        "Authorization": f"Bearer {access_token}",
+    }
+
     client = RestClient(base_url=template_url, verify=True, proxies=proxies)
 
     try:
         # Get all templates and find the one matching template_name
         response = client.get(
             "templates/",
-            auth=(username, password),
-            headers={"accept": "application/json"},
+            headers=api_headers,
         )
 
         templates_data = response.json()
 
-        # Handle the API response structure: {"data": [...]}
         if isinstance(templates_data, dict) and "data" in templates_data:
             templates = templates_data["data"]
         elif isinstance(templates_data, list):
@@ -297,8 +325,7 @@ def get_template_repos_by_name(
                 # Fetch template details by ID
                 detail_resp = client.get(
                     f"templates/{template_id}",
-                    auth=(username, password),
-                    headers={"accept": "application/json"},
+                    headers=api_headers,
                 )
                 template_details = detail_resp.json()
 
