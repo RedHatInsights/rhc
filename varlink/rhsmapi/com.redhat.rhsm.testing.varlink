@@ -1,0 +1,28 @@
+# Testing interface for the main RHSM API
+interface com.redhat.rhsm.testing
+
+type Metadata (
+    # The user agent string (e.g. "rhc/5.4.3")
+    user_agent: ?string,
+    # The correlation id
+    correlation_id: ?string,
+    # The locale string (e.g. en_US.UTF-8)
+    locale: ?string
+)
+
+# Error returned, when it is not possible to initialize the client
+error InvalidClientConnection(message: string)
+
+# Generic error related to the server response, when the server is not available
+# or the server response the exit code that is not successful
+error FailedServerResponse(message: string)
+
+# Check if the candlepin server is available
+method Ping(
+    metadata: ?Metadata
+) -> (
+    status: object
+)
+
+# Method returns true, when system is registered. Otherwise, it returns false.
+method IsRegistered() -> (registered: bool)

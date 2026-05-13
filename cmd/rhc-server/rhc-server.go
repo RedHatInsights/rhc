@@ -1,32 +1,92 @@
 package main
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 
+	"github.com/jirihnidek/rhsm2"
 	"github.com/redhatinsights/rhc/internal/collector"
 	"github.com/redhatinsights/rhc/varlink/collectorapi"
 	"github.com/redhatinsights/rhc/varlink/internalapi"
+	"github.com/redhatinsights/rhc/varlink/rhsmapi"
 )
 
-// Backend implements the internal API backend.
-type Backend struct{}
+var (
+	// Version is set at build time.
+	Version = "dev"
+)
 
-// NewBackend creates a new backend instance.
-func NewBackend() *Backend {
-	return &Backend{}
+type RhsmBackend struct{}
+
+func NewRhsmBackend() *RhsmBackend {
+	return &RhsmBackend{}
+}
+
+// Ping checks the status of the RHSM server.
+func (b *RhsmBackend) Ping(in *rhsmapi.PingIn) (*rhsmapi.PingOut, error) {
+	var rhsmServerStatus *rhsm2.RHSMStatus
+	var err error
+	if in.Metadata != nil {
+		rhsmServerStatus, err = GetStatus(
+			in.Metadata.UserAgent,
+			in.Metadata.Locale,
+			in.Metadata.CorrelationId,
+		)
+	} else {
+		rhsmServerStatus, err = GetStatus(nil, nil, nil)
+	}
+	if err != nil {
+		var typeClientErr *ClientError
+		var typeServerErr *ServerError
+		switch {
+		case errors.As(err, &typeClientErr):
+			return nil, &rhsmapi.InvalidClientConnectionError{Message: typeClientErr.Message}
+		case errors.As(err, &typeServerErr):
+			return nil, &rhsmapi.FailedServerResponseError{Message: typeServerErr.Message}
+		default:
+			slog.Error("Failed to get RHSM status", "error", err)
+			return nil, err
+		}
+	}
+	status, err := json.Marshal(rhsmServerStatus)
+	if err != nil {
+		return nil, &rhsmapi.FailedServerResponseError{Message: err.Error()}
+	}
+	return &rhsmapi.PingOut{Status: status}, nil
+}
+
+// IsRegistered checks if the system is registered with RHSM.
+func (b *RhsmBackend) IsRegistered(in *rhsmapi.IsRegisteredIn) (*rhsmapi.IsRegisteredOut, error) {
+	registered, err := IsSystemRegistered()
+	if err != nil {
+		// When it is not possible to determine registration status, then log the reason
+		// and return false
+		slog.Debug("Failed to determine registration status", "error", err)
+		return &rhsmapi.IsRegisteredOut{Registered: false}, nil
+	}
+	return &rhsmapi.IsRegisteredOut{Registered: registered}, nil
+}
+
+// RhcBackend implements the internal API backend.
+type RhcBackend struct{}
+
+// NewRhcBackend creates a new backend instance.
+func NewRhcBackend() *RhcBackend {
+	return &RhcBackend{}
 }
 
 // Test implements the Test method of the internal API.
 // Simply echoes back the input with a prefix.
-func (b *Backend) Test(in *internalapi.TestIn) (*internalapi.TestOut, error) {
+func (b *RhcBackend) Test(in *internalapi.TestIn) (*internalapi.TestOut, error) {
 	output := fmt.Sprintf("Echo from rhc-server: %s", in.Input)
 	return &internalapi.TestOut{Output: output}, nil
 }
 
 // List implements the List method of the collector API.
 // Returns a list of all available collectors with full details.
-func (b *Backend) List(_ *collectorapi.ListIn) (*collectorapi.ListOut, error) {
+func (b *RhcBackend) List(_ *collectorapi.ListIn) (*collectorapi.ListOut, error) {
 	// Get list of collector IDs
 	collectorIDs, err := collector.GetCollectors()
 	if err != nil {
@@ -49,7 +109,7 @@ func (b *Backend) List(_ *collectorapi.ListIn) (*collectorapi.ListOut, error) {
 
 // Info implements the Info method of the collector API.
 // Returns detailed information about a specific collector including timing and configuration.
-func (b *Backend) Info(in *collectorapi.InfoIn) (*collectorapi.InfoOut, error) {
+func (b *RhcBackend) Info(in *collectorapi.InfoIn) (*collectorapi.InfoOut, error) {
 	// Validate input parameter
 	if _, err := collector.ValidateID(in.Id); err != nil {
 		return nil, &collectorapi.InvalidParameterError{

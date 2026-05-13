@@ -13,6 +13,7 @@ import (
 
 	"github.com/coreos/go-systemd/v22/activation"
 	govarlink "github.com/emersion/go-varlink"
+	"github.com/redhatinsights/rhc/varlink/rhsmapi"
 
 	"github.com/redhatinsights/rhc/internal/util"
 	"github.com/redhatinsights/rhc/pkg/exitcode"
@@ -22,7 +23,8 @@ import (
 )
 
 const (
-	socketPath     = "/run/rhc/com.redhat.rhc"
+	rhcSocketPath  = "/run/rhc/com.redhat.rhc"
+	rhsmSocketPath = "/run/rhsm/com.redhat.rhsm"
 	pidFilePath    = "/run/rhc/rhc-server.pid"
 	socketDirPerms = 0755
 	socketPerms    = 0660
@@ -36,6 +38,7 @@ const (
 func main() {
 	// Acquire PID lock to ensure at most one instance runs at any given time
 	cleanup, err := acquirePIDLock()
+	slog.SetLogLoggerLevel(slog.LevelDebug)
 	if err != nil {
 		slog.Error("Failed to acquire PID lock", "error", err)
 		os.Exit(exitcode.Err)
@@ -49,35 +52,50 @@ func main() {
 }
 
 func run() error {
-	backend := NewBackend()
-	registry := govarlink.NewRegistry(&govarlink.RegistryOptions{
+	rhcBackend := NewRhcBackend()
+	rhsmBackend := NewRhsmBackend()
+	rhcRegistry := govarlink.NewRegistry(&govarlink.RegistryOptions{
+		Vendor:  "Red Hat",
+		Product: "rhc",
+		Version: version.Version,
+		URL:     "https://github.com/redhatinsights/rhc",
+	})
+	rhsmRegistry := govarlink.NewRegistry(&govarlink.RegistryOptions{
 		Vendor:  "Red Hat",
 		Product: "rhc",
 		Version: version.Version,
 		URL:     "https://github.com/redhatinsights/rhc",
 	})
 
-	internalHandler := internalapi.Handler{Backend: backend}
-	internalHandler.Register(registry)
+	rhsmHandler := rhsmapi.Handler{Backend: rhsmBackend}
+	rhsmHandler.Register(rhsmRegistry)
 
-	collectorHandler := collectorapi.Handler{Backend: backend}
-	collectorHandler.Register(registry)
+	internalHandler := internalapi.Handler{Backend: rhcBackend}
+	internalHandler.Register(rhcRegistry)
 
-	varlinkServer := &govarlink.Server{Handler: registry}
+	collectorHandler := collectorapi.Handler{Backend: rhcBackend}
+	collectorHandler.Register(rhcRegistry)
+
+	rhcVarlinkServer := &govarlink.Server{Handler: rhcRegistry}
+	rhsmVarlinkServer := &govarlink.Server{Handler: rhsmRegistry}
 
 	// Try to get listener from systemd socket activation first
-	listener, err := getListener()
+	listeners, err := getListeners()
 	if err != nil {
 		return fmt.Errorf("failed to get listener: %w", err)
 	}
 	defer func() {
-		if err := listener.Close(); err != nil {
-			slog.Error("Error closing listener", "error", err)
+		for _, listener := range listeners {
+			if err := listener.Close(); err != nil {
+				slog.Error("Error closing listener", "error", err)
+			}
 		}
 	}()
 
-	slog.Info("rhc-server starting", "version", version.Version)
-	slog.Info("Listening on socket", "address", listener.Addr())
+	slog.Info("rhc-server starting", "version", Version)
+	for _, listener := range listeners {
+		slog.Info("Listening on socket", "address", listener.Addr())
+	}
 
 	// Set up a graceful shutdown
 	_, cancel := context.WithCancel(context.Background())
@@ -88,16 +106,24 @@ func run() error {
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
 	// Run the server in a goroutine so we can handle signals concurrently
-	errChan := make(chan error, errorChanBuffer)
+	errRhcChan := make(chan error, errorChanBuffer)
 	go func() {
-		errChan <- varlinkServer.Serve(listener)
+		errRhcChan <- rhcVarlinkServer.Serve(listeners["com.redhat.rhc"])
+	}()
+	errRhsmChan := make(chan error, errorChanBuffer)
+	go func() {
+		errRhsmChan <- rhsmVarlinkServer.Serve(listeners["com.redhat.rhsm"])
 	}()
 
 	// Block until either:
 	// - The server encounters an error (errChan)
 	// - We receive a shutdown signal (sigChan)
 	select {
-	case err := <-errChan:
+	case err := <-errRhcChan:
+		if err != nil {
+			return fmt.Errorf("%w", err)
+		}
+	case err := <-errRhsmChan:
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
@@ -183,48 +209,86 @@ func acquirePIDLock() (func(), error) {
 	return cleanup, nil
 }
 
-// getListener attempts to get a listener via systemd socket activation and falls back
+// getListeners attempts to get a listener via systemd socket activation and falls back
 // to a unix socket if executed on its own.
-func getListener() (net.Listener, error) {
+func getListeners() (map[string]net.Listener, error) {
 	// Try systemd socket activation first
-	listener, err := getSocketActivatedListener()
+	listeners, err := getSocketActivatedListener()
 	if err != nil {
 		return nil, err
 	}
-	if listener != nil {
-		return listener, nil
+	if listeners != nil {
+		return listeners, nil
 	}
+
+	listeners = make(map[string]net.Listener)
 
 	// Fall back to creating our own unix socket
-	return getUnixSocketListener(socketPath)
+	rhcListener, err := getUnixSocketListener(rhcSocketPath)
+	if err != nil {
+		return nil, err
+	}
+	listeners["com.redhat.rhc"] = rhcListener
+
+	rhsmListener, err := getUnixSocketListener(rhsmSocketPath)
+	if err != nil {
+		return nil, err
+	}
+	listeners["com.redhat.rhsm"] = rhsmListener
+
+	return listeners, nil
 }
 
-// getSocketActivatedListener attempts to get a listener via systemd socket activation.
-func getSocketActivatedListener() (net.Listener, error) {
-	listeners, err := activation.ListenersWithNames()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get systemd listeners: %w", err)
-	}
-
-	if len(listeners) == 0 {
-		slog.Debug("Unable to find systemd listeners")
-		return nil, nil // No systemd socket available
-	}
-
-	// Look for the socket named "varlink" as per varlink spec
-	if varlinkListeners, ok := listeners["varlink"]; ok && len(varlinkListeners) > 0 {
+// getVarlinkListener retrieves a unix socket listener from the specified name group in the provided listeners map.
+func getVarlinkListener(listeners map[string][]net.Listener, name string) (net.Listener, error) {
+	if varlinkListeners, ok := listeners[name]; ok && len(varlinkListeners) > 0 {
 		for _, listener := range varlinkListeners {
 			if listener.Addr().Network() == "unix" {
 				slog.Info("Using systemd socket activation", "address", listener.Addr(), "name", "varlink")
 				return listener, nil
 			}
-			slog.Warn("Skipping non-unix listener found in varlink group", "network", listener.Addr().Network())
+			slog.Warn(fmt.Sprintf("Skipping non-unix listener found in '%s' group network %s",
+				name, listener.Addr().Network()))
 			_ = listener.Close()
 		}
-		return nil, fmt.Errorf("no unix socket found within 'varlink' listeners")
+		return nil, fmt.Errorf("no unix socket found within '%s' listeners", name)
 	}
 
-	return nil, fmt.Errorf("no socket named 'varlink' found in systemd listeners")
+	return nil, fmt.Errorf("no socket named '%s' found in systemd listeners", name)
+}
+
+// getSocketActivatedListener attempts to get a listener via systemd socket activation.
+func getSocketActivatedListener() (map[string]net.Listener, error) {
+	listeners, err := activation.ListenersWithNames()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get systemd listeners: %w", err)
+	}
+
+	listenersNum := len(listeners)
+	if listenersNum == 0 {
+		slog.Warn("Unable to find systemd listeners")
+		return nil, nil // No systemd socket available
+	}
+
+	slog.Debug(fmt.Sprintf("Found %d systemd listeners, attempting to get varlink listeners", listenersNum))
+
+	_listeners := make(map[string]net.Listener)
+
+	// Look for the socket named "com.redhat.rhc"
+	rhcListener, err := getVarlinkListener(listeners, "com.redhat.rhc")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get varlink listener: %w", err)
+	}
+	_listeners["com.redhat.rhc"] = rhcListener
+
+	// Look for the socket named "com.redhat.rhsm"
+	rhsmListener, err := getVarlinkListener(listeners, "com.redhat.rhsm")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get varlink listener: %w", err)
+	}
+	_listeners["com.redhat.rhsm"] = rhsmListener
+
+	return _listeners, nil
 }
 
 // ensureSocketDirectory creates the directory for the socket if it doesn't exist.

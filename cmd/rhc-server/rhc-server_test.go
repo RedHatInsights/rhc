@@ -9,7 +9,7 @@ import (
 )
 
 func TestNewBackend(t *testing.T) {
-	backend := NewBackend()
+	backend := NewRhcBackend()
 
 	if backend == nil {
 		t.Fatal("NewBackend() returned nil")
@@ -78,7 +78,7 @@ func TestBackend_Test(t *testing.T) {
 		},
 	}
 
-	backend := NewBackend()
+	backend := NewRhcBackend()
 
 	for _, test := range tests {
 		t.Run(test.description, func(t *testing.T) {

@@ -77,6 +77,7 @@ install -m 0755 -vd                     %{buildroot}%{_unitdir}
 install -m 0644 -vp data/systemd/rhc-canonical-facts.*  %{buildroot}%{_unitdir}/
 install -m 0644 -vp data/systemd/rhc-server.service  %{buildroot}%{_unitdir}/
 install -m 0644 -vp data/systemd/rhc-server.socket   %{buildroot}%{_unitdir}/
+install -m 0644 -vp data/systemd/rhsm-server.socket   %{buildroot}%{_unitdir}/
 install -m 0755 -vd %{buildroot}%{_prefix}/lib/systemd/system-preset/
 install -m 0644 -vp data/systemd/presets/50-rhc.preset %{buildroot}%{_prefix}/lib/systemd/system-preset/
 # Configuration
@@ -96,6 +97,7 @@ install -m 0644 -vp %{buildroot}%{_unitdir}/yggdrasil.service.d/rhcd.conf %{buil
 %post
 %systemd_post rhc-canonical-facts.timer
 %systemd_post rhc-server.socket
+%systemd_post rhsm-server.socket
 %if 0%{?with_rhcd_compat}
 # On package update, ensure yggdrasil (formerly rhcd) has its own configuration file
 if [ $1 -eq 2 ] && [ ! -f /etc/yggdrasil/config.toml ]; then
@@ -108,7 +110,9 @@ fi
 
 %preun
 %systemd_preun rhc-canonical-facts.timer
-%systemd_preun rhc-server.socket rhc-server.service
+%systemd_preun rhc-server.service
+%systemd_preun rhc-server.socket
+%systemd_preun rhsm-server.socket
 
 %postun
 %systemd_postun_with_restart rhc-canonical-facts.timer
@@ -127,6 +131,7 @@ fi
 %{_unitdir}/rhc-canonical-facts.*
 %{_unitdir}/rhc-server.service
 %{_unitdir}/rhc-server.socket
+%{_unitdir}/rhsm-server.socket
 %{_prefix}/lib/systemd/system-preset/50-rhc.preset
 # Configuration
 %{_sysconfdir}/%{name}/

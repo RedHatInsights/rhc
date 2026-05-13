@@ -1,1 +1,2 @@
 enable rhc-server.socket
+enable rhsm-server.socket

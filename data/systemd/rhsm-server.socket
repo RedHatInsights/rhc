@@ -3,9 +3,10 @@ Description=rhc server socket
 Documentation=https://github.com/RedHatInsights/rhc
 
 [Socket]
-ListenStream=/run/rhc/com.redhat.rhc
-FileDescriptorName=com.redhat.rhc
+ListenStream=/run/rhsm/com.redhat.rhsm
+FileDescriptorName=com.redhat.rhsm
 SocketMode=0660
+Service=rhc-server.service
 
 [Install]
 WantedBy=sockets.target
