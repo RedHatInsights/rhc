@@ -8,6 +8,7 @@ import (
 
 	"github.com/redhatinsights/rhc/internal/collector"
 	httpapi "github.com/redhatinsights/rhc/internal/http"
+	"github.com/redhatinsights/rhc/pkg/exitcode"
 	"github.com/redhatinsights/rhc/pkg/version"
 )
 
@@ -22,13 +23,13 @@ const (
 func main() {
 	if len(os.Args) <= 2 {
 		slog.Error("usage: rhc-collector COLLECTOR-ID COMMAND")
-		os.Exit(ExitCodeUsage)
+		os.Exit(exitcode.Usage)
 	}
 	collectorId, command := os.Args[1], os.Args[2]
 	slog.Info("starting rhc-collector", slog.String("id", collectorId))
 	if err := run(collectorId, command); err != nil {
 		slog.Error("rhc-collector exited with error", "error", err)
-		os.Exit(ExitCodeErr)
+		os.Exit(exitcode.Err)
 	}
 }
 

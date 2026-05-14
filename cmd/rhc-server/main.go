@@ -15,6 +15,7 @@ import (
 	govarlink "github.com/emersion/go-varlink"
 
 	"github.com/redhatinsights/rhc/internal/util"
+	"github.com/redhatinsights/rhc/pkg/exitcode"
 	"github.com/redhatinsights/rhc/pkg/version"
 	"github.com/redhatinsights/rhc/varlink/collectorapi"
 	"github.com/redhatinsights/rhc/varlink/internalapi"
@@ -37,13 +38,13 @@ func main() {
 	cleanup, err := acquirePIDLock()
 	if err != nil {
 		slog.Error("Failed to acquire PID lock", "error", err)
-		os.Exit(ExitCodeErr)
+		os.Exit(exitcode.Err)
 	}
 	defer cleanup()
 
 	if err := run(); err != nil {
 		slog.Error("rhc-server error", "error", err)
-		os.Exit(ExitCodeErr)
+		os.Exit(exitcode.Err)
 	}
 }
 

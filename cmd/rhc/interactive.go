@@ -11,6 +11,7 @@ import (
 
 	"github.com/redhatinsights/rhc/internal/conf"
 	"github.com/redhatinsights/rhc/internal/ui"
+	"github.com/redhatinsights/rhc/pkg/exitcode"
 )
 
 // showTimeDuration shows a table with the duration of each sub-action
@@ -47,5 +48,5 @@ func showErrorMessages(action string, errorMessages map[string]string) error {
 		fmt.Printf("Please see %s for full details.\n", logFile.Name())
 	}
 
-	return cli.Exit("", ExitCodeErr)
+	return cli.Exit("", exitcode.Err)
 }

@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/godbus/dbus/v5"
-	"github.com/redhatinsights/rhc/internal/rhsm"
 	"github.com/urfave/cli/v2"
 
 	"github.com/briandowns/spinner"
@@ -18,7 +17,9 @@ import (
 
 	"github.com/redhatinsights/rhc/internal/datacollection"
 	"github.com/redhatinsights/rhc/internal/localization"
+	"github.com/redhatinsights/rhc/internal/rhsm"
 	"github.com/redhatinsights/rhc/internal/ui"
+	"github.com/redhatinsights/rhc/pkg/exitcode"
 )
 
 // rhsmStatus tries to print status provided by RHSM D-Bus API. If we provide
@@ -273,11 +274,11 @@ func statusAction(ctx *cli.Context) (err error) {
 			if err != nil {
 				err = cli.Exit(
 					fmt.Errorf("unable to print status as %s document: %s", format, err.Error()),
-					ExitCodeErr)
+					exitcode.IOErr)
 			}
-			// When any of status is not correct, then return ExitCodeErr exit code
+			// When any of status is not correct, then return exitcode.Err exit code
 			if systemStatus.returnCode != 0 {
-				err = cli.Exit("", ExitCodeErr)
+				err = cli.Exit("", exitcode.Err)
 			}
 		}(&systemStatus)
 	}
@@ -287,7 +288,7 @@ func statusAction(ctx *cli.Context) (err error) {
 		if ui.IsOutputMachineReadable() {
 			systemStatus.HostnameError = err.Error()
 		} else {
-			return cli.Exit(err, ExitCodeErr)
+			return cli.Exit(err, exitcode.Err)
 		}
 	}
 
@@ -344,9 +345,9 @@ func statusAction(ctx *cli.Context) (err error) {
 	ui.Printf("\nManage your connected systems: https://red.ht/connector\n")
 
 	// At the end check if all statuses are correct.
-	// If not, return ExitCodeErr exit code without any message.
+	// If not, return exitcode.Err exit code without any message.
 	if systemStatus.returnCode != 0 {
-		return cli.Exit("", ExitCodeErr)
+		return cli.Exit("", exitcode.Err)
 	}
 
 	return nil

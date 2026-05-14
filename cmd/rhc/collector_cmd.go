@@ -12,6 +12,7 @@ import (
 
 	"github.com/redhatinsights/rhc/internal/collector"
 	"github.com/redhatinsights/rhc/internal/ui"
+	"github.com/redhatinsights/rhc/pkg/exitcode"
 	"github.com/redhatinsights/rhc/varlink/collectorapi"
 )
 
@@ -45,12 +46,12 @@ func collectorInfoAction(ctx *cli.Context) error {
 	logCommandStart(ctx)
 	client, cleanup, err := newCollectorClient()
 	if err != nil {
-		return cli.Exit(fmt.Sprintf("failed to connect to rhc-server: %v", err), ExitCodeErr)
+		return cli.Exit(fmt.Sprintf("failed to connect to rhc-server: %v", err), exitcode.Unavailable)
 	}
 	defer cleanup()
 	response, err := client.Info(&collectorapi.InfoIn{Id: ctx.Args().First()})
 	if err != nil {
-		return cli.Exit(fmt.Sprintf("failed to get collector info: %v", err), ExitCodeErr)
+		return cli.Exit(fmt.Sprintf("failed to get collector info: %v", err), exitcode.Err)
 	}
 	ui.PrintCollectorInfo(&response.Info)
 	return nil
@@ -67,13 +68,13 @@ func collectorListAction(ctx *cli.Context) error {
 
 	client, cleanup, err := newCollectorClient()
 	if err != nil {
-		return cli.Exit(fmt.Sprintf("failed to connect to rhc-server: %v", err), ExitCodeErr)
+		return cli.Exit(fmt.Sprintf("failed to connect to rhc-server: %v", err), exitcode.Unavailable)
 	}
 	defer cleanup()
 
 	response, err := client.List(&collectorapi.ListIn{})
 	if err != nil {
-		return cli.Exit(fmt.Sprintf("failed to list collectors: %v", err), ExitCodeErr)
+		return cli.Exit(fmt.Sprintf("failed to list collectors: %v", err), exitcode.Err)
 	}
 
 	if ui.IsOutputMachineReadable() {
@@ -83,7 +84,7 @@ func collectorListAction(ctx *cli.Context) error {
 		}
 		jsonData, err := json.Marshal(response.Collectors)
 		if err != nil {
-			return cli.Exit(fmt.Sprintf("failed to marshal collectors: %v", err), ExitCodeErr)
+			return cli.Exit(fmt.Sprintf("failed to marshal collectors: %v", err), exitcode.Err)
 		}
 		fmt.Println(string(jsonData))
 		return nil
@@ -110,13 +111,13 @@ func collectorTimersAction(ctx *cli.Context) error {
 
 	client, cleanup, err := newCollectorClient()
 	if err != nil {
-		return cli.Exit(fmt.Sprintf("failed to connect to rhc-server: %v", err), ExitCodeErr)
+		return cli.Exit(fmt.Sprintf("failed to connect to rhc-server: %v", err), exitcode.Unavailable)
 	}
 	defer cleanup()
 
 	response, err := client.List(&collectorapi.ListIn{})
 	if err != nil {
-		return cli.Exit(fmt.Sprintf("failed to list collectors: %v", err), ExitCodeErr)
+		return cli.Exit(fmt.Sprintf("failed to list collectors: %v", err), exitcode.Err)
 	}
 
 	var infos []*collectorapi.CollectorInfo
@@ -140,23 +141,23 @@ func collectorEnableAction(ctx *cli.Context) error {
 	nowFlag := ctx.Bool("now")
 	conn, timerName, err := collector.ValidateCollectorAndConnect(collectorId)
 	if err != nil {
-		return cli.Exit(fmt.Sprintf("%v", err), ExitCodeErr)
+		return cli.Exit(fmt.Sprintf("%v", err), exitcode.Err)
 	}
 	defer conn.Close()
 
 	err = conn.EnableUnit(timerName, true, false)
 	if err != nil {
 		if strings.Contains(fmt.Sprintf("%v", err), "does not exist") {
-			return cli.Exit(fmt.Sprintf("timer unit %s does not exist, collector systemd units need to be installed first", timerName), ExitCodeErr)
+			return cli.Exit(fmt.Sprintf("timer unit %s does not exist, collector systemd units need to be installed first", timerName), exitcode.OSFile)
 		}
-		return cli.Exit(fmt.Sprintf("failed to enable timer %s: %v", timerName, err), ExitCodeErr)
+		return cli.Exit(fmt.Sprintf("failed to enable timer %s: %v", timerName, err), exitcode.OSFile)
 	}
 
 	if nowFlag {
 		serviceName := strings.Replace(timerName, ".timer", ".service", 1)
 		err = conn.StartUnit(serviceName, false)
 		if err != nil {
-			return cli.Exit(fmt.Sprintf("failed to start service %s: %v", serviceName, err), ExitCodeErr)
+			return cli.Exit(fmt.Sprintf("failed to start service %s: %v", serviceName, err), exitcode.OSFile)
 		}
 		ui.Printf("Enabled timer %s and triggered immediate collection.\n", timerName)
 	} else {
@@ -177,7 +178,7 @@ func collectorDisableAction(ctx *cli.Context) error {
 	nowFlag := ctx.Bool("now")
 	conn, timerName, err := collector.ValidateCollectorAndConnect(collectorId)
 	if err != nil {
-		return cli.Exit(fmt.Sprintf("%v", err), ExitCodeErr)
+		return cli.Exit(fmt.Sprintf("%v", err), exitcode.Err)
 	}
 	defer conn.Close()
 
@@ -185,16 +186,16 @@ func collectorDisableAction(ctx *cli.Context) error {
 		serviceName := strings.Replace(timerName, ".timer", ".service", 1)
 		err = conn.StopUnit(serviceName, false)
 		if err != nil {
-			return cli.Exit(fmt.Sprintf("failed to stop service %s: %v", serviceName, err), ExitCodeErr)
+			return cli.Exit(fmt.Sprintf("failed to stop service %s: %v", serviceName, err), exitcode.OSFile)
 		}
 	}
 
 	err = conn.DisableUnit(timerName, true, false)
 	if err != nil {
 		if strings.Contains(fmt.Sprintf("%v", err), "does not exist") {
-			return cli.Exit(fmt.Sprintf("timer unit %s does not exist. Collector systemd units need to be installed first.", timerName), ExitCodeErr)
+			return cli.Exit(fmt.Sprintf("timer unit %s does not exist. Collector systemd units need to be installed first.", timerName), exitcode.OSFile)
 		}
-		return cli.Exit(fmt.Sprintf("failed to disable timer %s: %v", timerName, err), ExitCodeErr)
+		return cli.Exit(fmt.Sprintf("failed to disable timer %s: %v", timerName, err), exitcode.OSFile)
 	}
 
 	if nowFlag {

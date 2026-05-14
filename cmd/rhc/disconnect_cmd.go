@@ -7,12 +7,13 @@ import (
 	"os"
 	"time"
 
-	"github.com/redhatinsights/rhc/internal/rhsm"
 	"github.com/urfave/cli/v2"
 
 	"github.com/redhatinsights/rhc/internal/datacollection"
 	"github.com/redhatinsights/rhc/internal/remotemanagement"
+	"github.com/redhatinsights/rhc/internal/rhsm"
 	"github.com/redhatinsights/rhc/internal/ui"
+	"github.com/redhatinsights/rhc/pkg/exitcode"
 )
 
 // DisconnectResult is structure holding information about result of
@@ -192,9 +193,9 @@ func disconnectAction(ctx *cli.Context) error {
 		if ui.IsOutputMachineReadable() {
 			disconnectResult.UID = uid
 			disconnectResult.UIDError = errMsg
-			return cli.Exit(disconnectResult, ExitCodeErr)
+			return cli.Exit(disconnectResult, exitcode.NoPerm)
 		} else {
-			return cli.Exit(fmt.Errorf("%s", errMsg), ExitCodeErr)
+			return cli.Exit(fmt.Errorf("%s", errMsg), exitcode.NoPerm)
 		}
 	}
 
@@ -204,9 +205,9 @@ func disconnectAction(ctx *cli.Context) error {
 		slog.Error("error retrieving system hostname", "err", err)
 		if ui.IsOutputMachineReadable() {
 			disconnectResult.HostnameError = err.Error()
-			return cli.Exit(disconnectResult, ExitCodeErr)
+			return cli.Exit(disconnectResult, exitcode.Err)
 		} else {
-			return cli.Exit(err, ExitCodeErr)
+			return cli.Exit(err, exitcode.Err)
 		}
 	}
 

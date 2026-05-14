@@ -18,13 +18,11 @@ import (
 
 	"github.com/redhatinsights/rhc/internal/localization"
 	"github.com/redhatinsights/rhc/internal/ui"
+	"github.com/redhatinsights/rhc/pkg/exitcode"
 )
 
 const (
 	EnvTypeContentTemplate = "content-template"
-
-	// Exit codes
-	ExitCodeErr = 1 // generic error
 )
 
 func GetConsumerUUID() (string, error) {
@@ -366,7 +364,7 @@ func UnpackDBusError(err error) error {
 func RegisterRHSM(ctx *cli.Context, enableContent bool) (string, error) {
 	uuid, err := GetConsumerUUID()
 	if err != nil {
-		return "unable to get consumer UUID", cli.Exit(err, ExitCodeErr)
+		return "unable to get consumer UUID", cli.Exit(err, exitcode.Err)
 	}
 	var successMsg string
 
@@ -389,7 +387,7 @@ func RegisterRHSM(ctx *cli.Context, enableContent bool) (string, error) {
 				fmt.Print("Password: ")
 				data, err := term.ReadPassword(int(os.Stdin.Fd()))
 				if err != nil {
-					return "unable to read password", cli.Exit(err, ExitCodeErr)
+					return "unable to read password", cli.Exit(err, exitcode.IOErr)
 				}
 				password = string(data)
 				fmt.Printf("\n\n")
@@ -425,7 +423,7 @@ func RegisterRHSM(ctx *cli.Context, enableContent bool) (string, error) {
 				   the organization. */
 				if len(orgs) > 0 {
 					if ui.IsOutputMachineReadable() {
-						return "unable to register system to RHSM", cli.Exit("no organization specified", ExitCodeErr)
+						return "unable to register system to RHSM", cli.Exit("no organization specified", exitcode.Err)
 					}
 					// Stop spinner to be able to display message and ask for organization
 					if ui.IsOutputRich() {
@@ -460,7 +458,7 @@ func RegisterRHSM(ctx *cli.Context, enableContent bool) (string, error) {
 			}
 		}
 		if err != nil {
-			return "unable to register system to RHSM", cli.Exit(err, ExitCodeErr)
+			return "unable to register system to RHSM", cli.Exit(err, exitcode.Err)
 		}
 		successMsg = "Connected to Red Hat Subscription Management"
 	} else {
