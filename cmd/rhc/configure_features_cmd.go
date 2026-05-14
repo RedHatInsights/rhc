@@ -9,6 +9,7 @@ import (
 	"github.com/urfave/cli/v2"
 
 	"github.com/redhatinsights/rhc/internal/rhsm"
+	"github.com/redhatinsights/rhc/pkg/exitcode"
 	"github.com/redhatinsights/rhc/pkg/feature"
 	"github.com/redhatinsights/rhc/pkg/feature/prefcache"
 )
@@ -57,7 +58,7 @@ func featuresStatusActionNotRegistered(_ *cli.Context) error {
 		icon := "enable"
 		enabled, err := cache.Get(f.ID())
 		if err != nil {
-			return cli.Exit(fmt.Sprintf("failed to get feature preference: %v", err), ExitCodeSoftware)
+			return cli.Exit(fmt.Sprintf("failed to get feature preference: %v", err), exitcode.Software)
 		}
 		if !enabled {
 			icon = "skip"
@@ -96,10 +97,10 @@ func beforeFeaturesEnableAction(ctx *cli.Context) error {
 	configureUI(ctx)
 
 	if ctx.Args().Len() != 1 {
-		return cli.Exit("this command requires a single FEATURE argument", ExitCodeUsage)
+		return cli.Exit("this command requires a single FEATURE argument", exitcode.Usage)
 	}
 	if _, err = feature.Get(ctx.Args().First()); err != nil {
-		return cli.Exit(err.Error(), ExitCodeDataErr)
+		return cli.Exit(err.Error(), exitcode.DataErr)
 	}
 	return nil
 }
@@ -109,7 +110,7 @@ func featuresEnableAction(ctx *cli.Context) error {
 	logCommandStart(ctx)
 	isRegistered, err := rhsm.IsRHSMRegistered()
 	if err != nil {
-		return cli.Exit(fmt.Sprintf("failed to check registration status: %v", err), ExitCodeSoftware)
+		return cli.Exit(fmt.Sprintf("failed to check registration status: %v", err), exitcode.Software)
 	}
 
 	requestedFeature := ctx.Args().First()
@@ -123,7 +124,7 @@ func featuresEnableAction(ctx *cli.Context) error {
 func featuresEnableActionNotRegistered(_ *cli.Context, targetName string) error {
 	cache, err := prefcache.LoadCache(ConnectFeaturesPrefsPath)
 	if err != nil {
-		return cli.Exit(fmt.Sprintf("failed to load feature preferences: %v", err), ExitCodeSoftware)
+		return cli.Exit(fmt.Sprintf("failed to load feature preferences: %v", err), exitcode.Software)
 	}
 
 	target := feature.MustGet(targetName)
@@ -132,12 +133,12 @@ func featuresEnableActionNotRegistered(_ *cli.Context, targetName string) error 
 	for _, requiredName := range target.Requires() {
 		enabled, err := cache.Get(requiredName)
 		if err != nil {
-			return cli.Exit(fmt.Sprintf("failed to get feature preference: %v", err), ExitCodeSoftware)
+			return cli.Exit(fmt.Sprintf("failed to get feature preference: %v", err), exitcode.Software)
 		}
 		if !enabled {
 			fmt.Printf("During registration, '%s' will be enabled (required by '%s').\n", requiredName, targetName)
 			if err = cache.Set(requiredName, true); err != nil {
-				return cli.Exit(fmt.Sprintf("failed to update preference: %v", err), ExitCodeSoftware)
+				return cli.Exit(fmt.Sprintf("failed to update preference: %v", err), exitcode.Software)
 			}
 			slog.Debug("enabling feature", "name", requiredName)
 		}
@@ -146,19 +147,19 @@ func featuresEnableActionNotRegistered(_ *cli.Context, targetName string) error 
 	{
 		enabled, err := cache.Get(targetName)
 		if err != nil {
-			return cli.Exit(fmt.Sprintf("failed to get feature preference: %v", err), ExitCodeSoftware)
+			return cli.Exit(fmt.Sprintf("failed to get feature preference: %v", err), exitcode.Software)
 		}
 		if !enabled {
 			fmt.Printf("During registration, '%s' will be enabled.\n", targetName)
 			if err = cache.Set(targetName, true); err != nil {
-				return cli.Exit(fmt.Sprintf("failed to update preference: %v", err), ExitCodeSoftware)
+				return cli.Exit(fmt.Sprintf("failed to update preference: %v", err), exitcode.Software)
 			}
 			slog.Debug("enabling feature", "name", targetName)
 		}
 	}
 
 	if err = cache.Save(); err != nil {
-		return cli.Exit(fmt.Sprintf("failed to save feature preferences: %v", err), ExitCodeSoftware)
+		return cli.Exit(fmt.Sprintf("failed to save feature preferences: %v", err), exitcode.Software)
 	}
 	return nil
 }
@@ -172,14 +173,14 @@ func featuresEnableActionRegistered(_ *cli.Context, targetName string) error {
 		required := feature.MustGet(requiredName)
 		requiredEnabled, err := required.IsEnabled()
 		if err != nil {
-			return cli.Exit(fmt.Sprintf("failed to check status of required feature '%s': %v", requiredName, err), ExitCodeSoftware)
+			return cli.Exit(fmt.Sprintf("failed to check status of required feature '%s': %v", requiredName, err), exitcode.Software)
 		}
 		if requiredEnabled {
 			slog.Debug("feature is already enabled", "feature", requiredName)
 			continue
 		}
 		if err = required.Enable(); err != nil {
-			return cli.Exit(fmt.Sprintf("failed to enable required feature '%s': %v", requiredName, err), ExitCodeSoftware)
+			return cli.Exit(fmt.Sprintf("failed to enable required feature '%s': %v", requiredName, err), exitcode.Software)
 		}
 		fmt.Printf("Feature '%s' enabled (required by '%s').\n", requiredName, targetName)
 	}
@@ -187,14 +188,14 @@ func featuresEnableActionRegistered(_ *cli.Context, targetName string) error {
 	{
 		featureEnabled, err := target.IsEnabled()
 		if err != nil {
-			return cli.Exit(fmt.Sprintf("failed to check status of target feature '%s': %v", targetName, err), ExitCodeSoftware)
+			return cli.Exit(fmt.Sprintf("failed to check status of target feature '%s': %v", targetName, err), exitcode.Software)
 		}
 		if featureEnabled {
 			slog.Debug("feature is already enabled", "feature", targetName)
 			return nil
 		}
 		if err = target.Enable(); err != nil {
-			return cli.Exit(fmt.Sprintf("failed to enable target feature '%s': %v", targetName, err), ExitCodeSoftware)
+			return cli.Exit(fmt.Sprintf("failed to enable target feature '%s': %v", targetName, err), exitcode.Software)
 		}
 		fmt.Printf("Feature '%s' enabled.\n", targetName)
 	}
@@ -211,10 +212,10 @@ func beforeFeaturesDisableAction(ctx *cli.Context) error {
 	configureUI(ctx)
 
 	if ctx.Args().Len() != 1 {
-		return cli.Exit("this command requires a single FEATURE argument", ExitCodeUsage)
+		return cli.Exit("this command requires a single FEATURE argument", exitcode.Usage)
 	}
 	if _, err = feature.Get(ctx.Args().First()); err != nil {
-		return cli.Exit(err.Error(), ExitCodeDataErr)
+		return cli.Exit(err.Error(), exitcode.DataErr)
 	}
 	return nil
 }
@@ -224,7 +225,7 @@ func featuresDisableAction(ctx *cli.Context) error {
 	logCommandStart(ctx)
 	isRegistered, err := rhsm.IsRHSMRegistered()
 	if err != nil {
-		return cli.Exit(fmt.Sprintf("failed to check registration status: %v", err), ExitCodeSoftware)
+		return cli.Exit(fmt.Sprintf("failed to check registration status: %v", err), exitcode.Software)
 	}
 
 	requestedFeature := ctx.Args().First()
@@ -238,7 +239,7 @@ func featuresDisableAction(ctx *cli.Context) error {
 func featuresDisableActionNotRegistered(_ *cli.Context, targetName string) error {
 	cache, err := prefcache.LoadCache(ConnectFeaturesPrefsPath)
 	if err != nil {
-		return cli.Exit(fmt.Sprintf("failed to load feature preferences: %v", err), ExitCodeSoftware)
+		return cli.Exit(fmt.Sprintf("failed to load feature preferences: %v", err), exitcode.Software)
 	}
 
 	target := feature.MustGet(targetName)
@@ -247,12 +248,12 @@ func featuresDisableActionNotRegistered(_ *cli.Context, targetName string) error
 	for _, dependentName := range target.RequiredBy() {
 		enabled, err := cache.Get(dependentName)
 		if err != nil {
-			return cli.Exit(fmt.Sprintf("failed to get feature preference: %v", err), ExitCodeSoftware)
+			return cli.Exit(fmt.Sprintf("failed to get feature preference: %v", err), exitcode.Software)
 		}
 		if enabled {
 			fmt.Printf("During registration, '%s' will not be enabled (depends on '%s').\n", dependentName, targetName)
 			if err = cache.Set(dependentName, false); err != nil {
-				return cli.Exit(fmt.Sprintf("failed to update preference: %v", err), ExitCodeSoftware)
+				return cli.Exit(fmt.Sprintf("failed to update preference: %v", err), exitcode.Software)
 			}
 			slog.Debug("disabling feature", "name", dependentName)
 		}
@@ -261,19 +262,19 @@ func featuresDisableActionNotRegistered(_ *cli.Context, targetName string) error
 	{
 		enabled, err := cache.Get(targetName)
 		if err != nil {
-			return cli.Exit(fmt.Sprintf("failed to get feature preference: %v", err), ExitCodeSoftware)
+			return cli.Exit(fmt.Sprintf("failed to get feature preference: %v", err), exitcode.Software)
 		}
 		if enabled {
 			fmt.Printf("During registration, '%s' will not be enabled.\n", targetName)
 			if err = cache.Set(targetName, false); err != nil {
-				return cli.Exit(fmt.Sprintf("failed to update preference: %v", err), ExitCodeSoftware)
+				return cli.Exit(fmt.Sprintf("failed to update preference: %v", err), exitcode.Software)
 			}
 			slog.Debug("disabling feature", "name", targetName)
 		}
 	}
 
 	if err = cache.Save(); err != nil {
-		return cli.Exit(fmt.Sprintf("failed to save feature preferences: %v", err), ExitCodeSoftware)
+		return cli.Exit(fmt.Sprintf("failed to save feature preferences: %v", err), exitcode.Software)
 	}
 	return nil
 }
@@ -287,14 +288,14 @@ func featuresDisableActionRegistered(_ *cli.Context, targetName string) error {
 		dependent := feature.MustGet(dependentName)
 		dependentEnabled, err := dependent.IsEnabled()
 		if err != nil {
-			return cli.Exit(fmt.Sprintf("failed to check status of dependent feature '%s': %v", dependentName, err), ExitCodeSoftware)
+			return cli.Exit(fmt.Sprintf("failed to check status of dependent feature '%s': %v", dependentName, err), exitcode.Software)
 		}
 		if !dependentEnabled {
 			slog.Debug("feature is already disabled", "feature", dependentName)
 			continue
 		}
 		if err = dependent.Disable(); err != nil {
-			return cli.Exit(fmt.Sprintf("failed to disable dependent feature '%s': %v", dependentName, err), ExitCodeSoftware)
+			return cli.Exit(fmt.Sprintf("failed to disable dependent feature '%s': %v", dependentName, err), exitcode.Software)
 		}
 		fmt.Printf("Feature '%s' disabled (depends on '%s').\n", dependentName, targetName)
 	}
@@ -302,14 +303,14 @@ func featuresDisableActionRegistered(_ *cli.Context, targetName string) error {
 	{
 		featureEnabled, err := target.IsEnabled()
 		if err != nil {
-			return cli.Exit(fmt.Sprintf("failed to check status of target feature '%s': %v", targetName, err), ExitCodeSoftware)
+			return cli.Exit(fmt.Sprintf("failed to check status of target feature '%s': %v", targetName, err), exitcode.Software)
 		}
 		if !featureEnabled {
 			slog.Debug("feature is already disabled", "feature", targetName)
 			return nil
 		}
 		if err = target.Disable(); err != nil {
-			return cli.Exit(fmt.Sprintf("failed to disable target feature '%s': %v", targetName, err), ExitCodeSoftware)
+			return cli.Exit(fmt.Sprintf("failed to disable target feature '%s': %v", targetName, err), exitcode.Software)
 		}
 		fmt.Printf("Feature '%s' disabled.\n", targetName)
 	}

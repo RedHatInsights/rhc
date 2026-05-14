@@ -14,6 +14,7 @@ import (
 	"github.com/redhatinsights/rhc/internal/remotemanagement"
 	"github.com/redhatinsights/rhc/internal/rhsm"
 	"github.com/redhatinsights/rhc/internal/ui"
+	"github.com/redhatinsights/rhc/pkg/exitcode"
 	"github.com/redhatinsights/rhc/pkg/feature"
 	"github.com/redhatinsights/rhc/pkg/feature/prefcache"
 )
@@ -224,7 +225,7 @@ func beforeConnectAction(ctx *cli.Context) error {
 		ctx.StringSlice("disable-feature"),
 	)
 	if err != nil {
-		return cli.Exit(err.Error(), ExitCodeUsage)
+		return cli.Exit(err.Error(), exitcode.Usage)
 	}
 
 	// Do not continue if the host is already registered
@@ -233,12 +234,12 @@ func beforeConnectAction(ctx *cli.Context) error {
 	if err != nil {
 		return cli.Exit(
 			fmt.Sprintf("unable to get consumer UUID: %s", err),
-			ExitCodeSoftware,
+			exitcode.Software,
 		)
 	}
 	if uuid != "" {
 		slog.Info("Consumer UUID is set, system is already connected")
-		return cli.Exit("this system is already connected", ExitCodeUsage)
+		return cli.Exit("this system is already connected", exitcode.Usage)
 	}
 
 	username := ctx.String("username")
@@ -251,7 +252,7 @@ func beforeConnectAction(ctx *cli.Context) error {
 		if username != "" {
 			exitErr := cli.Exit(
 				"--username and --activation-key can not be used together",
-				ExitCodeUsage,
+				exitcode.Usage,
 			)
 			return exitErr
 
@@ -259,7 +260,7 @@ func beforeConnectAction(ctx *cli.Context) error {
 		if password != "" {
 			exitErr := cli.Exit(
 				"--password and --activation-key can not be used together",
-				ExitCodeUsage,
+				exitcode.Usage,
 			)
 			return exitErr
 
@@ -267,7 +268,7 @@ func beforeConnectAction(ctx *cli.Context) error {
 		if organization == "" {
 			exitErr := cli.Exit(
 				"--organization is required, when --activation-key is used",
-				ExitCodeUsage,
+				exitcode.Usage,
 			)
 			return exitErr
 		}
@@ -279,7 +280,7 @@ func beforeConnectAction(ctx *cli.Context) error {
 		if (username == "" || password == "") && (len(activationKeys) == 0 || organization == "") {
 			exitErr := cli.Exit(
 				"--username/--password or --organization/--activation-key are required when a machine-readable format is used",
-				ExitCodeUsage,
+				exitcode.Usage,
 			)
 			return exitErr
 		}
@@ -292,16 +293,16 @@ func beforeConnectAction(ctx *cli.Context) error {
 	if len(ctx.StringSlice("enable-feature")) > 0 || len(ctx.StringSlice("disable-feature")) > 0 {
 		cache, err = prefcache.NewDefaultCache(ConnectFeaturesPrefsPath)
 		if err != nil {
-			return cli.Exit(fmt.Sprintf("failed to create default cache: %v", err), ExitCodeSoftware)
+			return cli.Exit(fmt.Sprintf("failed to create default cache: %v", err), exitcode.Software)
 		}
 		for _, f := range ctx.StringSlice("enable-feature") {
 			if err = cache.Set(f, true); err != nil {
-				return cli.Exit(err.Error(), ExitCodeDataErr)
+				return cli.Exit(err.Error(), exitcode.DataErr)
 			}
 		}
 		for _, f := range ctx.StringSlice("disable-feature") {
 			if err = cache.Set(f, false); err != nil {
-				return cli.Exit(err.Error(), ExitCodeDataErr)
+				return cli.Exit(err.Error(), exitcode.DataErr)
 			}
 		}
 		ui.Printf("Notice: ignoring preferences set via 'rhc configure features'.\n")
@@ -310,7 +311,7 @@ func beforeConnectAction(ctx *cli.Context) error {
 		// No flags provided, load cache from file (or defaults if file doesn't exist)
 		cache, err = prefcache.LoadCache(ConnectFeaturesPrefsPath)
 		if err != nil {
-			return cli.Exit(fmt.Sprintf("failed to load preferences: %v", err), ExitCodeSoftware)
+			return cli.Exit(fmt.Sprintf("failed to load preferences: %v", err), exitcode.Software)
 		}
 	}
 	ctx.App.Metadata[ctxConnectCache] = cache
@@ -318,15 +319,15 @@ func beforeConnectAction(ctx *cli.Context) error {
 	// Error out if we're trying to set content templates without having enabling content
 	contentEnabled, err := cache.Get("content")
 	if err != nil {
-		return cli.Exit(fmt.Sprintf("failed to get content preference: %v", err), ExitCodeSoftware)
+		return cli.Exit(fmt.Sprintf("failed to get content preference: %v", err), exitcode.Software)
 	}
 	if !contentEnabled && len(contentTemplates) > 0 {
-		return cli.Exit("content feature is disabled, cannot use --content-template", ExitCodeUsage)
+		return cli.Exit("content feature is disabled, cannot use --content-template", exitcode.Usage)
 	}
 
 	err = checkForUnknownArgs(ctx)
 	if err != nil {
-		return cli.Exit(err.Error(), ExitCodeUsage)
+		return cli.Exit(err.Error(), exitcode.Usage)
 	}
 
 	return nil
@@ -357,9 +358,9 @@ func connectAction(ctx *cli.Context) error {
 		if ui.IsOutputMachineReadable() {
 			connectResult.UID = uid
 			connectResult.UIDError = errMsg
-			return cli.Exit(connectResult, ExitCodeErr)
+			return cli.Exit(connectResult, exitcode.NoPerm)
 		}
-		return cli.Exit(fmt.Errorf("%s", errMsg), ExitCodeErr)
+		return cli.Exit(fmt.Errorf("%s", errMsg), exitcode.NoPerm)
 	}
 
 	// Gather hostname
@@ -368,9 +369,9 @@ func connectAction(ctx *cli.Context) error {
 		slog.Error(fmt.Sprintf("Error retrieving system hostname: %v", err))
 		if ui.IsOutputMachineReadable() {
 			connectResult.HostnameError = err.Error()
-			return cli.Exit(connectResult, ExitCodeErr)
+			return cli.Exit(connectResult, exitcode.Err)
 		}
-		return cli.Exit(err, ExitCodeErr)
+		return cli.Exit(err, exitcode.Err)
 	}
 	connectResult.Hostname = hostname
 
@@ -378,21 +379,21 @@ func connectAction(ctx *cli.Context) error {
 	var toEnableList []string
 	contentEnabled, err := cache.Get("content")
 	if err != nil {
-		return cli.Exit(fmt.Sprintf("failed to get content preference: %v", err), ExitCodeSoftware)
+		return cli.Exit(fmt.Sprintf("failed to get content preference: %v", err), exitcode.Software)
 	}
 	if contentEnabled {
 		toEnableList = append(toEnableList, "content")
 	}
 	analyticsEnabled, err := cache.Get("analytics")
 	if err != nil {
-		return cli.Exit(fmt.Sprintf("failed to get analytics preference: %v", err), ExitCodeSoftware)
+		return cli.Exit(fmt.Sprintf("failed to get analytics preference: %v", err), exitcode.Software)
 	}
 	if analyticsEnabled {
 		toEnableList = append(toEnableList, "analytics")
 	}
 	remoteManagementEnabled, err := cache.Get("remote-management")
 	if err != nil {
-		return cli.Exit(fmt.Sprintf("failed to get remote-management preference: %v", err), ExitCodeSoftware)
+		return cli.Exit(fmt.Sprintf("failed to get remote-management preference: %v", err), exitcode.Software)
 	}
 	if remoteManagementEnabled {
 		toEnableList = append(toEnableList, "remote management")
@@ -411,7 +412,7 @@ func connectAction(ctx *cli.Context) error {
 		start = time.Now()
 		contentRequested, err := cache.Get("content")
 		if err != nil {
-			return cli.Exit(fmt.Sprintf("failed to get content preference: %v", err), ExitCodeSoftware)
+			return cli.Exit(fmt.Sprintf("failed to get content preference: %v", err), exitcode.Software)
 		}
 		connectResult.TryRegisterRHSM(
 			ctx,
@@ -423,7 +424,7 @@ func connectAction(ctx *cli.Context) error {
 	// Enable data collection
 	analyticsRequested, err := cache.Get("analytics")
 	if err != nil {
-		return cli.Exit(fmt.Sprintf("failed to get analytics preference: %v", err), ExitCodeSoftware)
+		return cli.Exit(fmt.Sprintf("failed to get analytics preference: %v", err), exitcode.Software)
 	}
 	if analyticsRequested {
 		start = time.Now()
@@ -436,7 +437,7 @@ func connectAction(ctx *cli.Context) error {
 	// Enable remote management
 	remoteManagementRequested, err := cache.Get("remote-management")
 	if err != nil {
-		return cli.Exit(fmt.Sprintf("failed to get remote-management preference: %v", err), ExitCodeSoftware)
+		return cli.Exit(fmt.Sprintf("failed to get remote-management preference: %v", err), exitcode.Software)
 	}
 	if remoteManagementRequested {
 		if !connectResult.Features.Content.Successful {

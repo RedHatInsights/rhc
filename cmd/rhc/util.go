@@ -10,6 +10,8 @@ import (
 
 	"github.com/urfave/cli/v2"
 	"golang.org/x/sys/unix"
+
+	"github.com/redhatinsights/rhc/pkg/exitcode"
 )
 
 // isTerminal returns true if the file descriptor is terminal.
@@ -88,7 +90,7 @@ func checkFormatFlag(ctx *cli.Context) error {
 			format,
 			`"json"`,
 		)
-		return cli.Exit(err, ExitCodeDataErr)
+		return cli.Exit(err, exitcode.DataErr)
 	}
 }
 
@@ -122,7 +124,7 @@ func validateCollectorCommand(ctx *cli.Context, requiresCollectorID, requiresFor
 	}
 	if requiresCollectorID && ctx.Args().Len() == 0 {
 		commandName := getFullCommandName(ctx)
-		return cli.Exit(fmt.Sprintf("%s requires a collector ID", commandName), ExitCodeUsage)
+		return cli.Exit(fmt.Sprintf("%s requires a collector ID", commandName), exitcode.Usage)
 	}
 	configureUI(ctx)
 	return nil

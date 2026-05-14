@@ -11,6 +11,7 @@ import (
 
 	"github.com/redhatinsights/rhc/internal/conf"
 	"github.com/redhatinsights/rhc/internal/ui"
+	"github.com/redhatinsights/rhc/pkg/exitcode"
 	"github.com/redhatinsights/rhc/pkg/feature"
 	"github.com/redhatinsights/rhc/pkg/version"
 )
@@ -35,7 +36,7 @@ func mainAction(c *cli.Context) error {
 	}
 	data, err := generationFunc()
 	if err != nil {
-		return cli.Exit(err, ExitCodeErr)
+		return cli.Exit(err, exitcode.Err)
 	}
 	fmt.Println(data)
 	return nil
@@ -154,7 +155,7 @@ func main() {
 	defaultConfigFilePath, err := ConfigPath()
 	if err != nil {
 		slog.Error(err.Error())
-		os.Exit(ExitCodeErr)
+		os.Exit(exitcode.Err)
 	}
 
 	app.Flags = []cli.Flag{
