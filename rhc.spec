@@ -4,7 +4,7 @@
 %global with_rhcd_compat 0
 
 %global goipath         github.com/redhatinsights/rhc
-Version:                0.3.8
+Version:                0.3.9
 
 %gometa -L -f
 
