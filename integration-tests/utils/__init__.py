@@ -1,6 +1,7 @@
 import subprocess
 import sh
 import json
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -16,6 +17,16 @@ def yggdrasil_service_is_active():
         return stdout == "active"
     except sh.ErrorReturnCode_3:
         return False
+
+
+def poll_until(predicate, timeout_s=120, interval_s=0.5):
+    """Return True if ``predicate()`` becomes true before ``timeout_s`` seconds."""
+    deadline = time.monotonic() + timeout_s
+    while time.monotonic() < deadline:
+        if predicate():
+            return True
+        time.sleep(interval_s)
+    return False
 
 
 def prepare_args_for_connect(
