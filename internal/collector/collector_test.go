@@ -112,7 +112,7 @@ func TestNewConfig(t *testing.T) {
 			want: Config{
 				ID:                 "test.nil.feature",
 				Name:               "Test nil feature",
-				IsAnalyticsFeature: true,
+				IsAnalyticsFeature: false,
 				User:               "root",
 				Group:              "root",
 				ContentType:        "application/vnd.redhat.advisor.collection",

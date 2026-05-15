@@ -334,15 +334,15 @@ func newConfig(id string, dto *configDto) (Config, error) {
 		return Config{}, fmt.Errorf("invalid config: ingress.content_type is required")
 	}
 
-	// Emit warning if meta.feature is present but not 'analytics'
+	// Emit debug log message if meta.feature is present but not 'analytics'
 	if dto.Meta.Feature != nil && *dto.Meta.Feature != "analytics" {
-		slog.Warn("Unexpected meta.feature value", "actual", *dto.Meta.Feature, "expected", "analytics")
+		slog.Debug("Unsupported collector config feature value ignored", "feature", *dto.Meta.Feature, "supported", "analytics")
 	}
 
 	return Config{
 		ID:                 id,
 		Name:               dto.Meta.Name,
-		IsAnalyticsFeature: dto.Meta.Feature == nil || *dto.Meta.Feature == "analytics",
+		IsAnalyticsFeature: dto.Meta.Feature != nil && *dto.Meta.Feature == "analytics",
 		User:               user,
 		Group:              group,
 		ContentType:        dto.Ingress.ContentType,
