@@ -21,6 +21,10 @@ archive:
 srpm: archive
 	rpmbuild --define "_sourcedir $$(pwd)" -bs rhc.spec
 
+.PHONY: rpm
+rpm: archive
+	rpmbuild --define "_sourcedir $$(pwd)" -bb rhc.spec
+
 # The 'clean' target removes build artifacts.
 .PHONY: clean
 clean:
