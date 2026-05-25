@@ -291,6 +291,13 @@ func main() {
 					Description: "Enable or disable content management, analytics, or remote management.",
 					Commands: []*cli.Command{
 						{
+							Flags: []cli.Flag{
+								&cli.StringFlag{
+									Name:    "format",
+									Usage:   "prints status in machine-readable format (supported formats: \"json\")",
+									Aliases: []string{"f"},
+								},
+							},
 							Name:   "status",
 							Usage:  "Show status",
 							Before: beforeFeaturesStatusAction,

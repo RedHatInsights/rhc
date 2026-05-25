@@ -1,8 +1,11 @@
 package ui
 
 import (
+	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
+	"text/tabwriter"
 	"time"
 
 	"github.com/briandowns/spinner"
@@ -121,4 +124,57 @@ func Spinner(
 		defer func() { s.Stop() }()
 	}
 	return function()
+}
+
+// PrintJSON prints the given data as JSON to stdout.
+// When marshaling of data fails, then error is returned.
+func PrintJSON(v any) error {
+	data, err := json.MarshalIndent(v, "", "    ")
+	if err != nil {
+		return err
+	}
+	fmt.Println(string(data))
+	return nil
+}
+
+// PrintTable prints data in a table format using tabwriter.
+// headers are the column headers, rows contain the data for each row.
+func PrintTable(headers []string, rows [][]string) {
+	if IsOutputMachineReadable() {
+		return
+	}
+
+	if len(rows) == 0 {
+		fmt.Println("No data is available to print.")
+		return
+	}
+
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	defer func(w *tabwriter.Writer) {
+		err := w.Flush()
+		if err != nil {
+			slog.Debug("Unable to flush tabwriter", "error", err)
+			return
+		}
+	}(w)
+
+	for i, header := range headers {
+		if i == len(headers)-1 {
+			_, _ = fmt.Fprint(w, header)
+		} else {
+			_, _ = fmt.Fprint(w, header+"\t")
+		}
+	}
+	_, _ = fmt.Fprintln(w)
+
+	for _, row := range rows {
+		for i, cell := range row {
+			if i == len(row)-1 {
+				_, _ = fmt.Fprint(w, cell)
+			} else {
+				_, _ = fmt.Fprint(w, cell+"\t")
+			}
+		}
+		_, _ = fmt.Fprintln(w)
+	}
 }
