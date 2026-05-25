@@ -1,0 +1,68 @@
+name: rpmbuild.yml
+on:
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  rpmbuild:
+    name: "rpmbuild"
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: "Fedora latest"
+            image: "registry.fedoraproject.org/fedora:latest"
+            slug: "fedora-latest"
+          - name: "Fedora Rawhide"
+            image: "registry.fedoraproject.org/fedora:rawhide"
+            slug: "fedora-rawhide"
+
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ matrix.image }}
+
+    steps:
+      - name: "Add COPR repository (Go Vendor Tools)"
+        run: |
+          dnf copr enable -y @go-sig/go-vendor-tools-dev
+
+      - name: "Install basic packages for 'dnf builddep'"
+        run: |
+          dnf --setopt install_weak_deps=False install -y \
+            git rpm-build go-vendor-tools go-rpm-macros
+
+      - name: "Checkout repository"
+        uses: actions/checkout@v6
+
+      - name: "Adding repository directory to the temporary git global config as a safe directory (again)"
+        run: |
+          git config --global --add safe.directory /__w/rhc/rhc
+
+      - name: "Install required packages"
+        run: |
+          dnf --setopt install_weak_deps=False builddep -y rhc.spec
+
+      - name: "Build srpm"
+        run: |
+          make srpm
+
+      - name: "Build rpm"
+        run: |
+          make rpm
+
+      - name: "Collect RPM artifacts"
+        run: |
+          mkdir -p rpms
+          cp ~/rpmbuild/RPMS/*/*.rpm rpms/
+
+      - name: "Upload RPM artifacts"
+        uses: actions/upload-artifact@v7
+        with:
+          name: rpms-${{ matrix.slug }}
+          path: rpms/
+          retention-days: 30
