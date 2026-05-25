@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"os"
-	"text/tabwriter"
 	"time"
 
 	"github.com/redhatinsights/rhc/varlink/collectorapi"
@@ -40,44 +38,6 @@ func formatRelativeTime(d time.Duration) string {
 
 	seconds := int(d.Seconds())
 	return fmt.Sprintf("%ds", seconds)
-}
-
-// PrintTable prints data in a table format using tabwriter.
-// headers are the column headers, rows contain the data for each row.
-func PrintTable(headers []string, rows [][]string) {
-	if len(rows) == 0 {
-		fmt.Println("No data collectors available.")
-		return
-	}
-
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	defer func(w *tabwriter.Writer) {
-		err := w.Flush()
-		if err != nil {
-			slog.Debug("Unable to flush tabwriter", "error", err)
-			return
-		}
-	}(w)
-
-	for i, header := range headers {
-		if i == len(headers)-1 {
-			_, _ = fmt.Fprint(w, header)
-		} else {
-			_, _ = fmt.Fprint(w, header+"\t")
-		}
-	}
-	_, _ = fmt.Fprintln(w)
-
-	for _, row := range rows {
-		for i, cell := range row {
-			if i == len(row)-1 {
-				_, _ = fmt.Fprint(w, cell)
-			} else {
-				_, _ = fmt.Fprint(w, cell+"\t")
-			}
-		}
-		_, _ = fmt.Fprintln(w)
-	}
 }
 
 // printMachineReadable marshals data to JSON and prints it to stdout.

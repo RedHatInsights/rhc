@@ -4,16 +4,45 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"os"
-	"text/tabwriter"
 
 	"github.com/urfave/cli/v3"
 
 	"github.com/redhatinsights/rhc/internal/rhsm"
+	"github.com/redhatinsights/rhc/internal/ui"
 	"github.com/redhatinsights/rhc/pkg/exitcode"
 	"github.com/redhatinsights/rhc/pkg/feature"
 	"github.com/redhatinsights/rhc/pkg/feature/prefcache"
 )
+
+type ConfigureFeatureStatus struct {
+	Preference  string `json:"preference,omitempty"`
+	Enabled     *bool  `json:"enabled,omitempty"`
+	Description string `json:"description,omitempty"`
+	Error       string `json:"error,omitempty"`
+}
+
+type ConfigureFeaturesStatus struct {
+	Connected bool `json:"connected"`
+	Features  struct {
+		Content          ConfigureFeatureStatus `json:"content"`
+		Analytics        ConfigureFeatureStatus `json:"analytics"`
+		RemoteManagement ConfigureFeatureStatus `json:"remote_management"`
+	} `json:"features"`
+	returnCode int
+}
+
+func (status *ConfigureFeaturesStatus) setFeatureResult(featureID string, result ConfigureFeatureStatus) {
+	switch featureID {
+	case "content":
+		status.Features.Content = result
+	case "analytics":
+		status.Features.Analytics = result
+	case "remote-management":
+		status.Features.RemoteManagement = result
+	default:
+		slog.Warn("unknown feature id for configure features status", "id", featureID)
+	}
+}
 
 // TODO Handle machine-readable output by always returning a DTO from business logic;
 //  a place here should only act as a presentation layer.
@@ -46,47 +75,94 @@ func featuresStatusAction(ctx context.Context, cmd *cli.Command) error {
 	return featuresStatusActionNotRegistered(ctx, cmd)
 }
 
-func featuresStatusActionNotRegistered(_ context.Context, _ *cli.Command) error {
+func printConfigureFeaturesStatus(
+	cmd *cli.Command,
+	status *ConfigureFeaturesStatus,
+	headers []string,
+	rows [][]string,
+	connected bool,
+) error {
+	if ui.IsOutputMachineReadable() {
+		if err := ui.PrintJSON(status); err != nil {
+			return cli.Exit(
+				fmt.Errorf("unable to print status as %s document: %s", cmd.String("format"), err.Error()),
+				exitcode.IOErr,
+			)
+		}
+		if status.returnCode != 0 {
+			return cli.Exit("", exitcode.Err)
+		}
+		return nil
+	}
+	if connected {
+		fmt.Println("Connected to Red Hat.")
+	} else {
+		fmt.Println("Not connected to Red Hat.")
+	}
+	fmt.Println("")
+	ui.PrintTable(headers, rows)
+	return nil
+}
+
+func featuresStatusActionNotRegistered(_ context.Context, cmd *cli.Command) error {
 	cache, err := prefcache.LoadCache(ConnectFeaturesPrefsPath)
 	if err != nil {
 		return err
 	}
-	fmt.Println("Not connected to Red Hat.")
-	fmt.Println("")
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	_, _ = fmt.Fprintf(w, "FEATURE\tPREFERENCE\tDESCRIPTION\n")
+
+	var status = ConfigureFeaturesStatus{Connected: false}
+	headers := []string{"FEATURE", "PREFERENCE", "DESCRIPTION"}
+	rows := [][]string{}
 	for _, f := range feature.All() {
-		icon := "enable"
 		enabled, err := cache.Get(f.ID())
 		if err != nil {
 			return cli.Exit(fmt.Sprintf("failed to get feature preference: %v", err), exitcode.Software)
 		}
+		pref := "enable"
 		if !enabled {
-			icon = "skip"
+			pref = "skip"
 		}
-		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\n", f.ID(), icon, f.Description())
+		status.setFeatureResult(
+			f.ID(),
+			ConfigureFeatureStatus{
+				Preference:  pref,
+				Description: f.Description(),
+			},
+		)
+		if !ui.IsOutputMachineReadable() {
+			rows = append(rows, []string{f.ID(), pref, f.Description()})
+		}
 	}
-	_ = w.Flush()
-	return nil
+
+	return printConfigureFeaturesStatus(cmd, &status, headers, rows, false)
 }
 
-func featuresStatusActionRegistered(_ context.Context, _ *cli.Command) error {
-	fmt.Println("Connected to Red Hat.")
-	fmt.Println("")
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	_, _ = fmt.Fprintf(w, "FEATURE\tSTATE\tDESCRIPTION\n")
+func featuresStatusActionRegistered(_ context.Context, cmd *cli.Command) (err error) {
+	var status = ConfigureFeaturesStatus{Connected: true}
+	headers := []string{"FEATURE", "STATE", "DESCRIPTION"}
+	rows := [][]string{}
 	for _, f := range feature.All() {
-		icon := "enabled"
 		enabled, err := f.IsEnabled()
 		if err != nil {
-			icon = "error"
-		} else if !enabled {
-			icon = "disabled"
+			return cli.Exit(fmt.Sprintf("failed to get feature status: %v", err), exitcode.Software)
 		}
-		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\n", f.ID(), icon, f.Description())
+		state := "enabled"
+		if !enabled {
+			state = "disabled"
+		}
+		status.setFeatureResult(
+			f.ID(),
+			ConfigureFeatureStatus{
+				Enabled:     &enabled,
+				Description: f.Description(),
+			},
+		)
+		if !ui.IsOutputMachineReadable() {
+			rows = append(rows, []string{f.ID(), state, f.Description()})
+		}
 	}
-	_ = w.Flush()
-	return nil
+
+	return printConfigureFeaturesStatus(cmd, &status, headers, rows, true)
 }
 
 // beforeFeaturesEnableAction validates inputs before executing the enable action.

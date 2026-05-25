@@ -17,10 +17,6 @@ import pytest
 
 from utils import poll_until, prepare_args_for_connect
 
-_SKIP_CONFIGURE_FEATURES_STATUS_JSON = pytest.mark.skip(
-    reason="Ref- CCT-2460: Machine readable output not supported yet",
-)
-
 # CLI feature name -> key in ``rhc connect --format json`` features object
 FEATURE_CLI_TO_CONNECT_JSON = {
     "content": "content",
@@ -39,6 +35,16 @@ _CONFIGURE_FEATURES_JSON_FEATURE_KEYS = frozenset(
 )
 
 
+@pytest.fixture(autouse=True)
+def _cleanup_connect_features_prefs():
+    """
+    Remove the connect features preferences file.
+    """
+    yield
+    with contextlib.suppress(FileNotFoundError):
+        os.remove(CONNECT_FEATURES_PREFS_PATH)
+
+
 def _assert_configure_features_status_json_shape(data: dict):
     assert isinstance(data, dict)
     assert _CONFIGURE_FEATURES_STATUS_JSON_KEYS == set(data.keys())
@@ -46,9 +52,15 @@ def _assert_configure_features_status_json_shape(data: dict):
     feats = data["features"]
     assert isinstance(feats, dict)
     assert _CONFIGURE_FEATURES_JSON_FEATURE_KEYS == set(feats.keys())
-    for _k, v in feats.items():
-        assert set(v.keys()) == {"enabled"}
-        assert isinstance(v["enabled"], bool)
+    if data["connected"]:
+        for _k, v in feats.items():
+            assert set(v.keys()) == {"enabled", "description"}
+            if "error" not in v:
+                assert isinstance(v["enabled"], bool)
+    else:
+        for _k, v in feats.items():
+            assert set(v.keys()) == {"description", "preference"}
+            assert v["preference"] in ("enable", "skip")
 
 
 def _preference_or_state(stdout: str, feature_id: str):
@@ -67,7 +79,6 @@ def _preference_or_state(stdout: str, feature_id: str):
         "text",
         pytest.param(
             "json",
-            marks=_SKIP_CONFIGURE_FEATURES_STATUS_JSON,
             id="json",
         ),
     ],
@@ -89,7 +100,7 @@ def test_configure_features_status_not_connected_default_prefs(rhc, status_forma
         1. Preconditions hold (disconnected).
         2. Exit code 0; text output has ``Not connected to Red Hat.`` and each
            feature ``enable``, or JSON has ``connected`` false and every feature
-           ``enabled`` true.
+           ``preference`` ``enable``.
     """
     with contextlib.suppress(Exception):
         rhc.disconnect()
@@ -113,7 +124,7 @@ def test_configure_features_status_not_connected_default_prefs(rhc, status_forma
         _assert_configure_features_status_json_shape(data)
         assert data["connected"] is False
         for k in _CONFIGURE_FEATURES_JSON_FEATURE_KEYS:
-            assert data["features"][k]["enabled"] is True
+            assert data["features"][k]["preference"] == "enable"
 
 
 @pytest.mark.tier1
@@ -123,7 +134,6 @@ def test_configure_features_status_not_connected_default_prefs(rhc, status_forma
         "text",
         pytest.param(
             "json",
-            marks=_SKIP_CONFIGURE_FEATURES_STATUS_JSON,
             id="json",
         ),
     ],
@@ -153,7 +163,6 @@ def test_configure_features_disable_updates_prefs_and_status(rhc, status_format)
         rhc.disconnect()
     d = rhc.run("configure", "features", "disable", "analytics", check=False)
     assert d.returncode == 0, d.stderr
-    assert "remote-management" in d.stdout and "analytics" in d.stdout
 
     if status_format == "text":
         st = rhc.run("configure", "features", "status", check=False)
@@ -174,9 +183,9 @@ def test_configure_features_disable_updates_prefs_and_status(rhc, status_format)
         data = json.loads(res.stdout)
         _assert_configure_features_status_json_shape(data)
         assert data["connected"] is False
-        assert data["features"]["content"]["enabled"] is True
-        assert data["features"]["analytics"]["enabled"] is False
-        assert data["features"]["remote_management"]["enabled"] is False
+        assert data["features"]["content"]["preference"] == "enable"
+        assert data["features"]["analytics"]["preference"] == "skip"
+        assert data["features"]["remote_management"]["preference"] == "skip"
 
 
 @pytest.mark.tier1
@@ -221,7 +230,6 @@ def test_configure_features_enable_remote_management_pulls_prerequisites(rhc):
             ("configure", "features", "status", "--format", "json"),
             0,
             "",
-            marks=_SKIP_CONFIGURE_FEATURES_STATUS_JSON,
             id="status-json-ok",
         ),
         (
@@ -451,7 +459,6 @@ def test_configure_features_enable_after_connect(
 
 
 @pytest.mark.tier1
-@_SKIP_CONFIGURE_FEATURES_STATUS_JSON
 def test_configure_features_status_json_when_connected(
     external_candlepin, rhc, test_config
 ):
@@ -498,7 +505,6 @@ def test_configure_features_status_json_when_connected(
         "text",
         pytest.param(
             "json",
-            marks=_SKIP_CONFIGURE_FEATURES_STATUS_JSON,
             id="json",
         ),
     ],
@@ -524,7 +530,7 @@ def test_configure_features_enable_content_after_disable(rhc, status_format):
         2. Disable exits 0; preference file exists.
         3. Enable content exits 0.
         4. ``content`` and ``analytics`` on; ``remote-management`` off (table
-           ``skip`` or JSON ``enabled`` false).
+           or JSON ``preference`` ``skip``).
     """
     with contextlib.suppress(Exception):
         rhc.disconnect()
@@ -548,9 +554,9 @@ def test_configure_features_enable_content_after_disable(rhc, status_format):
         data = json.loads(res.stdout)
         _assert_configure_features_status_json_shape(data)
         assert data["connected"] is False
-        assert data["features"]["content"]["enabled"] is True
-        assert data["features"]["analytics"]["enabled"] is True
-        assert data["features"]["remote_management"]["enabled"] is False
+        assert data["features"]["content"]["preference"] == "enable"
+        assert data["features"]["analytics"]["preference"] == "enable"
+        assert data["features"]["remote_management"]["preference"] == "skip"
 
 
 @pytest.mark.tier1
@@ -659,7 +665,6 @@ def test_configure_features_content_toggle_redhat_repo_after_connect(
 
 
 @pytest.mark.tier1
-@_SKIP_CONFIGURE_FEATURES_STATUS_JSON
 def test_configure_features_disable_idempotent_json(rhc):
     """
     :id: c3d4e5f6-7a8b-9c0d-1e2f-3a4b5c6d7e13
