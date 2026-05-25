@@ -2,32 +2,35 @@
 # Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
 # This file is distributed under the same license as the PACKAGE package.
 # Nathan <nathan95@live.it>, 2026.
+# Salvatore Cocuzza <info@salvatorecocuzza.it>, 2026.
 msgid ""
 msgstr ""
 "Project-Id-Version: rhc\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-02-16 16:35+0100\n"
-"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"Last-Translator: Automatically generated\n"
-"Language-Team: none\n"
+"PO-Revision-Date: 2026-05-26 15:56+0000\n"
+"Last-Translator: Salvatore Cocuzza <info@salvatorecocuzza.it>\n"
+"Language-Team: Italian <https://translate.fedoraproject.org/projects/rhc/rhc/"
+"it/>\n"
 "Language: it\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
+"X-Generator: Weblate 2026.5\n"
 
 #: cmd/rhc/connect_cmd.go:83
 #, c-format
 msgid "cannot connect to Red Hat Subscription Management: %s"
-msgstr ""
+msgstr "Impossibile connettersi a Red Hat Subscription Management: %s"
 
 #: cmd/rhc/connect_cmd.go:87
 msgid "%s[%v] Cannot connect to Red Hat Subscription Management\n"
-msgstr ""
+msgstr "%s[%v] Impossibile connettersi a Red Hat Subscription Management\n"
 
 #: cmd/rhc/connect_cmd.go:93
 msgid "%s[%v] Skipping generation of Red Hat repository file\n"
-msgstr ""
+msgstr "%s[%v] Generazione del file del repository Red Hat saltata\n"
 
 #: cmd/rhc/connect_cmd.go:100
 msgid "%s[%v] %s\n"
@@ -35,12 +38,12 @@ msgstr ""
 
 #: cmd/rhc/connect_cmd.go:104
 msgid "%s[%v] Content ... Red Hat repository file generated\n"
-msgstr ""
+msgstr "%s[%v] Contenuto ... File del repository Red Hat generato\n"
 
 #: cmd/rhc/connect_cmd.go:108
 #, c-format
 msgid "%s[ ] Content ... Red Hat repository file not generated\n"
-msgstr ""
+msgstr "%s[ ] Contenuto ... File del repository Red Hat non generato\n"
 
 #: cmd/rhc/connect_cmd.go:120
 #, c-format
@@ -48,69 +51,77 @@ msgid ""
 "%s[ ] Analytics ... Connecting to Red Hat Lightspeed (formerly Insights) "
 "disabled\n"
 msgstr ""
+"%s[ ] Analisi ... Connessione a Red Hat Lightspeed (precedentemente "
+"Insights) disabilitata\n"
 
 #: cmd/rhc/connect_cmd.go:127
 msgid "%s[%v] Skipping connection to Red Hat Lightspeed (formerly Insights)\n"
 msgstr ""
+"%s[%v] Connessione a Red Hat Lightspeed (precedentemente Insights) "
+"ignorata.\n"
 
 #: cmd/rhc/connect_cmd.go:138
 msgid "cannot connect to Red Hat Lightspeed (formerly Insights): %v"
 msgstr ""
+"Impossibile connettersi a Red Hat Lightspeed (precedentemente Insights): %v"
 
 #: cmd/rhc/connect_cmd.go:139
 msgid "cannot connect to Red Hat Lightspeed: %v"
-msgstr ""
+msgstr "Impossibile connettersi a Red Hat Lightspeed: %v"
 
 #: cmd/rhc/connect_cmd.go:141
 msgid ""
 "%s[%v] Analytics ... Cannot connect to Red Hat Lightspeed (formerly "
 "Insights)\n"
 msgstr ""
+"%s[%v] Analisi... Impossibile connettersi a Red Hat Lightspeed "
+"(precedentemente Insights)\n"
 
 #: cmd/rhc/connect_cmd.go:150
 msgid ""
 "%s[%v] Analytics ... Connected to Red Hat Lightspeed (formerly Insights)\n"
 msgstr ""
+"%s[%v] Analisi ... Connesso a Red Hat Lightspeed (precedentemente Insights)\n"
 
 #: cmd/rhc/connect_cmd.go:160
 #, c-format
 msgid "Starting yggdrasil service disabled (%s)"
-msgstr ""
+msgstr "Avvio del servizio yggdrasil disabilitato (%s)"
 
 #: cmd/rhc/connect_cmd.go:162 cmd/rhc/connect_cmd.go:166
 #, c-format
 msgid "%s[ ] Management .... %s\n"
-msgstr ""
+msgstr "%s[ ] Gestione .... %s\n"
 
 #: cmd/rhc/connect_cmd.go:178
 msgid "%s[%v] Skipping activation of yggdrasil service\n"
-msgstr ""
+msgstr "%s[%v] Attivazione del servizio yggdrasil saltata.\n"
 
 #: cmd/rhc/connect_cmd.go:189
 msgid "cannot activate the yggdrasil service: %v"
-msgstr ""
+msgstr "Impossibile attivare il servizio yggdrasil: %v"
 
 #: cmd/rhc/connect_cmd.go:192
 msgid "%s[%v] Remote Management ... Cannot activate the yggdrasil service\n"
-msgstr ""
+msgstr "%s[%v] Gestione remota... Impossibile attivare il servizio yggdrasil\n"
 
 #: cmd/rhc/connect_cmd.go:202
 msgid "%s[%v] Remote Management ... %s\n"
-msgstr ""
+msgstr "%s[%v] Gestione remota ... %s\n"
 
 #: cmd/rhc/connect_cmd.go:224
 #, c-format
 msgid "unable to get consumer UUID: %s"
-msgstr ""
+msgstr "Impossibile ottenere l'UUID del consumatore: %s"
 
 #: cmd/rhc/connect_cmd.go:318
 #, c-format
 msgid "error: %s"
-msgstr ""
+msgstr "errore: %s"
 
 #: cmd/rhc/connect_cmd.go:328
 msgid "Error retrieving system hostname: %v"
-msgstr ""
+msgstr "Errore durante il recupero del nome host di sistema: %v"
 
 #: cmd/rhc/connect_cmd.go:337
 msgid ""
@@ -118,16 +129,19 @@ msgid ""
 "This might take a few seconds.\n"
 "\n"
 msgstr ""
+"Connessione di %v a Red Hat.\n"
+"L'operazione potrebbe richiedere alcuni secondi.\n"
+"\n"
 
 #: cmd/rhc/connect_cmd.go:353
 #, c-format
 msgid "Feature '%s' marked enabled"
-msgstr ""
+msgstr "Funzione '%s' contrassegnata come abilitata"
 
 #: cmd/rhc/connect_cmd.go:366
 #, c-format
 msgid "Feature '%s' marked disabled"
-msgstr ""
+msgstr "Funzione '%s' contrassegnata come disabilitata"
 
 #: cmd/rhc/connect_cmd.go:370
 #, c-format
@@ -135,15 +149,21 @@ msgid ""
 "Features preferences: %s\n"
 "\n"
 msgstr ""
+"Preferenze delle funzionalità: %s\n"
+"\n"
 
 #: cmd/rhc/connect_cmd.go:390
 msgid ""
 "\n"
 "Successfully connected to Red Hat!\n"
 msgstr ""
+"\n"
+"Connessione a Red Hat stabilita con successo!\n"
 
 #: cmd/rhc/connect_cmd.go:394
 msgid ""
 "\n"
 "Manage your connected systems: https://red.ht/connector\n"
 msgstr ""
+"\n"
+"Gestisci i tuoi sistemi connessi: https://red.ht/connector\n"
