@@ -19,6 +19,7 @@ Source2:        go-vendor-tools.toml
 
 BuildRequires:  go-vendor-tools
 BuildRequires:  systemd-rpm-macros
+BuildRequires:  askalono-cli
 %if 0%{?with_check}
 BuildRequires:  /usr/bin/dbus-launch
 %endif
