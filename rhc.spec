@@ -77,6 +77,8 @@ install -m 0755 -vd                     %{buildroot}%{_unitdir}
 install -m 0644 -vp data/systemd/rhc-canonical-facts.*  %{buildroot}%{_unitdir}/
 install -m 0644 -vp data/systemd/rhc-server.service  %{buildroot}%{_unitdir}/
 install -m 0644 -vp data/systemd/rhc-server.socket   %{buildroot}%{_unitdir}/
+install -m 0755 -vd %{buildroot}%{_prefix}/lib/systemd/system-preset/
+install -m 0644 -vp data/systemd/presets/50-rhc.preset %{buildroot}%{_prefix}/lib/systemd/system-preset/
 # Configuration
 install -m 0755 -vd                     %{buildroot}%{_sysconfdir}/%{name}/
 # Yggdrasil
@@ -125,6 +127,7 @@ fi
 %{_unitdir}/rhc-canonical-facts.*
 %{_unitdir}/rhc-server.service
 %{_unitdir}/rhc-server.socket
+%{_prefix}/lib/systemd/system-preset/50-rhc.preset
 # Configuration
 %{_sysconfdir}/%{name}/
 # Logrotate
