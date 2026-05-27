@@ -13,7 +13,7 @@ def yggdrasil_service_is_active():
     :return: True if yggdrasil in active state else False
     """
     try:
-        stdout = sh.systemctl(f"is-active yggdrasil".split()).strip()
+        stdout = sh.systemctl("is-active yggdrasil".split()).strip()
         return stdout == "active"
     except sh.ErrorReturnCode_3:
         return False
