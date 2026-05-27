@@ -483,7 +483,7 @@ def test_connect_with_content_template(external_candlepin, rhc, test_config, aut
     )
 
     command = ["connect"] + command_args
-    result = rhc.run(*command)
+    rhc.run(*command)
 
     # Verify connection
     assert rhc.is_registered
