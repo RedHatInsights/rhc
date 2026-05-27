@@ -530,8 +530,8 @@ func TestEnsureOutputDirErrors(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to create temp file: %v", err)
 		}
-		if tempFile.Close() != nil {
-			t.Fatalf("Failed to close temp file: %v", tempFile.Close())
+		if err := tempFile.Close(); err != nil {
+			t.Fatalf("Failed to close temp file: %v", err)
 		}
 		defer func(name string) {
 			err := os.Remove(name)
