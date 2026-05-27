@@ -17,36 +17,6 @@ from utils.varlink import run_varlinkctl
 from utils.systemctl import is_service_active
 
 
-@pytest.fixture(scope="module")
-def rhc_server_socket():
-    """
-    Fixture to ensure rhc-server.socket is enabled and running before collector tests.
-    This is required for varlinkctl to communicate with the rhc-server.
-    """
-    socket_name = "rhc-server.socket"
-
-    # Check if socket is already active
-    was_active = is_service_active(socket_name)
-
-    if not was_active:
-        # Enable and start the socket
-        subprocess.run(
-            ["systemctl", "enable", "--now", socket_name],
-            check=True,
-            capture_output=True,
-        )
-
-    yield
-
-    # Cleanup: restore original state
-    if not was_active:
-        subprocess.run(
-            ["systemctl", "disable", "--now", socket_name],
-            check=False,
-            capture_output=True,
-        )
-
-
 # Ensure rhc_server_socket fixture is used for all tests in this module
 pytestmark = pytest.mark.usefixtures("rhc_server_socket")
 

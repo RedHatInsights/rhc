@@ -18,33 +18,6 @@ from utils.systemctl import (
 )
 
 
-@pytest.fixture(scope="module")
-def fd3_socket_setup():
-    """
-    Fixture to ensure rhc-server.socket is enabled for FD3 socket activation tests.
-    Stops the service if running to test auto-boot behavior.
-    """
-    socket_name = "rhc-server.socket"
-    service_name = "rhc-server.service"
-
-    socket_was_enabled = is_socket_enabled(socket_name)
-
-    if not socket_was_enabled:
-        enable_and_start_socket(socket_name)
-
-    if is_service_active(service_name):
-        stop_service(service_name)
-
-    yield {
-        "socket_name": socket_name,
-        "service_name": service_name,
-        "socket_was_enabled": socket_was_enabled,
-    }
-
-    if not socket_was_enabled:
-        disable_and_stop_socket(socket_name)
-
-
 @pytest.mark.tier1
 def test_fd3_socket_activation(fd3_socket_setup):
     """
