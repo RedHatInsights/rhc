@@ -109,7 +109,9 @@ def configure_proxy_rhsm(subman, test_config, auth_proxy=False):
             proxy_user = test_config.get("auth_proxy.username")
             proxy_pass = test_config.get("auth_proxy.password")
             proxy_port = str(test_config.get("auth_proxy.port"))
-            proxy_url = f"http://{proxy_user}:{proxy_pass}@{proxy_host}:{proxy_port}"
+            proxy_user_enc = urllib.parse.quote(str(proxy_user), safe="")
+            proxy_pass_enc = urllib.parse.quote(str(proxy_pass), safe="")
+            proxy_url = f"http://{proxy_user_enc}:{proxy_pass_enc}@{proxy_host}:{proxy_port}"
         else:
             proxy_host = test_config.get("noauth_proxy.host")
             proxy_port = str(test_config.get("noauth_proxy.port"))
