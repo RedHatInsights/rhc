@@ -96,6 +96,9 @@ install -m 0644 -vp %{buildroot}%{_unitdir}/yggdrasil.service.d/rhcd.conf %{buil
 %post
 %systemd_post rhc-canonical-facts.timer
 %systemd_post rhc-server.socket
+if [ "$1" -eq 1 ] ; then
+    systemctl start rhc-server.socket >/dev/null 2>&1 || :
+fi
 %if 0%{?with_rhcd_compat}
 # On package update, ensure yggdrasil (formerly rhcd) has its own configuration file
 if [ $1 -eq 2 ] && [ ! -f /etc/yggdrasil/config.toml ]; then
