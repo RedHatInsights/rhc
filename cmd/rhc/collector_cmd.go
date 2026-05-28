@@ -74,7 +74,8 @@ func collectorListAction(ctx *cli.Context) error {
 
 	response, err := client.List(&collectorapi.ListIn{})
 	if err != nil {
-		return cli.Exit(fmt.Sprintf("failed to list collectors: %v", err), exitcode.Err)
+		slog.Debug("failed to list collectors", "error", err)
+		return cli.Exit("No data collectors available.", exitcode.Err)
 	}
 
 	if ui.IsOutputMachineReadable() {
@@ -117,7 +118,8 @@ func collectorTimersAction(ctx *cli.Context) error {
 
 	response, err := client.List(&collectorapi.ListIn{})
 	if err != nil {
-		return cli.Exit(fmt.Sprintf("failed to list collectors: %v", err), exitcode.Err)
+		slog.Debug("failed to list collectors for timers", "error", err)
+		return cli.Exit("No data collectors available.", exitcode.Err)
 	}
 
 	var infos []*collectorapi.CollectorInfo
