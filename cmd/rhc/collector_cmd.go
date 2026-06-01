@@ -3,10 +3,13 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
+	"os"
 	"strings"
+	"syscall"
 
 	"github.com/emersion/go-varlink"
 
@@ -23,7 +26,12 @@ const rhcServerSocket = "/run/rhc/com.redhat.rhc"
 func newCollectorClient() (*collectorapi.Client, func(), error) {
 	conn, err := net.Dial("unix", rhcServerSocket)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to connect to rhc-server: %w", err)
+		slog.Error("failed to connect to rhc-server", "error", err)
+		var pathErr *os.PathError
+		if errors.As(err, &pathErr) && errors.Is(pathErr.Err, syscall.ENOENT) {
+			return nil, nil, fmt.Errorf("rhc-server.socket is not available. Try: systemctl restart rhc-server.socket")
+		}
+		return nil, nil, err
 	}
 	varlinkClient := varlink.NewClient(conn)
 	client := &collectorapi.Client{Client: varlinkClient}
