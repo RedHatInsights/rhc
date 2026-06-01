@@ -45,7 +45,7 @@ def fd3_socket_setup():
         disable_and_stop_socket(socket_name)
 
 
-@pytest.mark.tier1
+@pytest.mark.tier2
 def test_fd3_socket_activation(fd3_socket_setup):
     """
     :id: d1e2f3a4-b5c6-7890-def1-23456789abcd
@@ -55,7 +55,7 @@ def test_fd3_socket_activation(fd3_socket_setup):
         Test that when rhc-server.service is not running but rhc-server.socket
         is enabled, making a varlink call triggers systemd socket activation,
         automatically boots the service, and returns a correct response.
-    :tags: Tier 1
+    :tags: Tier 2
     :steps:
         1. Ensure rhc-server.service is stopped
         2. Ensure rhc-server.socket is enabled

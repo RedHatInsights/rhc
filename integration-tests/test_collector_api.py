@@ -115,7 +115,7 @@ def collector_timer_cache(collector_config):
         os.remove(timer_cache_path)
 
 
-@pytest.mark.tier1
+@pytest.mark.tier2
 def test_collector_list_method(collector_config):
     """
     :id: a1b2c3d4-e5f6-7890-abcd-ef1234567890
@@ -123,7 +123,7 @@ def test_collector_list_method(collector_config):
     :description:
         Test that the com.redhat.rhc.collector.List method returns
         a list of all available collectors with their details.
-    :tags: Tier 1
+    :tags: Tier 2
     :steps:
         1. Call com.redhat.rhc.collector.List via varlinkctl
         2. Verify the response structure
@@ -169,7 +169,7 @@ def test_collector_list_method(collector_config):
                 assert isinstance(collector["next_run"], int)
 
 
-@pytest.mark.tier1
+@pytest.mark.tier2
 def test_collector_info_method_with_test_collector(collector_config):
     """
     :id: b2c3d4e5-f6a7-8901-bcde-f12345678901
@@ -177,7 +177,7 @@ def test_collector_info_method_with_test_collector(collector_config):
     :description:
         Test that the com.redhat.rhc.collector.Info method returns
         detailed information for a specific collector.
-    :tags: Tier 1
+    :tags: Tier 2
     :steps:
         1. Create a test collector configuration
         2. Call com.redhat.rhc.collector.Info with the test collector ID
@@ -208,7 +208,7 @@ def test_collector_info_method_with_test_collector(collector_config):
     assert info.get("feature") == "analytics"
 
 
-@pytest.mark.tier1
+@pytest.mark.tier2
 def test_collector_info_with_timer_cache(
     collector_config, collector_timer_cache
 ):
@@ -218,7 +218,7 @@ def test_collector_info_with_timer_cache(
     :description:
         Test that the Info method returns last_run timestamp when
         timer cache exists for the collector.
-    :tags: Tier 1
+    :tags: Tier 2
     :steps:
         1. Create test collector configuration
         2. Create timer cache with last run information
@@ -310,7 +310,7 @@ def test_collector_info_malformed_id():
         ), f"Expected InvalidParameter for ID: {malformed_id}, got: {result.stderr}"
 
 
-@pytest.mark.tier1
+@pytest.mark.tier2
 def test_collector_list_includes_test_collector(collector_config):
     """
     :id: e5f6a7b8-c9d0-1234-ef01-23456789abcd
@@ -318,7 +318,7 @@ def test_collector_list_includes_test_collector(collector_config):
     :description:
         Test that when a new collector configuration is added,
         it appears in the List method output.
-    :tags: Tier 1
+    :tags: Tier 2
     :steps:
         1. Create a test collector configuration
         2. Call com.redhat.rhc.collector.List
@@ -518,7 +518,7 @@ def multiple_test_collectors(collector_with_timing, collector_minimal):
     }
 
 
-@pytest.mark.tier1
+@pytest.mark.tier2
 def test_collector_list_with_multiple_collectors(multiple_test_collectors):
     """
     :id: f6a7b8c9-d0e1-2345-f012-3456789abcde
@@ -526,7 +526,7 @@ def test_collector_list_with_multiple_collectors(multiple_test_collectors):
     :description:
         Test the com.redhat.rhc.collector.List method with multiple collectors
         where one has cache/timer data and one does not, simulating real-world scenarios.
-    :tags: Tier 1
+    :tags: Tier 2
     :steps:
         1. Create two test collectors
         2. Create cache and systemd timer/service for first collector
@@ -604,7 +604,7 @@ def test_collector_list_with_multiple_collectors(multiple_test_collectors):
     assert "next_run" not in collector2_data or collector2_data.get("next_run") is None
 
 
-@pytest.mark.tier1
+@pytest.mark.tier2
 def test_collector_info_with_systemd_timer(multiple_test_collectors):
     """
     :id: a7b8c9d0-e1f2-3456-0123-456789abcdef
@@ -612,7 +612,7 @@ def test_collector_info_with_systemd_timer(multiple_test_collectors):
     :description:
         Test that the com.redhat.rhc.collector.Info method returns next_run
         timestamp when a systemd timer is enabled for the collector.
-    :tags: Tier 1
+    :tags: Tier 2
     :steps:
         1. Create test collector with systemd timer and service
         2. Enable and start the timer
@@ -647,7 +647,7 @@ def test_collector_info_with_systemd_timer(multiple_test_collectors):
     assert info["last_run"] == collector_info["last_run"]
 
 
-@pytest.mark.tier1
+@pytest.mark.tier2
 def test_collector_info_without_cache_or_timer(multiple_test_collectors):
     """
     :id: b8c9d0e1-f2a3-4567-1234-56789abcdef0
@@ -655,7 +655,7 @@ def test_collector_info_without_cache_or_timer(multiple_test_collectors):
     :description:
         Test that Info method returns collector data correctly even when
         no cache file or systemd timer exists.
-    :tags: Tier 1
+    :tags: Tier 2
     :steps:
         1. Create test collector without cache or timer
         2. Call com.redhat.rhc.collector.Info
