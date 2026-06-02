@@ -1,7 +1,7 @@
 .ONESHELL:
 .SHELLFLAGS := -e -c
 
-VERSION := $(shell rpmspec rhc.spec --query --queryformat '%{version}')
+VERSION := $(shell rpmspec rhc.spec --query --srpm --queryformat '%{version}')
 LDFLAGS := -ldflags "-X github.com/redhatinsights/rhc/pkg/version.Version=$(VERSION)"
 GO_BUILD := go build $(LDFLAGS)
 
