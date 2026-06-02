@@ -116,54 +116,53 @@ func TestExecuteCollector(t *testing.T) {
 	})
 }
 
-func TestGetArchivePath(t *testing.T) {
+// TestGetArchive verifies that collector.GetArchive correctly creates a
+// .tar.xz archive from a given source directory. It covers three cases:
+// a directory containing files, an empty directory, and a nonexistent source
+// path (which must return an error).
+func TestGetArchive(t *testing.T) {
 	t.Run("directory with files", func(t *testing.T) {
-		tmpDir := t.TempDir()
-		testFile := filepath.Join(tmpDir, "test.txt")
+		srcDir := t.TempDir()
+		outDir := t.TempDir()
+		testFile := filepath.Join(srcDir, "test.txt")
 		if err := os.WriteFile(testFile, []byte("test content"), 0644); err != nil {
 			t.Fatalf("Failed to create test file: %v", err)
 		}
-		archivePath, err := getArchivePath(tmpDir)
+		archivePath, err := collector.GetArchive(srcDir, outDir)
 		if err != nil {
-			t.Errorf("getArchivePath() unexpected error: %v", err)
+			t.Errorf("GetArchive() unexpected error: %v", err)
 		}
-		defer func(name string) {
-			if os.Remove(name) != nil {
-				return
-			}
-		}(archivePath)
+		t.Cleanup(func() { _ = os.Remove(archivePath) })
 		if archivePath == "" {
-			t.Error("getArchivePath() returned empty string")
+			t.Error("GetArchive() returned empty string")
 		}
 		if !strings.HasSuffix(archivePath, ".tar.xz") {
-			t.Errorf("getArchivePath() = %q, want file ending with '.tar.xz'", archivePath)
+			t.Errorf("GetArchive() = %q, want file ending with '.tar.xz'", archivePath)
 		}
 		if _, err := os.Stat(archivePath); os.IsNotExist(err) {
-			t.Errorf("getArchivePath() archive does not exist: %s", archivePath)
+			t.Errorf("GetArchive() archive does not exist: %s", archivePath)
 		}
 	})
 
 	t.Run("empty directory", func(t *testing.T) {
-		tmpDir := t.TempDir()
-		archivePath, err := getArchivePath(tmpDir)
+		srcDir := t.TempDir()
+		outDir := t.TempDir()
+		archivePath, err := collector.GetArchive(srcDir, outDir)
 		if err != nil {
-			t.Errorf("getArchivePath() unexpected error for empty directory: %v", err)
+			t.Errorf("GetArchive() unexpected error for empty directory: %v", err)
 		}
-		defer func(name string) {
-			if os.Remove(name) != nil {
-				return
-			}
-		}(archivePath)
+		t.Cleanup(func() { _ = os.Remove(archivePath) })
 		if _, err := os.Stat(archivePath); os.IsNotExist(err) {
-			t.Errorf("getArchivePath() archive does not exist for empty directory: %s", archivePath)
+			t.Errorf("GetArchive() archive does not exist for empty directory: %s", archivePath)
 		}
 	})
 
 	t.Run("nonexistent directory", func(t *testing.T) {
+		outDir := t.TempDir()
 		nonexistentDir := "/nonexistent/path"
-		_, err := getArchivePath(nonexistentDir)
+		_, err := collector.GetArchive(nonexistentDir, outDir)
 		if err == nil {
-			t.Error("getArchivePath() expected error for nonexistent directory")
+			t.Error("GetArchive() expected error for nonexistent directory")
 		}
 	})
 }
