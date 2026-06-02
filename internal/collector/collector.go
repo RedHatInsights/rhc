@@ -93,7 +93,8 @@ type timerDto struct {
 	LastFinished *finishedEventDto `json:"last_finished"`
 }
 
-// GetArchive generates an archive filename and creates a compressed archive from the specified directory.
+// GetArchive generates an archive filename, creates a compressed archive
+// from the sourceDir in the outputDir, and returns the path to the created archive.
 func GetArchive(sourceDir, outputDir string) (string, error) {
 	outputDir, err := ensureOutputDir(outputDir)
 	if err != nil {

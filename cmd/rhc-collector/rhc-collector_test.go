@@ -49,6 +49,8 @@ func TestCreateTmpDir(t *testing.T) {
 	})
 }
 
+// TestGetConfig verifies that getConfig correctly validates the collector ID
+// before attempting to read from the filesystem.
 func TestGetConfig(t *testing.T) {
 	// Note: Can't test happy path without mocking filesystem or root permissions.
 	// This wrapper around collector.GetConfig() reads from /usr/lib/rhc/collectors/.
@@ -61,6 +63,8 @@ func TestGetConfig(t *testing.T) {
 	})
 }
 
+// TestExecuteCollector verifies that executeCollector runs shell commands in
+// the provided working directory.
 func TestExecuteCollector(t *testing.T) {
 	t.Run("successful command execution", func(t *testing.T) {
 		tmpDir := t.TempDir()
@@ -117,9 +121,7 @@ func TestExecuteCollector(t *testing.T) {
 }
 
 // TestGetArchive verifies that collector.GetArchive correctly creates a
-// .tar.xz archive from a given source directory. It covers three cases:
-// a directory containing files, an empty directory, and a nonexistent source
-// path (which must return an error).
+// .tar.xz archive from a given source directory.
 func TestGetArchive(t *testing.T) {
 	t.Run("directory with files", func(t *testing.T) {
 		srcDir := t.TempDir()
@@ -188,6 +190,7 @@ func getArchivePathFromTmpDir(t *testing.T) string {
 	return archivePath
 }
 
+// TestUploadArchive verifies the behavior of uploadArchive.
 func TestUploadArchive(t *testing.T) {
 	testConfig := collector.Config{
 		ID:          "test.collector",
@@ -195,6 +198,7 @@ func TestUploadArchive(t *testing.T) {
 		ContentType: "application/vnd.redhat.advisor.collection",
 	}
 
+	// FIXME What is this testing, without any asserts?
 	t.Run("upload with valid parameters", func(t *testing.T) {
 		archivePath := getArchivePathFromTmpDir(t)
 		err := uploadArchive(archivePath, testConfig)
@@ -223,6 +227,8 @@ func TestUploadArchive(t *testing.T) {
 	})
 }
 
+// TestCleanup verifies that the cleanup function removes a file or directory
+// when called.
 func TestCleanup(t *testing.T) {
 	t.Run("removes file successfully", func(t *testing.T) {
 		tmpFile, err := os.CreateTemp("", "test-cleanup-")
