@@ -66,6 +66,9 @@ install -m 0755 -vd                     %{buildroot}%{bash_completions_dir}/
 install -m 0644 -vp data/completion/rhc.bash  %{buildroot}%{bash_completions_dir}/%{name}
 # Logs
 install -m 0755 -vd                     %{buildroot}%{_localstatedir}/log/%{name}/
+# Collector directories
+install -m 0755 -vd                     %{buildroot}%{_prefix}/lib/%{name}/collectors/
+install -m 0755 -vd                     %{buildroot}%{_libexecdir}/%{name}/collectors/
 # Logrotate
 install -m 0755 -vd                     %{buildroot}%{_sysconfdir}/logrotate.d/
 install -m 0644 -vp data/logrotate.d/rhc %{buildroot}%{_sysconfdir}/logrotate.d/rhc
@@ -130,6 +133,11 @@ fi
 %{_prefix}/lib/systemd/system-preset/50-rhc.preset
 # Configuration
 %{_sysconfdir}/%{name}/
+# Collector directories
+%dir %{_prefix}/lib/%{name}/collectors/
+%dir %{_libexecdir}/%{name}/collectors/
+# Logs
+%dir %{_localstatedir}/log/%{name}/
 # Logrotate
 %config(noreplace) %{_sysconfdir}/logrotate.d/rhc
 # Yggdrasil
