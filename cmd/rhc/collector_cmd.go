@@ -27,8 +27,7 @@ func newCollectorClient() (*collectorapi.Client, func(), error) {
 	conn, err := net.Dial("unix", rhcServerSocket)
 	if err != nil {
 		slog.Error("failed to connect to rhc-server", "error", err)
-		var pathErr *os.PathError
-		if errors.As(err, &pathErr) && errors.Is(pathErr.Err, syscall.ENOENT) {
+		if errors.Is(err, os.ErrNotExist) || errors.Is(err, syscall.ECONNREFUSED) {
 			return nil, nil, fmt.Errorf("rhc-server.socket is not available. Try: systemctl restart rhc-server.socket")
 		}
 		return nil, nil, err
