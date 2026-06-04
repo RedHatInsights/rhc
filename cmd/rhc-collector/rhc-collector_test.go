@@ -34,6 +34,14 @@ func TestCreateTmpDir(t *testing.T) {
 		if !strings.HasPrefix(tmpDir, rhcTmpDir) {
 			t.Errorf("createTmpDir() = %q, want prefix '%q'", tmpDir, rhcTmpDir)
 		}
+		parentInfo, err := os.Stat(rhcTmpDir)
+		if err != nil {
+			t.Errorf("parent directory does not exist: %v", err)
+			return
+		}
+		if perms := parentInfo.Mode().Perm(); perms != 0700 {
+			t.Errorf("parent directory permissions = %o, want %o", perms, os.FileMode(0700))
+		}
 		info, err := os.Stat(tmpDir)
 		if err != nil {
 			t.Errorf("created directory does not exist: %v", err)
@@ -43,6 +51,41 @@ func TestCreateTmpDir(t *testing.T) {
 			t.Error("created path is not a directory")
 		}
 	})
+}
+
+func TestCreateTmpDirCreatesMissingParent(t *testing.T) {
+	if err := os.RemoveAll(rhcTmpDir); err != nil {
+		t.Fatalf("failed to remove existing rhcTmpDir: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := os.RemoveAll(rhcTmpDir); err != nil {
+			t.Logf("Failed to clean up rhcTmpDir: %v", err)
+		}
+	})
+
+	tmpDir, err := createTmpDir()
+	if err != nil {
+		t.Fatalf("createTmpDir() unexpected error: %v", err)
+	}
+
+	defer func() {
+		if err := os.RemoveAll(tmpDir); err != nil {
+			t.Logf("Failed to clean up temp dir: %v", err)
+		}
+	}()
+
+	info, err := os.Stat(rhcTmpDir)
+	if err != nil {
+		t.Fatalf("parent directory was not created: %v", err)
+	}
+
+	if !info.IsDir() {
+		t.Fatal("rhcTmpDir is not a directory")
+	}
+
+	if perms := info.Mode().Perm(); perms != 0700 {
+		t.Errorf("permissions = %o, want %o", perms, os.FileMode(0700))
+	}
 }
 
 // TestGetConfig verifies that getConfig correctly validates the collector ID
