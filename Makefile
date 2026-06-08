@@ -5,7 +5,7 @@ VERSION := $(shell rpmspec rhc.spec --query --srpm --queryformat '%{version}')
 LDFLAGS := -ldflags "-X github.com/redhatinsights/rhc/pkg/version.Version=$(VERSION)"
 GO_BUILD := go build $(LDFLAGS)
 
-# The 'build' target is not used during packaging; it is present for upstream development purposes.
+# The 'build' target is not used during downstream packaging; it is present for upstream development purposes.
 .PHONY: build
 build:
 	$(GO_BUILD) -o rhc ./cmd/rhc
@@ -15,14 +15,26 @@ build:
 .PHONY: archive
 archive:
 	git archive --prefix rhc-$(VERSION)/ --format tar.gz HEAD > rhc-$(VERSION).tar.gz
-	go_vendor_archive create --output rhc-$(VERSION)-vendor.tar.bz2 .
+
+# Generate -vendor tarball to be used as .spec's Source1, containing dependencies.
+# On Fedora, this could be done by go-vendor-tools package, but CentOS Stream and RHEL
+# do not have it available yet.
+.PHONY: archive-deps
+archive-deps:
+	go mod vendor
+	tar --create --bzip2 \
+		--file "$(CURDIR)/rhc-$(VERSION)-vendor.tar.bz2" \
+		--sort name \
+		--mtime="@$${SOURCE_DATE_EPOCH:-0}" \
+		--owner 0 --group 0 --numeric-owner \
+		go.mod go.sum vendor/
 
 .PHONY: srpm
-srpm: archive
+srpm: archive archive-deps
 	rpmbuild --define "_sourcedir $$(pwd)" -bs rhc.spec
 
 .PHONY: rpm
-rpm: archive
+rpm: srpm
 	rpmbuild --define "_sourcedir $$(pwd)" -bb rhc.spec
 
 # The 'clean' target removes build artifacts.
@@ -32,3 +44,5 @@ clean:
 	rm -f rhc-server
 	rm -f rhc-collector
 	rm -f rhc-*.tar*
+	rm -rf vendor/
+	rm -rf x86_64/
