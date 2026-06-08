@@ -16,21 +16,17 @@ func TestCreateTmpDir(t *testing.T) {
 		if err := os.MkdirAll(rhcTmpDir, 0755); err != nil {
 			t.Skipf("Cannot create parent directory %s: %v", rhcTmpDir, err)
 		}
-		defer func() {
-			if os.RemoveAll(rhcTmpDir) != nil {
-				return
-			}
-		}() // Clean up the parent directory after test
+		t.Cleanup(func() { _ = os.RemoveAll(rhcTmpDir) })
 		tmpDir, err := createTmpDir()
 		if err != nil {
 			t.Errorf("createTmpDir() unexpected error: %v", err)
 			return
 		}
-		defer func() {
+		t.Cleanup(func() {
 			if err := os.RemoveAll(tmpDir); err != nil {
 				t.Logf("Failed to clean up temp dir: %v", err)
 			}
-		}()
+		})
 		if tmpDir == "" {
 			t.Error("createTmpDir() returned empty string")
 			return
@@ -167,21 +163,24 @@ func TestGetArchive(t *testing.T) {
 	})
 }
 
+// getArchivePathFromTmpDir is a test helper that compresses a sample text file
+// into a .tar.xz archive and returns the archive path.
+// The archive is removed automatically when the test completes via t.Cleanup.
 func getArchivePathFromTmpDir(t *testing.T) string {
-	tmpDir := t.TempDir()
-	testFile := filepath.Join(tmpDir, "test.txt")
+	t.Helper()
+	srcDir := t.TempDir()
+	outDir := t.TempDir()
+	testFile := filepath.Join(srcDir, "test.txt")
 	if err := os.WriteFile(testFile, []byte("test content"), 0644); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
-	archivePath, err := collector.GetArchive(tmpDir, "")
+	archivePath, err := collector.GetArchive(srcDir, outDir)
 	if err != nil {
 		t.Fatalf("Failed to create test archive: %v", err)
 	}
-	defer func(name string) {
-		if os.Remove(name) != nil {
-			return
-		}
-	}(archivePath)
+	t.Cleanup(func() {
+		_ = os.Remove(archivePath)
+	})
 	return archivePath
 }
 
