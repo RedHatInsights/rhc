@@ -54,4 +54,5 @@ jobs:
       - name: Run woke
         uses: get-woke/woke-action@v0
         with:
+          version: "latest"
           fail-on-error: true
