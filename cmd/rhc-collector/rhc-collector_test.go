@@ -65,7 +65,7 @@ func TestExecuteCollector(t *testing.T) {
 	t.Run("successful command execution", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		command := "echo 'test output'"
-		err := executeCollector(command, tmpDir)
+		err := executeCollector("test.collector", command, tmpDir)
 		if err != nil {
 			t.Errorf("executeCollector() unexpected error: %v", err)
 		}
@@ -75,7 +75,7 @@ func TestExecuteCollector(t *testing.T) {
 		tmpDir := t.TempDir()
 		testFile := "test-output.txt"
 		command := fmt.Sprintf("echo 'test content' > %s", testFile)
-		err := executeCollector(command, tmpDir)
+		err := executeCollector("test.collector", command, tmpDir)
 		if err != nil {
 			t.Errorf("executeCollector() unexpected error: %v", err)
 		}
@@ -88,7 +88,7 @@ func TestExecuteCollector(t *testing.T) {
 	t.Run("failing command", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		command := "exit 1"
-		err := executeCollector(command, tmpDir)
+		err := executeCollector("test.collector", command, tmpDir)
 		if err == nil {
 			t.Error("executeCollector() expected error for failing command")
 		}
@@ -100,7 +100,7 @@ func TestExecuteCollector(t *testing.T) {
 	t.Run("nonexistent command", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		command := "nonexistentcommand123456"
-		err := executeCollector(command, tmpDir)
+		err := executeCollector("test.collector", command, tmpDir)
 		if err == nil {
 			t.Error("executeCollector() expected error for nonexistent command")
 		}
@@ -109,7 +109,7 @@ func TestExecuteCollector(t *testing.T) {
 	t.Run("command with special characters", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		command := "echo 'test with spaces and \"quotes\"'"
-		err := executeCollector(command, tmpDir)
+		err := executeCollector("test.collector", command, tmpDir)
 		if err != nil {
 			t.Errorf("executeCollector() unexpected error with special characters: %v", err)
 		}
