@@ -103,12 +103,14 @@ func (connectResult *ConnectResult) TryRegisterRHSM(cmd *cli.Command, enableCont
 		ui.Printf("%s[%v] %s\n", ui.Indent.Small, ui.Icons.Ok, returnedMsg)
 		if enableContent {
 			connectResult.Features.Content.Successful = true
-			slog.Info("redhat.repo has been generated")
-			ui.Printf("%s[%v] Content ... Red Hat repository file generated\n", ui.Indent.Medium, ui.Icons.Ok)
+			infoMsg := "System has access to content"
+			slog.Info(infoMsg)
+			ui.Printf("%s[%v] Content ... %v\n", ui.Indent.Medium, ui.Icons.Ok, infoMsg)
 		} else {
 			connectResult.Features.Content.Successful = false
-			slog.Info("redhat.repo not generated (content feature disabled)")
-			ui.Printf("%s[%v] Content ... Red Hat repository file absent\n", ui.Indent.Medium, ui.Icons.Info)
+			infoMsg := "System has no access to content"
+			slog.Info(infoMsg)
+			ui.Printf("%s[ ] Content ... %v\n", ui.Indent.Medium, infoMsg)
 		}
 	}
 }
