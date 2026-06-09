@@ -173,16 +173,23 @@ func beforeFeaturesEnableAction(ctx context.Context, cmd *cli.Command) (context.
 	}
 	configureUI(cmd)
 
-	if cmd.Args().Len() != 1 {
-		return ctx, cli.Exit("this command requires a single FEATURE argument", exitcode.Usage)
+	numFeatures := len(feature.All())
+	if cmd.Args().Len() == 0 || cmd.Args().Len() > numFeatures {
+		return ctx, cli.Exit(
+			fmt.Sprintf("this command requires 1 to %d FEATURE arguments", numFeatures),
+			exitcode.Usage,
+		)
 	}
-	if _, err = feature.Get(cmd.Args().First()); err != nil {
-		return ctx, cli.Exit(err.Error(), exitcode.DataErr)
+	featureNames := cmd.Args().Slice()
+	for _, featureName := range featureNames {
+		if _, err = feature.Get(featureName); err != nil {
+			return ctx, cli.Exit(err.Error(), exitcode.DataErr)
+		}
 	}
 	return ctx, nil
 }
 
-// featuresEnableAction enables a single feature.
+// featuresEnableAction enables one or more features.
 func featuresEnableAction(ctx context.Context, cmd *cli.Command) error {
 	logCommandStart(cmd)
 	isRegistered, err := rhsm.IsRHSMRegistered()
@@ -190,48 +197,49 @@ func featuresEnableAction(ctx context.Context, cmd *cli.Command) error {
 		return cli.Exit(fmt.Sprintf("failed to check registration status: %v", err), exitcode.Software)
 	}
 
-	requestedFeature := cmd.Args().First()
+	requestedFeatures := cmd.Args().Slice()
 	if isRegistered {
-		return featuresEnableActionRegistered(ctx, cmd, requestedFeature)
+		return featuresEnableActionRegistered(ctx, cmd, requestedFeatures)
 	}
-	return featuresEnableActionNotRegistered(ctx, cmd, requestedFeature)
+	return featuresEnableActionNotRegistered(ctx, cmd, requestedFeatures)
 }
 
 // featuresEnableActionNotRegistered handles enabling a feature on a non-registered system.
-func featuresEnableActionNotRegistered(_ context.Context, _ *cli.Command, targetName string) error {
+func featuresEnableActionNotRegistered(_ context.Context, _ *cli.Command, targetNames []string) error {
 	cache, err := prefcache.LoadCache(ConnectFeaturesPrefsPath)
 	if err != nil {
 		return cli.Exit(fmt.Sprintf("failed to load feature preferences: %v", err), exitcode.Software)
 	}
 
-	target := feature.MustGet(targetName)
-
-	// enable required features
-	for _, requiredName := range target.Requires() {
-		enabled, err := cache.Get(requiredName)
-		if err != nil {
-			return cli.Exit(fmt.Sprintf("failed to get feature preference: %v", err), exitcode.Software)
-		}
-		if !enabled {
-			fmt.Printf("During registration, '%s' will be enabled (required by '%s').\n", requiredName, targetName)
-			if err = cache.Set(requiredName, true); err != nil {
-				return cli.Exit(fmt.Sprintf("failed to update preference: %v", err), exitcode.Software)
+	for _, targetName := range targetNames {
+		target := feature.MustGet(targetName)
+		// enable required features
+		for _, requiredName := range target.Requires() {
+			enabled, err := cache.Get(requiredName)
+			if err != nil {
+				return cli.Exit(fmt.Sprintf("failed to get feature preference: %v", err), exitcode.Software)
 			}
-			slog.Debug("enabling feature", "name", requiredName)
-		}
-	}
-	// enable target feature
-	{
-		enabled, err := cache.Get(targetName)
-		if err != nil {
-			return cli.Exit(fmt.Sprintf("failed to get feature preference: %v", err), exitcode.Software)
-		}
-		if !enabled {
-			fmt.Printf("During registration, '%s' will be enabled.\n", targetName)
-			if err = cache.Set(targetName, true); err != nil {
-				return cli.Exit(fmt.Sprintf("failed to update preference: %v", err), exitcode.Software)
+			if !enabled {
+				fmt.Printf("During registration, '%s' will be enabled (required by '%s').\n", requiredName, targetName)
+				if err = cache.Set(requiredName, true); err != nil {
+					return cli.Exit(fmt.Sprintf("failed to update preference: %v", err), exitcode.Software)
+				}
+				slog.Debug("enabling feature", "name", requiredName)
 			}
-			slog.Debug("enabling feature", "name", targetName)
+		}
+		// enable target features
+		{
+			enabled, err := cache.Get(targetName)
+			if err != nil {
+				return cli.Exit(fmt.Sprintf("failed to get feature preference: %v", err), exitcode.Software)
+			}
+			if !enabled {
+				fmt.Printf("During registration, '%s' will be enabled.\n", targetName)
+				if err = cache.Set(targetName, true); err != nil {
+					return cli.Exit(fmt.Sprintf("failed to update preference: %v", err), exitcode.Software)
+				}
+				slog.Debug("enabling feature", "name", targetName)
+			}
 		}
 	}
 
@@ -242,39 +250,40 @@ func featuresEnableActionNotRegistered(_ context.Context, _ *cli.Command, target
 }
 
 // featuresEnableActionRegistered handles enabling a feature on a registered system.
-func featuresEnableActionRegistered(_ context.Context, _ *cli.Command, targetName string) error {
-	target := feature.MustGet(targetName)
-
-	// enable required features
-	for _, requiredName := range target.Requires() {
-		required := feature.MustGet(requiredName)
-		requiredEnabled, err := required.IsEnabled()
-		if err != nil {
-			return cli.Exit(fmt.Sprintf("failed to check status of required feature '%s': %v", requiredName, err), exitcode.Software)
+func featuresEnableActionRegistered(_ context.Context, _ *cli.Command, targetNames []string) error {
+	for _, targetName := range targetNames {
+		target := feature.MustGet(targetName)
+		// enable required features
+		for _, requiredName := range target.Requires() {
+			required := feature.MustGet(requiredName)
+			requiredEnabled, err := required.IsEnabled()
+			if err != nil {
+				return cli.Exit(fmt.Sprintf("failed to check status of required feature '%s': %v", requiredName, err), exitcode.Software)
+			}
+			if requiredEnabled {
+				slog.Debug("feature is already enabled", "feature", requiredName)
+				continue
+			}
+			if err = required.Enable(); err != nil {
+				return cli.Exit(fmt.Sprintf("failed to enable required feature '%s': %v", requiredName, err), exitcode.Software)
+			}
+			fmt.Printf("Feature '%s' enabled (required by '%s').\n", requiredName, targetName)
 		}
-		if requiredEnabled {
-			slog.Debug("feature is already enabled", "feature", requiredName)
-			continue
+		// enable target features
+		{
+			featureEnabled, err := target.IsEnabled()
+			if err != nil {
+				return cli.Exit(fmt.Sprintf("failed to check status of target feature '%s': %v", targetName, err), exitcode.Software)
+			}
+			if featureEnabled {
+				slog.Debug("feature is already enabled", "feature", targetName)
+				continue
+			}
+			if err = target.Enable(); err != nil {
+				return cli.Exit(fmt.Sprintf("failed to enable target feature '%s': %v", targetName, err), exitcode.Software)
+			}
+			fmt.Printf("Feature '%s' enabled.\n", targetName)
 		}
-		if err = required.Enable(); err != nil {
-			return cli.Exit(fmt.Sprintf("failed to enable required feature '%s': %v", requiredName, err), exitcode.Software)
-		}
-		fmt.Printf("Feature '%s' enabled (required by '%s').\n", requiredName, targetName)
-	}
-	// enable target feature
-	{
-		featureEnabled, err := target.IsEnabled()
-		if err != nil {
-			return cli.Exit(fmt.Sprintf("failed to check status of target feature '%s': %v", targetName, err), exitcode.Software)
-		}
-		if featureEnabled {
-			slog.Debug("feature is already enabled", "feature", targetName)
-			return nil
-		}
-		if err = target.Enable(); err != nil {
-			return cli.Exit(fmt.Sprintf("failed to enable target feature '%s': %v", targetName, err), exitcode.Software)
-		}
-		fmt.Printf("Feature '%s' enabled.\n", targetName)
 	}
 
 	return nil
@@ -288,16 +297,23 @@ func beforeFeaturesDisableAction(ctx context.Context, cmd *cli.Command) (context
 	}
 	configureUI(cmd)
 
-	if cmd.Args().Len() != 1 {
-		return ctx, cli.Exit("this command requires a single FEATURE argument", exitcode.Usage)
+	numFeatures := len(feature.All())
+	if cmd.Args().Len() == 0 || cmd.Args().Len() > numFeatures {
+		return ctx, cli.Exit(
+			fmt.Sprintf("this command requires 1 to %d FEATURE arguments", numFeatures),
+			exitcode.Usage,
+		)
 	}
-	if _, err = feature.Get(cmd.Args().First()); err != nil {
-		return ctx, cli.Exit(err.Error(), exitcode.DataErr)
+	featureNames := cmd.Args().Slice()
+	for _, featureName := range featureNames {
+		if _, err = feature.Get(featureName); err != nil {
+			return ctx, cli.Exit(err.Error(), exitcode.DataErr)
+		}
 	}
 	return ctx, nil
 }
 
-// featuresDisableAction disables a single feature.
+// featuresDisableAction disables one or more features.
 func featuresDisableAction(ctx context.Context, cmd *cli.Command) error {
 	logCommandStart(cmd)
 	isRegistered, err := rhsm.IsRHSMRegistered()
@@ -305,48 +321,49 @@ func featuresDisableAction(ctx context.Context, cmd *cli.Command) error {
 		return cli.Exit(fmt.Sprintf("failed to check registration status: %v", err), exitcode.Software)
 	}
 
-	requestedFeature := cmd.Args().First()
+	requestedFeatures := cmd.Args().Slice()
 	if isRegistered {
-		return featuresDisableActionRegistered(ctx, cmd, requestedFeature)
+		return featuresDisableActionRegistered(ctx, cmd, requestedFeatures)
 	}
-	return featuresDisableActionNotRegistered(ctx, cmd, requestedFeature)
+	return featuresDisableActionNotRegistered(ctx, cmd, requestedFeatures)
 }
 
 // featuresDisableActionNotRegistered handles disabling a feature on a non-registered system.
-func featuresDisableActionNotRegistered(_ context.Context, _ *cli.Command, targetName string) error {
+func featuresDisableActionNotRegistered(_ context.Context, _ *cli.Command, targetNames []string) error {
 	cache, err := prefcache.LoadCache(ConnectFeaturesPrefsPath)
 	if err != nil {
 		return cli.Exit(fmt.Sprintf("failed to load feature preferences: %v", err), exitcode.Software)
 	}
 
-	target := feature.MustGet(targetName)
-
-	// disable dependent features
-	for _, dependentName := range target.RequiredBy() {
-		enabled, err := cache.Get(dependentName)
-		if err != nil {
-			return cli.Exit(fmt.Sprintf("failed to get feature preference: %v", err), exitcode.Software)
-		}
-		if enabled {
-			fmt.Printf("During registration, '%s' will not be enabled (depends on '%s').\n", dependentName, targetName)
-			if err = cache.Set(dependentName, false); err != nil {
-				return cli.Exit(fmt.Sprintf("failed to update preference: %v", err), exitcode.Software)
+	for _, targetName := range targetNames {
+		target := feature.MustGet(targetName)
+		// disable dependent features
+		for _, dependentName := range target.RequiredBy() {
+			enabled, err := cache.Get(dependentName)
+			if err != nil {
+				return cli.Exit(fmt.Sprintf("failed to get feature preference: %v", err), exitcode.Software)
 			}
-			slog.Debug("disabling feature", "name", dependentName)
-		}
-	}
-	// disable target feature
-	{
-		enabled, err := cache.Get(targetName)
-		if err != nil {
-			return cli.Exit(fmt.Sprintf("failed to get feature preference: %v", err), exitcode.Software)
-		}
-		if enabled {
-			fmt.Printf("During registration, '%s' will not be enabled.\n", targetName)
-			if err = cache.Set(targetName, false); err != nil {
-				return cli.Exit(fmt.Sprintf("failed to update preference: %v", err), exitcode.Software)
+			if enabled {
+				fmt.Printf("During registration, '%s' will not be enabled (depends on '%s').\n", dependentName, targetName)
+				if err = cache.Set(dependentName, false); err != nil {
+					return cli.Exit(fmt.Sprintf("failed to update preference: %v", err), exitcode.Software)
+				}
+				slog.Debug("disabling feature", "name", dependentName)
 			}
-			slog.Debug("disabling feature", "name", targetName)
+		}
+		// disable target features
+		{
+			enabled, err := cache.Get(targetName)
+			if err != nil {
+				return cli.Exit(fmt.Sprintf("failed to get feature preference: %v", err), exitcode.Software)
+			}
+			if enabled {
+				fmt.Printf("During registration, '%s' will not be enabled.\n", targetName)
+				if err = cache.Set(targetName, false); err != nil {
+					return cli.Exit(fmt.Sprintf("failed to update preference: %v", err), exitcode.Software)
+				}
+				slog.Debug("disabling feature", "name", targetName)
+			}
 		}
 	}
 
@@ -357,39 +374,40 @@ func featuresDisableActionNotRegistered(_ context.Context, _ *cli.Command, targe
 }
 
 // featuresDisableActionRegistered handles disabling a feature on a registered system.
-func featuresDisableActionRegistered(_ context.Context, _ *cli.Command, targetName string) error {
-	target := feature.MustGet(targetName)
-
-	// disable dependent features
-	for _, dependentName := range target.RequiredBy() {
-		dependent := feature.MustGet(dependentName)
-		dependentEnabled, err := dependent.IsEnabled()
-		if err != nil {
-			return cli.Exit(fmt.Sprintf("failed to check status of dependent feature '%s': %v", dependentName, err), exitcode.Software)
+func featuresDisableActionRegistered(_ context.Context, _ *cli.Command, targetNames []string) error {
+	for _, targetName := range targetNames {
+		target := feature.MustGet(targetName)
+		// disable dependent features
+		for _, dependentName := range target.RequiredBy() {
+			dependent := feature.MustGet(dependentName)
+			dependentEnabled, err := dependent.IsEnabled()
+			if err != nil {
+				return cli.Exit(fmt.Sprintf("failed to check status of dependent feature '%s': %v", dependentName, err), exitcode.Software)
+			}
+			if !dependentEnabled {
+				slog.Debug("feature is already disabled", "feature", dependentName)
+				continue
+			}
+			if err = dependent.Disable(); err != nil {
+				return cli.Exit(fmt.Sprintf("failed to disable dependent feature '%s': %v", dependentName, err), exitcode.Software)
+			}
+			fmt.Printf("Feature '%s' disabled (depends on '%s').\n", dependentName, targetName)
 		}
-		if !dependentEnabled {
-			slog.Debug("feature is already disabled", "feature", dependentName)
-			continue
+		// disable target features
+		{
+			featureEnabled, err := target.IsEnabled()
+			if err != nil {
+				return cli.Exit(fmt.Sprintf("failed to check status of target feature '%s': %v", targetName, err), exitcode.Software)
+			}
+			if !featureEnabled {
+				slog.Debug("feature is already disabled", "feature", targetName)
+				continue
+			}
+			if err = target.Disable(); err != nil {
+				return cli.Exit(fmt.Sprintf("failed to disable target feature '%s': %v", targetName, err), exitcode.Software)
+			}
+			fmt.Printf("Feature '%s' disabled.\n", targetName)
 		}
-		if err = dependent.Disable(); err != nil {
-			return cli.Exit(fmt.Sprintf("failed to disable dependent feature '%s': %v", dependentName, err), exitcode.Software)
-		}
-		fmt.Printf("Feature '%s' disabled (depends on '%s').\n", dependentName, targetName)
-	}
-	// disable target feature
-	{
-		featureEnabled, err := target.IsEnabled()
-		if err != nil {
-			return cli.Exit(fmt.Sprintf("failed to check status of target feature '%s': %v", targetName, err), exitcode.Software)
-		}
-		if !featureEnabled {
-			slog.Debug("feature is already disabled", "feature", targetName)
-			return nil
-		}
-		if err = target.Disable(); err != nil {
-			return cli.Exit(fmt.Sprintf("failed to disable target feature '%s': %v", targetName, err), exitcode.Software)
-		}
-		fmt.Printf("Feature '%s' disabled.\n", targetName)
 	}
 
 	return nil
