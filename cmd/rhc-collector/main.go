@@ -57,9 +57,38 @@ func run(collectorId, command string) error {
 	return nil
 }
 
-// createTmpDir creates a temporary directory for collector output in rhcTmpDir.
-// Returns the directory path or an error if creation fails.
+// createTmpDir ensures rhcTmpDir exists with root-only permissions (0700)
+// and creates a collector-specific temporary directory inside it. If the
+// parent directory exists with different permissions, they are reset to
+// 0700. Returns the temporary directory path or an error if any step fails.
 func createTmpDir() (string, error) {
+	// Ensure the parent directory exists
+	if err := os.MkdirAll(rhcTmpDir, 0700); err != nil {
+		slog.Error("failed to create rhc temporary directory", "error", err)
+		return "", fmt.Errorf("failed to create rhc temporary directory: %w", err)
+	}
+
+	// Verify permissions and fix if necessary 
+	info, err := os.Stat(rhcTmpDir)
+	if err != nil {
+		slog.Error("failed to stat rhc temporary directory", "error", err)
+		return "", fmt.Errorf("failed to stat rhc temporary directory: %w", err)
+	}
+
+	if perms := info.Mode().Perm(); perms != 0700 {
+		slog.Warn(
+			"rhc temporary directory has incorrect permissions, resetting",
+			"path", rhcTmpDir,
+			"current_permissions", fmt.Sprintf("%#o", perms),
+			"expected_permissions", "0700",
+		)
+
+		if err := os.Chmod(rhcTmpDir, 0700); err != nil {
+			slog.Error("failed to reset permissions on rhc temporary directory", "error", err)
+			return "", fmt.Errorf("failed to reset permissions on rhc temporary directory: %w", err)
+		}
+	}
+
 	tmpDir, err := os.MkdirTemp(rhcTmpDir, "collector-")
 	if err != nil {
 		slog.Error("failed to create a temporary directory", "error", err)
