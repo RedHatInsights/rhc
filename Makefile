@@ -11,6 +11,7 @@ build:
 	$(GO_BUILD) -o rhc ./cmd/rhc
 	$(GO_BUILD) -o rhc-server ./cmd/rhc-server
 	$(GO_BUILD) -o rhc-collector ./cmd/rhc-collector
+	$(GO_BUILD) -o data-collector ./cmd/data-collector
 
 .PHONY: archive
 archive:
@@ -31,4 +32,5 @@ clean:
 	rm -f rhc
 	rm -f rhc-server
 	rm -f rhc-collector
+	rm -f data-collector
 	rm -f rhc-*.tar*

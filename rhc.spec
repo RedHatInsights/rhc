@@ -48,6 +48,7 @@ export GO_LDFLAGS="-X github.com/redhatinsights/rhc/pkg/version.Version=%{versio
 %gobuild -o %{gobuilddir}/bin/rhc %{goipath}/cmd/rhc
 %gobuild -o %{gobuilddir}/bin/rhc-server %{goipath}/cmd/rhc-server
 %gobuild -o %{gobuilddir}/bin/rhc-collector %{goipath}/cmd/rhc-collector
+%gobuild -o %{gobuilddir}/bin/data-collector %{goipath}/cmd/data-collector
 
 # Generate man page
 %{gobuilddir}/bin/rhc --generate-man-page > rhc.1
@@ -61,6 +62,7 @@ install -m 0755 -vp _build/bin/rhc      %{buildroot}%{_bindir}/
 install -m 0755 -vd                     %{buildroot}%{_libexecdir}/%{name}
 install -m 0755 -vp _build/bin/rhc-server %{buildroot}%{_libexecdir}/%{name}/
 install -m 0755 -vp _build/bin/rhc-collector %{buildroot}%{_libexecdir}/%{name}/
+install -m 0755 -vp _build/bin/data-collector %{buildroot}%{_libexecdir}/%{name}/
 # Bash completion
 install -m 0755 -vd                     %{buildroot}%{bash_completions_dir}/
 install -m 0644 -vp data/completion/rhc.bash  %{buildroot}%{bash_completions_dir}/%{name}
@@ -78,6 +80,7 @@ install -m 0644 -vp rhc.1               %{buildroot}%{_mandir}/man1/rhc.1
 # Systemd files
 install -m 0755 -vd                     %{buildroot}%{_unitdir}
 install -m 0644 -vp data/systemd/rhc-canonical-facts.*  %{buildroot}%{_unitdir}/
+install -m 0644 -vp data/systemd/rhc-data-collector.*  %{buildroot}%{_unitdir}/
 install -m 0644 -vp data/systemd/rhc-server.service  %{buildroot}%{_unitdir}/
 install -m 0644 -vp data/systemd/rhc-server.socket   %{buildroot}%{_unitdir}/
 install -m 0755 -vd %{buildroot}%{_prefix}/lib/systemd/system-preset/
@@ -98,6 +101,7 @@ install -m 0644 -vp %{buildroot}%{_unitdir}/yggdrasil.service.d/rhcd.conf %{buil
 
 %post
 %systemd_post rhc-canonical-facts.timer
+%systemd_post rhc-data-collector.timer
 %systemd_post rhc-server.socket
 %if 0%{?with_rhcd_compat}
 # On package update, ensure yggdrasil (formerly rhcd) has its own configuration file
@@ -111,10 +115,12 @@ fi
 
 %preun
 %systemd_preun rhc-canonical-facts.timer
+%systemd_preun rhc-data-collector.timer
 %systemd_preun rhc-server.socket rhc-server.service
 
 %postun
 %systemd_postun_with_restart rhc-canonical-facts.timer
+%systemd_postun_with_restart rhc-data-collector.timer
 %systemd_postun_with_restart rhc-server.service
 
 %files -f %{go_vendor_license_filelist}
@@ -122,12 +128,14 @@ fi
 %{_bindir}/rhc
 %{_libexecdir}/%{name}/rhc-server
 %{_libexecdir}/%{name}/rhc-collector
+%{_libexecdir}/%{name}/data-collector
 # Bash completion
 %{bash_completions_dir}/%{name}
 # Man page
 %{_mandir}/man1/*
 # Systemd
 %{_unitdir}/rhc-canonical-facts.*
+%{_unitdir}/rhc-data-collector.*
 %{_unitdir}/rhc-server.service
 %{_unitdir}/rhc-server.socket
 %{_prefix}/lib/systemd/system-preset/50-rhc.preset

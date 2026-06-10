@@ -1,0 +1,17 @@
+[Unit]
+Description=rhc minimal data collector service
+Documentation=https://github.com/RedHatInsights/rhc
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/rhc/data-collector /tmp/rhc-data-collector
+StandardOutput=journal
+StandardError=journal
+UMask=0027
+User=root
+Group=root
+RuntimeMaxSec=300
+
+[Install]
+WantedBy=multi-user.target

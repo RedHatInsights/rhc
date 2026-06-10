@@ -2,6 +2,7 @@
 /rhc-server
 /rhc-collector
 /rhc.1.gz
+/data-collector
 /USAGE.md
 rhc.spec
 !/rhc.spec

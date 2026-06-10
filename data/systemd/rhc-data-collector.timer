@@ -1,0 +1,12 @@
+[Unit]
+Description=rhc minimal data collector timer
+Documentation=https://github.com/RedHatInsights/rhc
+Requires=rhc-data-collector.service
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+RandomizedDelaySec=3600
+
+[Install]
+WantedBy=timers.target
