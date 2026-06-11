@@ -15,3 +15,5 @@ settings.toml
 .secrets.toml
 /rhc*.tar.*
 /vendor/
+/artifacts/
+__pycache__/

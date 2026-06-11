@@ -19,7 +19,7 @@ You will have to install required RPMs and Python packages:
 
 ```
 dnf -y install python3-pip python3-pytest tmt+all
-sudo pip -r install integration-tests/requirements.txt
+sudo pip install -r integration-tests/requirements.txt
 ```
 
 Configuration of Testing Environment
@@ -57,11 +57,12 @@ example for some Satellite server.
 ### Local Candlepin
 
 You can also deploy your local candlepin server using
-[Pino's container image](https://github.com/ptoscano/candlepin-container-unofficial):
+[Unofficial Candlepin Container](https://github.com/candlepin/candlepin-container-unofficial)
 
 ```
-$ podman run -d --name candlepin -p 8080:8080 \
-  --pull newer ghcr.io/ptoscano/candlepin-unofficial:latest
+$ podman run -d --name candlepin \
+  -p 8080:8080 -p 8443:8443 --hostname candlepin.local \
+  --pull newer ghcr.io/candlepin/candlepin-unofficial:latest
 ```
 
 When local candlepin is deployed, then you have to do two things. First, you have
@@ -94,16 +95,16 @@ Thus, mock of `/usr/bin/insights-client` should look like this:
 
 if [[ -f /etc/pki/consumer/cert.pem ]]
 then
-	echo "registered"
-	touch /etc/insights-client/.registered
-	rm -f /etc/insights-client/.unregistered
+        echo "registered"
+        touch /etc/insights-client/.registered
+        rm -f /etc/insights-client/.unregistered
+        exit 0
 else
-	echo "not registered"
-	touch /etc/insights-client/.unregistered
-	rm -f /etc/insights-client/.registered
+        echo "not registered"
+        touch /etc/insights-client/.unregistered
+        rm -f /etc/insights-client/.registered
+        exit 1
 fi
-
-exit 0
 ```
 
 ### Yggdrasil Service
