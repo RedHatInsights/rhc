@@ -1,32 +1,53 @@
-# Run unit tests during package build
-%global with_check 1
-# Include rhcd->yggdrasil compatibility patch
-%global with_rhcd_compat 0
+# Run gocheck unless explicitly disabled.
+%bcond_without check
+
+%if 0%{?rhel} || 0%{?centos}
+# Enable rhcd->yggdrasil compatibility scriptlets and files.
+# RHEL/CentOS Stream shipped rhc with yggdrasil as rhcd and need migration logic.
+%global with_rhcd_compat 1
+%endif
 
 %global goipath         github.com/redhatinsights/rhc
 Version:                0.3.9
 
-%gometa -L -f
+%gometa
 
 Name:           rhc
 Release:        %autorelease
+Epoch:          1
 Summary:        Tool for registering to Red Hat services
 License:        Apache-2.0 AND BSD-2-Clause AND BSD-3-Clause AND GPL-3.0-only AND MIT
 URL:            %{gourl}
 Source0:        %{gosource}
 Source1:        %{archivename}-vendor.tar.bz2
+%if 0%{?fedora}
 Source2:        go-vendor-tools.toml
+%endif
 
-BuildRequires:  go-vendor-tools
 BuildRequires:  systemd-rpm-macros
+
+%if 0%{?with_rhcd_compat}
+# semanage is called in %post/%postun to manage the rhcd_t SELinux type.
+Requires(post): policycoreutils-python-utils
+%endif
+
+%if 0%{?fedora}
+# Fedora defines its own dependency vendorization policy, different from RHEL.
+# These build-time dependencies only exist for Fedora.
+BuildRequires:  go-vendor-tools
 BuildRequires:  askalono-cli
-%if 0%{?with_check}
+%endif
+
+%if %{with check}
+# rhc's unit test triggered by gocheck require D-Bus.
 BuildRequires:  /usr/bin/dbus-launch
 %endif
 
 Requires: subscription-manager
-# insights-client only exists in CentOS Stream and RHEL
-%if ! 0%{?fedora}
+%if 0%{?fedora}
+# insights-client does not exist on Fedora
+Recommends: insights-client
+%else
 Requires: insights-client
 %endif
 Requires: yggdrasil >= 0.4
@@ -37,24 +58,35 @@ Client tool to register Fedora, CentOS Stream or Red Hat Enterprise Linux
 to Red Hat Subscription Management and Red Hat Lightspeed.
 
 %prep
-%goprep -A
-%setup -q -T -D -a1 %{forgesetupargs}
+# Unpack Source0 and set up the Go build directory. Since -k is not passed in,
+# the vendor/ directory from the tarball is explicitly deleted.
+%goprep
+# Unpack Source1 into the build tree, providing the vendor/ directory.
+%setup -q -T -D -a1 -n %{name}-%{version}
+# Apply patches, if present.
+%autopatch -p1
 
 %generate_buildrequires
+%if 0%{?fedora}
+# Generate data for the licence check go-vendor-tools provides.
 %go_vendor_license_buildrequires -c %{S:2}
+%endif
 
 %build
-export GO_LDFLAGS="-X github.com/redhatinsights/rhc/pkg/version.Version=%{version} -X main.ServiceName=yggdrasil"
-%gobuild -o %{gobuilddir}/bin/rhc %{goipath}/cmd/rhc
-%gobuild -o %{gobuilddir}/bin/rhc-server %{goipath}/cmd/rhc-server
+export GO_LDFLAGS="-X github.com/redhatinsights/rhc/pkg/version.Version=%{version}"
+%gobuild -o %{gobuilddir}/bin/rhc           %{goipath}/cmd/rhc
+%gobuild -o %{gobuilddir}/bin/rhc-server    %{goipath}/cmd/rhc-server
 %gobuild -o %{gobuilddir}/bin/rhc-collector %{goipath}/cmd/rhc-collector
 
 # Generate man page
 %{gobuilddir}/bin/rhc --generate-man-page > rhc.1
 
 %install
-# Licenses
+%if 0%{?fedora}
+# Only go-vendor-tools are capable of collecting and packaging licenses for our dependencies.
 %go_vendor_license_install -c %{S:2}
+%endif
+
 # Binaries
 install -m 0755 -vd                     %{buildroot}%{_bindir}
 install -m 0755 -vp _build/bin/rhc      %{buildroot}%{_bindir}/
@@ -84,25 +116,50 @@ install -m 0755 -vd %{buildroot}%{_prefix}/lib/systemd/system-preset/
 install -m 0644 -vp data/systemd/presets/50-rhc.preset %{buildroot}%{_prefix}/lib/systemd/system-preset/
 # Configuration
 install -m 0755 -vd                     %{buildroot}%{_sysconfdir}/%{name}/
-# Yggdrasil
+
 %if 0%{?with_rhcd_compat}
+# Yggdrasil used to be called rhcd, and was part of rhc. For historical reasons, rhc
+# still carries the compatibility shim to perform the rhcd->yggdrasil translation.
 install -m 0755 -vd %{buildroot}%{_unitdir}/yggdrasil.service.d/
-install -m 0644 -vp %{buildroot}%{_unitdir}/yggdrasil.service.d/rhcd.conf %{buildroot}%{_unitdir}/yggdrasil.service.d/
+install -m 0644 -vp data/systemd/rhcd.conf %{buildroot}%{_unitdir}/yggdrasil.service.d/
 %endif
 
 %check
+%if 0%{?fedora}
+# Only go-vendor-tools are capable of validating the generated license string matches rpm's License field.
 %go_vendor_license_check -c %{S:2}
-%if 0%{?with_check}
-%gocheck2
+%endif
+
+%if %{with check}
+# Trigger unit tests, unless explicitly disabled.
+%gocheck
+%endif
+
+%if 0%{?with_rhcd_compat}
+%pre
+# On upgrade, back up /etc/rhc/config.toml before new files are laid down.
+# This must happen in %pre (before file installation) rather than %post
+# (after), because RPM may remove or replace the old config file during the
+# transaction — by the time %post runs it could already be gone.
+# The guard on /etc/yggdrasil/config.toml ensures we never overwrite a config
+# that was already migrated by a previous upgrade.
+if [ $1 -eq 2 ] && [ -f /etc/rhc/config.toml ] && [ ! -f /etc/yggdrasil/config.toml ]; then
+	cp /etc/rhc/config.toml /etc/yggdrasil/config.toml.migrated
+fi
 %endif
 
 %post
 %systemd_post rhc-canonical-facts.timer
 %systemd_post rhc-server.socket
+
 %if 0%{?with_rhcd_compat}
-# On package update, ensure yggdrasil (formerly rhcd) has its own configuration file
-if [ $1 -eq 2 ] && [ ! -f /etc/yggdrasil/config.toml ]; then
-	cp /etc/rhc/config.toml /etc/yggdrasil/config.toml.migrated
+# rhcd_t is the SELinux type used by the old rhcd daemon. Add it to the
+# permissive list so existing policies do not block yggdrasil on upgrade.
+/usr/sbin/semanage permissive --add rhcd_t || true
+
+# Complete the config migration started in %pre: transform the backed-up
+# /etc/rhc/config.toml into a valid /etc/yggdrasil/config.toml.
+if [ $1 -eq 2 ] && [ -f /etc/yggdrasil/config.toml.migrated ]; then
 	sed -E 's#^broker( ?=)#server\1#' /etc/yggdrasil/config.toml.migrated > /etc/yggdrasil/config.toml
 	echo 'facts-file = "/var/lib/yggdrasil/canonical-facts.json"' >> /etc/yggdrasil/config.toml
 	rm /etc/yggdrasil/config.toml.migrated
@@ -117,7 +174,21 @@ fi
 %systemd_postun_with_restart rhc-canonical-facts.timer
 %systemd_postun_with_restart rhc-server.service
 
-%files -f %{go_vendor_license_filelist}
+%if 0%{?with_rhcd_compat}
+# Remove rhcd_t from the SELinux permissive list on full package removal.
+if [ $1 -eq 0 ]; then
+    /usr/sbin/semanage permissive --delete rhcd_t || true
+fi
+%endif
+
+%if 0%{?fedora}
+# With go-vendor-tools, we also get a list of dependency licenses.
+%global extra_files -f %{go_vendor_license_filelist}
+%else
+%global extra_files %{nil}
+%endif
+
+%files %{extra_files}
 # Binaries
 %{_bindir}/rhc
 %{_libexecdir}/%{name}/rhc-server
@@ -140,8 +211,9 @@ fi
 %dir %{_localstatedir}/log/%{name}/
 # Logrotate
 %config(noreplace) %{_sysconfdir}/logrotate.d/rhc
-# Yggdrasil
+
 %if 0%{?with_rhcd_compat}
+# Yggdrasil rhcd compatibility drop-in
 %{_unitdir}/yggdrasil.service.d/rhcd.conf
 %endif
 

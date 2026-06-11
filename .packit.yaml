@@ -5,59 +5,54 @@ files_to_sync:
   - rhc.spec
   - .packit.yaml
 
+# Dependencies for SRPM creation (i.e., make archive* targets)
 srpm_build_deps:
-  - gawk
-  - golang
-  - dbus-x11
-  - "pkgconfig(bash-completion)"
-  - "pkgconfig(dbus-1)"
+  - git
+  - go
+  - make
   - rpm-build
-  - "go-vendor-tools"
 
 # Hooks to overwrite default Packit behavior
 actions:
-  # Extract version from the .spec file
+  post-upstream-clone:
+    # go-vendor-tools package is only available in Fedora repositories
+    - bash -c 'source /etc/os-release && [ "$ID" = "fedora" ] && dnf install -y go-vendor-tools || true'
   get-current-version:
+    # Extract version from the .spec file
     - bash -c 'rpmspec --query --queryformat "%{version}\n" rhc.spec'
-  # Packit expects a single archive to be created
-  #  https://packit.dev/docs/configuration/examples#custom-archive-creation-for-srpm
   create-archive:
-    - make archive
+    - bash -c 'make archive archive-deps'
+    # Packit expects a single archive was created
+    #  https://packit.dev/docs/configuration/examples#custom-archive-creation-for-srpm
     - bash -c "ls -1 ./rhc-*.tar.gz | head -n 1"
 
 jobs:
   - job: copr_build
     trigger: pull_request
-    additional_repos:
-      - "copr://@go-sig/go-vendor-tools-dev"
     targets:
-      fedora-development-aarch64: {}
-      fedora-development-x86_64: {}
-      epel-10-aarch64:
-        distros: [CentOS-Stream-10, RHEL-10]
-      epel-10-x86_64:
-        distros: [CentOS-Stream-10, RHEL-10]
+      - fedora-development-aarch64
+      - fedora-development-x86_64
+      - centos-stream-10-aarch64
+      - centos-stream-10-x86_64
+      - rhel-10-aarch64
+      - rhel-10-x86_64
 
   - job: copr_build
     trigger: commit
-    additional_repos:
-      - "copr://@go-sig/go-vendor-tools-dev"
     targets:
-      fedora-development-aarch64: {}
-      fedora-development-x86_64: {}
-      epel-10-aarch64:
-        distros: [CentOS-Stream-10, RHEL-10-Nightly]
-      epel-10-x86_64:
-        distros: [CentOS-Stream-10, RHEL-10-Nightly]
+      - fedora-development-aarch64
+      - fedora-development-x86_64
+      - centos-stream-10-aarch64
+      - centos-stream-10-x86_64
+      - rhel-10-aarch64
+      - rhel-10-x86_64
 
   - job: tests
     trigger: pull_request
     identifier: "integration-tests/centos-stream"
     targets:
-      epel-10-aarch64:
-        distros: [CentOS-Stream-10]
-      epel-10-x86_64:
-        distros: [CentOS-Stream-10]
+      - centos-stream-10-aarch64
+      - centos-stream-10-x86_64
     labels:
       - unit
 
@@ -65,7 +60,8 @@ jobs:
     trigger: pull_request
     identifier: "integration-tests/fedora"
     targets:
-      - fedora-rawhide
+      - fedora-development-aarch64
+      - fedora-development-x86_64
     labels:
       - unit
 
@@ -73,16 +69,16 @@ jobs:
     trigger: pull_request
     identifier: "integration-tests/rhel"
     targets:
-      epel-10-aarch64:
+      rhel-10-aarch64:
         distros: [RHEL-10-Nightly]
-      epel-10-x86_64:
+      rhel-10-x86_64:
         distros: [RHEL-10-Nightly]
     labels:
       - unit
     tf_extra_params:
       environments:
-          settings:
-            provisioning:
-              tags:
-                BusinessUnit: sst_csi_client_tools
+        settings:
+          provisioning:
+            tags:
+              BusinessUnit: sst_csi_client_tools
     use_internal_tf: true

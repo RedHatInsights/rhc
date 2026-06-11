@@ -24,7 +24,6 @@ We use [Fedora Weblate](https://translate.fedoraproject.org/engage/rhc/) to mana
 ## Packaging
 
 ```shell
-$ sudo dnf copr enable @go-sig/go-vendor-tools-dev
 $ sudo dnf install go-vendor-tools
 $ # Create source code and vendor tarballs
 $ #  Alternatively, you can download already release tarball by calling `spectool -g rhc.spec`

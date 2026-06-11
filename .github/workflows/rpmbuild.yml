@@ -27,10 +27,6 @@ jobs:
       image: ${{ matrix.image }}
 
     steps:
-      - name: "Add COPR repository (Go Vendor Tools)"
-        run: |
-          dnf copr enable -y @go-sig/go-vendor-tools-dev
-
       - name: "Install basic packages for 'dnf builddep'"
         run: |
           dnf --setopt install_weak_deps=False install -y \
@@ -47,11 +43,7 @@ jobs:
         run: |
           dnf --setopt install_weak_deps=False builddep -y rhc.spec
 
-      - name: "Build srpm"
-        run: |
-          make srpm
-
-      - name: "Build rpm"
+      - name: "Build RPM artifacts"
         run: |
           make rpm
 
