@@ -19,7 +19,6 @@ import (
 	"github.com/redhatinsights/rhc/pkg/exitcode"
 	"github.com/redhatinsights/rhc/pkg/version"
 	"github.com/redhatinsights/rhc/varlink/collectorapi"
-	"github.com/redhatinsights/rhc/varlink/internalapi"
 )
 
 const (
@@ -50,7 +49,6 @@ func main() {
 }
 
 func run() error {
-	backend := NewBackend()
 	registry := govarlink.NewRegistry(&govarlink.RegistryOptions{
 		Vendor:  "Red Hat",
 		Product: "rhc",
@@ -58,14 +56,8 @@ func run() error {
 		URL:     "https://github.com/redhatinsights/rhc",
 	})
 
-	internalHandler := internalapi.Handler{Backend: backend}
-	internalHandler.Register(registry)
-
-	collectorHandler := collectorapi.Handler{Backend: backend}
-	collectorHandler.Register(registry)
-
-	rhsmHandler := rhsmapi.Handler{Backend: backend}
-	rhsmHandler.Register(registry)
+	collectorapi.Handler{Backend: NewCollectorBackend()}.Register(registry)
+	rhsmapi.Handler{Backend: NewRHSMBackend()}.Register(registry)
 
 	varlinkServer := &govarlink.Server{Handler: registry}
 

@@ -1,9 +1,0 @@
-interface com.redhat.rhc.internal
-# Internal API for rhc-server
-# This API is temporary and unstable
-
-# Generic error for invalid parameters
-error InvalidParameter (parameter: string)
-
-# Test method - returns the input string as-is
-method Test(input: string) -> (output: string)
