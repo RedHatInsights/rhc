@@ -245,12 +245,12 @@ def test_configure_features_enable_remote_management_pulls_prerequisites(rhc):
         (
             ("configure", "features", "enable"),
             64,
-            "single FEATURE",
+            "this command requires 1 to 3 FEATURE arguments",
         ),
         (
-            ("configure", "features", "disable", "content", "extra-arg"),
+            ("configure", "features", "disable", "content", "analytics", "remote-management", "extra-arg"),
             64,
-            "single FEATURE",
+            "this command requires 1 to 3 FEATURE arguments",
         ),
     ],
 )
@@ -709,3 +709,173 @@ def test_configure_features_disable_idempotent_json(rhc):
         ).stdout
     )
     assert a == b
+
+
+@pytest.mark.tier1
+def test_configure_features_enable_multiple_features_disconnected(external_candlepin, rhc, test_config):
+    """
+    :id: 9285d987-c3ee-4426-8849-873b3c6d9e87
+    :title: ``configure features`` enable accepts multiple FEATURE arguments
+    :description:
+        On a disconnected host, ``enable`` accepts one or more
+        feature names in one command and updates the preference cache accordingly.
+    :tags: Tier 1
+    :steps:
+        1. Disconnect the host.
+        2. Run ``rhc configure features enable content analytics remote-management``.
+        3. Verify all features show preference ``enable``.
+    :expectedresults:
+        1. Host is disconnected.
+        2. Enable exits 0.
+        3. JSON status shows ``enable`` for each feature.
+    """
+    with contextlib.suppress(Exception):
+        rhc.disconnect()
+    disable = rhc.run(
+        "configure",
+        "features",
+        "enable",
+        "content",
+        "analytics",
+        "remote-management",
+        check=False,
+    )
+    assert disable.returncode == 0, disable.stderr
+    res = rhc.run("configure", "features", "status", "--format", "json", check=False)
+    assert res.returncode == 0, res.stderr
+    data = json.loads(res.stdout)
+    _assert_configure_features_status_json_shape(data)
+    assert data["connected"] is False
+    assert data["features"]["content"]["preference"] == "enable"
+    assert data["features"]["analytics"]["preference"] == "enable"
+    assert data["features"]["remote_management"]["preference"] == "enable"
+
+
+@pytest.mark.tier1
+def test_configure_features_disable_multiple_features_disconnected(external_candlepin, rhc, test_config):
+    """
+    :id: ddb2ac48-6d83-48b8-aa05-d13662787e35
+    :title: ``configure features`` disable accepts multiple FEATURE arguments
+    :description:
+        On a disconnected host,``disable`` accept one or more
+        feature names in one command and updates the preference cache accordingly.
+    :tags: Tier 1
+    :steps:
+        1. Disconnect the host.
+        2. Run ``rhc configure features disable content analytics remote-management``.
+        3. Verify all features show preference ``skip``.
+    :expectedresults:
+        1. Host is disconnected.
+        2. Disable exits 0.
+        3. JSON status shows ``skip`` for each feature.
+    """
+    enable = rhc.run(
+        "configure",
+        "features",
+        "disable",
+        "content",
+        "analytics",
+        "remote-management",
+        check=False,
+    )
+    assert enable.returncode == 0, enable.stderr
+    res = rhc.run("configure", "features", "status", "--format", "json", check=False)
+    assert res.returncode == 0, res.stderr
+    data = json.loads(res.stdout)
+    _assert_configure_features_status_json_shape(data)
+    assert data["connected"] is False
+    assert data["features"]["content"]["preference"] == "skip"
+    assert data["features"]["analytics"]["preference"] == "skip"
+    assert data["features"]["remote_management"]["preference"] == "skip"
+
+
+@pytest.mark.tier1
+def test_configure_features_enable_multiple_features_connected(external_candlepin, rhc, test_config):
+    """
+    :id: 4182c24e-5bd0-4cc2-81db-3cd8e0964332
+    :title: ``configure features`` enable accepts multiple FEATURE arguments
+    :description:
+        On a connected host, ``enable`` accepts one or more
+        feature names in one command and updates the live feature state accordingly.
+    :tags: Tier 1
+    :steps:
+        1. Disconnect the host.
+        2. Connect the host.
+        3. Run ``rhc configure features enable content analytics remote-management``.
+        4. Verify all features show live state ``enabled`` is True.
+    :expectedresults:
+        1. Host is disconnected.
+        2. Host is connected.
+        3. Disable exits 0.
+        4. JSON status shows ``enable`` for each feature.
+    """
+    with contextlib.suppress(Exception):
+        rhc.disconnect()
+    rhc.connect(
+        activationkey=test_config.get("candlepin.activation_keys")[0],
+        org=test_config.get("candlepin.org"),
+    )
+    assert rhc.is_registered
+    disable = rhc.run(
+        "configure",
+        "features",
+        "enable",
+        "content",
+        "analytics",
+        "remote-management",
+        check=False,
+    )
+    assert disable.returncode == 0, disable.stderr
+    res = rhc.run("configure", "features", "status", "--format", "json", check=False)
+    assert res.returncode == 0, res.stderr
+    data = json.loads(res.stdout)
+    _assert_configure_features_status_json_shape(data)
+    assert data["connected"] is True
+    assert data["features"]["content"]["enabled"] == True
+    assert data["features"]["analytics"]["enabled"] == True
+    assert data["features"]["remote_management"]["enabled"] == True
+
+@pytest.mark.tier1
+def test_configure_features_disable_multiple_features_connected(external_candlepin, rhc, test_config):
+    """
+    :id: c1ab5992-7414-4d6e-8da0-eba48d9612ac
+    :title: ``configure features`` disable accepts multiple FEATURE arguments
+    :description:
+        On a connected host, ``disable`` accepts one or more
+        feature names in one command and updates the live feature state accordingly.
+    :tags: Tier 1
+    :steps:
+        1. Connect the host.
+        2. Run ``rhc configure features disable content analytics remote-management``.
+        3. Verify all features show live state ``disabled`` is False.
+    :expectedresults:
+        1. Host is disconnected.
+        2. Host is connected.
+        3. Disable exits 0.
+        4. JSON status shows ``enable`` for each feature.
+    """
+    with contextlib.suppress(Exception):
+        rhc.disconnect()
+    rhc.connect(
+        activationkey=test_config.get("candlepin.activation_keys")[0],
+        org=test_config.get("candlepin.org"),
+    )
+    assert rhc.is_registered
+    disable = rhc.run(
+        "configure",
+        "features",
+        "disable",
+        "content",
+        "analytics",
+        "remote-management",
+        check=False,
+    )
+    assert disable.returncode == 0, disable.stderr
+    res = rhc.run("configure", "features", "status", "--format", "json", check=False)
+    assert res.returncode == 0, res.stderr
+    data = json.loads(res.stdout)
+    _assert_configure_features_status_json_shape(data)
+    assert data["connected"] is True
+    assert data["features"]["content"]["enabled"] == False
+    assert data["features"]["analytics"]["enabled"] == False
+    assert data["features"]["remote_management"]["enabled"] == False
