@@ -12,6 +12,12 @@ build:
 	$(GO_BUILD) -o rhc-server ./cmd/rhc-server
 	$(GO_BUILD) -o rhc-collector ./cmd/rhc-collector
 
+# Build the functional test binary.  Run it from the functional-tests/
+# directory so the relative features/ path resolves correctly.
+.PHONY: build-functional
+build-functional:
+	$(GO_BUILD) -o rhc-functional ./cmd/functional
+
 .PHONY: archive
 archive:
 	git archive --prefix rhc-$(VERSION)/ --format tar.gz HEAD > rhc-$(VERSION).tar.gz
@@ -43,6 +49,7 @@ clean:
 	rm -f rhc
 	rm -f rhc-server
 	rm -f rhc-collector
+	rm -f rhc-functional
 	rm -f rhc-*.tar*
 	rm -rf vendor/
 	rm -rf x86_64/

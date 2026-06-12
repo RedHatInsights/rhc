@@ -1,0 +1,2 @@
+protocol = "mqtt"
+log-level = "debug"

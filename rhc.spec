@@ -74,12 +74,22 @@ to Red Hat Subscription Management and Red Hat Lightspeed.
 
 %build
 export GO_LDFLAGS="-X github.com/redhatinsights/rhc/pkg/version.Version=%{version}"
-%gobuild -o %{gobuilddir}/bin/rhc           %{goipath}/cmd/rhc
-%gobuild -o %{gobuilddir}/bin/rhc-server    %{goipath}/cmd/rhc-server
-%gobuild -o %{gobuilddir}/bin/rhc-collector %{goipath}/cmd/rhc-collector
+%gobuild -o %{gobuilddir}/bin/rhc            %{goipath}/cmd/rhc
+%gobuild -o %{gobuilddir}/bin/rhc-server     %{goipath}/cmd/rhc-server
+%gobuild -o %{gobuilddir}/bin/rhc-collector  %{goipath}/cmd/rhc-collector
+%gobuild -o %{gobuilddir}/bin/rhc-functional %{goipath}/cmd/functional
 
 # Generate man page
 %{gobuilddir}/bin/rhc --generate-man-page > rhc.1
+
+%package tests
+Summary:        Functional test suite for rhc
+Requires:       rhc = %{epoch}:%{version}-%{release}
+
+%description tests
+Standalone binary and Gherkin feature files for running the rhc functional
+test suite against a live system.  Requires TARGET and CONF environment
+variables; see %{_datadir}/%{name}-tests/README.md for details.
 
 %install
 %if 0%{?fedora}
@@ -116,6 +126,13 @@ install -m 0755 -vd %{buildroot}%{_prefix}/lib/systemd/system-preset/
 install -m 0644 -vp data/systemd/presets/50-rhc.preset %{buildroot}%{_prefix}/lib/systemd/system-preset/
 # Configuration
 install -m 0755 -vd                     %{buildroot}%{_sysconfdir}/%{name}/
+
+# Functional test binary and data files (rhc-tests subpackage)
+install -m 0755 -vd                            %{buildroot}%{_libexecdir}/%{name}-tests/
+install -m 0755 -vp _build/bin/rhc-functional  %{buildroot}%{_libexecdir}/%{name}-tests/
+install -m 0755 -vd                            %{buildroot}%{_datadir}/%{name}-tests/
+cp -a functional-tests/features                %{buildroot}%{_datadir}/%{name}-tests/
+install -m 0644 -vp functional-tests/README.md %{buildroot}%{_datadir}/%{name}-tests/
 
 %if 0%{?with_rhcd_compat}
 # Yggdrasil used to be called rhcd, and was part of rhc. For historical reasons, rhc

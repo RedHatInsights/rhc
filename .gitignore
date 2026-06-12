@@ -1,6 +1,7 @@
 /rhc
 /rhc-server
 /rhc-collector
+/rhc-functional
 /rhc.1.gz
 /USAGE.md
 rhc.spec
