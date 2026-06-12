@@ -35,7 +35,7 @@ def test_status_connected(external_candlepin, rhc, test_config):
         3.  The 'rhc status' command executes successfully.
         4.  The exit code is 0.
         5.  The output contains "Connected to Red Hat Subscription Management",
-            "Connected to Red Hat Lightspeed (formerly Insights)", "Red Hat repository file generated",
+            "Connected to Red Hat Lightspeed (formerly Insights)", "System has access to content",
             and "The yggdrasil service is active".
     """
 
@@ -47,7 +47,7 @@ def test_status_connected(external_candlepin, rhc, test_config):
     status_result = rhc.run("status", check=False)
     assert status_result.returncode == 0
     assert "Connected to Red Hat Subscription Management" in status_result.stdout
-    assert "Red Hat repository file generated" in status_result.stdout
+    assert "System has access to content" in status_result.stdout
     assert "Connected to Red Hat Lightspeed (formerly Insights)" in status_result.stdout
     assert "The yggdrasil service is active" in status_result.stdout
 
@@ -164,7 +164,7 @@ def test_status_disconnected(rhc):
         2.  The command executes.
         3.  The exit code is not 0.
         4.  The status command output contains "Not connected to Red Hat Subscription Management",
-            "Red Hat repository file not generated", "Not connected to Red Hat Lightspeed (formerly Insights)",
+            "System has no access to content", "Not connected to Red Hat Lightspeed (formerly Insights)",
             and a message indicating that the yggdrasil service is inactive.
     """
 
@@ -173,7 +173,7 @@ def test_status_disconnected(rhc):
     status_result = rhc.run("status", check=False)
     assert status_result.returncode != 0
     assert "Not connected to Red Hat Subscription Management" in status_result.stdout
-    assert "Red Hat repository file not generated" in status_result.stdout
+    assert "System has no access to content" in status_result.stdout
     assert "Not connected to Red Hat Lightspeed (formerly Insights)" in status_result.stdout
     assert "The yggdrasil service is inactive" in status_result.stdout
 
@@ -385,7 +385,7 @@ def test_status_connected_yggdrasil_masked(external_candlepin, rhc, test_config)
         3.  The command executes and fails.
         4.  The exit code is not 0.
         5.  The output contains "Connected to Red Hat Subscription Management",
-            "Connected to Red Hat Lightspeed (formerly Insights)", "Red Hat repository file generated",
+            "Connected to Red Hat Lightspeed (formerly Insights)", "System has access to content",
             "Unit yggdrasil.service is masked"
         6.  The 'yggdrasil.service' is unmasked.
     """
@@ -404,7 +404,7 @@ def test_status_connected_yggdrasil_masked(external_candlepin, rhc, test_config)
     assert status_result.returncode != 0
     # RHSM
     assert "Connected to Red Hat Subscription Management" in status_result.stdout
-    assert "Red Hat repository file generated" in status_result.stdout
+    assert "System has access to content" in status_result.stdout
     # Insights
     assert "Connected to Red Hat Lightspeed (formerly Insights)" in status_result.stdout
     # yggdrasil
