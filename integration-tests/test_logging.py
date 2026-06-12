@@ -692,7 +692,7 @@ def test_log_connect_with_disabled_feature(
     :description:
         Verifies that when 'rhc connect' is run with --disable-feature content,
         the log file contains messages indicating the content feature was
-        disabled and the repository file was not generated.
+        disabled and the system has no access to content.
     :tags: Tier 1
     :steps:
         1. Ensure the system is disconnected.
@@ -703,8 +703,8 @@ def test_log_connect_with_disabled_feature(
         1. The system is disconnected.
         2. 'rhc connect' executes.
         3. New log entries are captured.
-        4. Log contains a message indicating that the content feature is
-           disabled and that redhat.repo was not generated.
+        4. Log contains a message indicating that the system has no access
+           to content.
     """
     with contextlib.suppress(Exception):
         rhc.disconnect()
@@ -715,8 +715,8 @@ def test_log_connect_with_disabled_feature(
     rhc.run(*command)
 
     content = log_monitor.get_new_content()
-    assert "redhat.repo not generated" in content or "content feature disabled" in content, (
-        "Log should indicate the content feature was disabled"
+    assert "System has no access to content" in content, (
+        "Log should indicate the system has no access to content"
     )
 
 

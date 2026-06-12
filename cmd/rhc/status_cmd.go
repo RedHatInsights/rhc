@@ -84,20 +84,14 @@ func isContentEnabled(systemStatus *SystemStatus) error {
 
 	if contentEnabled == "1" && uuid != "" {
 		systemStatus.ContentEnabled = true
-		infoMsg := "Red Hat repository file generated"
+		infoMsg := "System has access to content"
 		slog.Info(infoMsg)
 		ui.Printf("%s[%v] Content ... %v\n", ui.Indent.Medium, ui.Icons.Ok, infoMsg)
 	} else {
 		systemStatus.ContentEnabled = false
-		if uuid != "" {
-			infoMsg := "Generating of Red Hat repository file disabled in rhsm.conf"
-			slog.Info(infoMsg)
-			ui.Printf("%s[ ] Content ... %v\n", ui.Indent.Medium, infoMsg)
-		} else {
-			infoMsg := "Red Hat repository file not generated"
-			slog.Info(infoMsg)
-			ui.Printf("%s[ ] Content ... %v\n", ui.Indent.Medium, infoMsg)
-		}
+		infoMsg := "System has no access to content"
+		slog.Info(infoMsg)
+		ui.Printf("%s[ ] Content ... %v\n", ui.Indent.Medium, infoMsg)
 	}
 	return nil
 }
