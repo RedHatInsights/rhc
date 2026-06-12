@@ -9,28 +9,20 @@ import (
 	"github.com/jirihnidek/rhsm2"
 	"github.com/redhatinsights/rhc/internal/collector"
 	"github.com/redhatinsights/rhc/varlink/collectorapi"
-	"github.com/redhatinsights/rhc/varlink/internalapi"
 	"github.com/redhatinsights/rhc/varlink/rhsmapi"
 )
 
-// Backend implements the internal API backend.
-type Backend struct{}
+// CollectorBackend implements the collectorapi.Backend interface.
+type CollectorBackend struct{}
 
-// NewBackend creates a new backend instance.
-func NewBackend() *Backend {
-	return &Backend{}
-}
-
-// Test implements the Test method of the internal API.
-// Simply echoes back the input with a prefix.
-func (b *Backend) Test(in *internalapi.TestIn) (*internalapi.TestOut, error) {
-	output := fmt.Sprintf("Echo from rhc-server: %s", in.Input)
-	return &internalapi.TestOut{Output: output}, nil
+// NewCollectorBackend creates a new CollectorBackend instance.
+func NewCollectorBackend() *CollectorBackend {
+	return &CollectorBackend{}
 }
 
 // List implements the List method of the collector API.
 // Returns a list of all available collectors with full details.
-func (b *Backend) List(_ *collectorapi.ListIn) (*collectorapi.ListOut, error) {
+func (b *CollectorBackend) List(_ *collectorapi.ListIn) (*collectorapi.ListOut, error) {
 	// Get list of collector IDs
 	collectorIDs, err := collector.GetCollectors()
 	if err != nil {
@@ -53,7 +45,7 @@ func (b *Backend) List(_ *collectorapi.ListIn) (*collectorapi.ListOut, error) {
 
 // Info implements the Info method of the collector API.
 // Returns detailed information about a specific collector including timing and configuration.
-func (b *Backend) Info(in *collectorapi.InfoIn) (*collectorapi.InfoOut, error) {
+func (b *CollectorBackend) Info(in *collectorapi.InfoIn) (*collectorapi.InfoOut, error) {
 	// Validate input parameter
 	if _, err := collector.ValidateID(in.Id); err != nil {
 		return nil, &collectorapi.InvalidParameterError{
@@ -71,8 +63,16 @@ func (b *Backend) Info(in *collectorapi.InfoIn) (*collectorapi.InfoOut, error) {
 	return &collectorapi.InfoOut{Info: *info}, nil
 }
 
+// RHSMBackend implements the rhsmapi.Backend interface.
+type RHSMBackend struct{}
+
+// NewRHSMBackend creates a new RHSMBackend instance.
+func NewRHSMBackend() *RHSMBackend {
+	return &RHSMBackend{}
+}
+
 // Ping checks the status of the RHSM server.
-func (b *Backend) Ping(in *rhsmapi.PingIn) (*rhsmapi.PingOut, error) {
+func (b *RHSMBackend) Ping(in *rhsmapi.PingIn) (*rhsmapi.PingOut, error) {
 	var rhsmServerStatus *rhsm2.RHSMStatus
 	var err error
 	if in.Metadata != nil {
@@ -105,7 +105,7 @@ func (b *Backend) Ping(in *rhsmapi.PingIn) (*rhsmapi.PingOut, error) {
 }
 
 // IsRegistered checks if the system is registered with RHSM.
-func (b *Backend) IsRegistered(in *rhsmapi.IsRegisteredIn) (*rhsmapi.IsRegisteredOut, error) {
+func (b *RHSMBackend) IsRegistered(in *rhsmapi.IsRegisteredIn) (*rhsmapi.IsRegisteredOut, error) {
 	registered, err := IsSystemRegistered()
 	if err != nil {
 		// When it is not possible to determine registration status, then log the reason
