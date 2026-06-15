@@ -148,9 +148,6 @@ func executeCollector(collectorId, command, tmpDir string) error {
 		slog.Error("failed to execute collector", "error", err, "output", string(output))
 		return fmt.Errorf("failed to execute collector: %w", err)
 	}
-	if cacheErr != nil {
-		return fmt.Errorf("failed to write timer cache: %w", cacheErr)
-	}
 
 	slog.Info("collector has ran successfully", "output", string(output))
 	return nil
