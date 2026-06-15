@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"time"
 
 	"github.com/redhatinsights/rhc/internal/collector"
 	httpapi "github.com/redhatinsights/rhc/internal/http"
@@ -34,16 +35,17 @@ func main() {
 }
 
 func run(collectorId, command string) error {
+	config, err := getConfig(collectorId)
+	if err != nil {
+		return err
+	}
 	tmpDir, err := createTmpDir()
 	if err != nil {
 		return err
 	}
 	defer cleanup(tmpDir)
-	config, err := getConfig(collectorId)
-	if err != nil {
-		return err
-	}
-	if err = executeCollector(command, tmpDir); err != nil {
+
+	if err = executeCollector(collectorId, command, tmpDir); err != nil {
 		return err
 	}
 	archivePath, err := getArchivePath(tmpDir)
@@ -112,15 +114,44 @@ func getConfig(collectorId string) (collector.Config, error) {
 
 // executeCollector runs the specified collector command and stores output in tmpDir.
 // Returns an error if the command execution fails.
-func executeCollector(command, tmpDir string) error {
+func executeCollector(collectorId, command, tmpDir string) error {
 	// TODO: Run collector as specific user and group (defined in config of collector)
 	cmd := exec.Command("/bin/sh", "-c", fmt.Sprintf("%s %q", command, tmpDir))
 	cmd.Dir = tmpDir
+
+	// Capture start/end time and execute the command
+	startTime := time.Now()
 	output, err := cmd.CombinedOutput()
+	endTime := time.Now()
+
+	exitCode := 0
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			exitCode = exitErr.ExitCode()
+		} else {
+			exitCode = 1
+		}
+	}
+
+	// Timer payload and writing to cache
+	timerPayload := collector.Timer{
+		ID:           collectorId,
+		LastStarted:  startTime,
+		LastFinished: endTime,
+		ExitCode:     exitCode,
+	}
+	cacheErr := collector.WriteTimerCache(collectorId, timerPayload)
+	if cacheErr != nil {
+		slog.Error("Failed to write timer cache", "error", cacheErr)
+	}
 	if err != nil {
 		slog.Error("failed to execute collector", "error", err, "output", string(output))
 		return fmt.Errorf("failed to execute collector: %w", err)
 	}
+	if cacheErr != nil {
+		return fmt.Errorf("failed to write timer cache: %w", cacheErr)
+	}
+
 	slog.Info("collector has ran successfully", "output", string(output))
 	return nil
 }

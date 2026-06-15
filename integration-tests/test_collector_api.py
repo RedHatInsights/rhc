@@ -16,6 +16,9 @@ import textwrap
 from utils.varlink import run_varlinkctl
 from utils.systemctl import is_service_active
 
+RHC_COLLECTOR = "/usr/libexec/rhc/rhc-collector"
+TIMER_CACHE_DIR = "/var/cache/rhc/collectors"
+
 
 @pytest.fixture(scope="module")
 def rhc_server_socket():
@@ -240,6 +243,51 @@ def test_collector_info_with_timer_cache(
     # Verify last_run is present and matches
     assert "last_run" in info
     assert info["last_run"] == expected_last_run
+
+
+@pytest.mark.tier2
+def test_rhc_collector_writes_timer_cache(collector_config, rhc):
+    """
+    :id: b3644f21-1f2c-429b-b0eb-686749213a6a
+    :title: Verify rhc-collector writes timer cache after execution
+    :description:
+        Test that running rhc-collector creates a timer cache file with
+        execution timing information.
+    :tags: Tier 2
+    :steps:
+        1. Create test collector configuration
+        2. Run rhc-collector with a simple command
+        3. Verify timer cache file is created with expected fields
+    :expectedresults:
+        1. Test collector is created
+        2. rhc-collector runs the command
+        3. Cache file contains last_started and last_finished timestamps
+    """
+    collector_id = collector_config["id"]
+    cache_path = os.path.join(TIMER_CACHE_DIR, f"{collector_id}.json")
+
+    os.makedirs("/var/tmp/rhc", exist_ok=True)
+    os.makedirs(TIMER_CACHE_DIR, exist_ok=True)
+    if os.path.exists(cache_path):
+        os.remove(cache_path)
+
+    try:
+        subprocess.run(
+            [RHC_COLLECTOR, collector_id, "/bin/true"],
+            capture_output=True,
+            check=False,
+        )
+        assert os.path.exists(cache_path), "Timer cache file should be created"
+
+        with open(cache_path) as cache_file:
+            cache = json.load(cache_file)
+
+        assert "last_started" in cache
+        assert "last_finished" in cache
+        assert cache["last_finished"]["exit_code"] == 0
+    finally:
+        if os.path.exists(cache_path):
+            os.remove(cache_path)
 
 
 @pytest.mark.tier2
