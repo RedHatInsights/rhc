@@ -415,12 +415,12 @@ def test_log_error_message_references_log_file(
     :title: Verify CLI output references log file path upon connect error
     :description:
         Verifies that when 'rhc connect' encounters an error (e.g. invalid
-        credentials), the CLI output includes a message directing the user
+        activation key), the CLI output includes a message directing the user
         to the log file for full details.
     :tags: Tier 1
     :steps:
         1. Ensure the system is disconnected.
-        2. Run 'rhc connect' with invalid credentials.
+        2. Run 'rhc connect' with invalid activation key credentials.
         3. Verify the command fails with non-zero return code.
         4. Verify CLI output contains "Please see /var/log/rhc/rhc.log for full details."
     :expectedresults:
@@ -433,8 +433,8 @@ def test_log_error_message_references_log_file(
         rhc.disconnect()
 
     credentials = {
-        "username": "non-existent-user",
-        "password": "candlepin.password",
+        "organization": "candlepin.org",
+        "activation-key": "xpto123",
     }
     command_args = prepare_args_for_connect(test_config, credentials=credentials)
     command = ["connect"] + command_args
@@ -557,13 +557,14 @@ def test_log_connect_error_logged(
     :id: 141aba4f-9898-4881-b0fd-2b978e6af9d6
     :title: Verify log file records errors when connect fails with invalid credentials
     :description:
-        Verifies that when 'rhc connect' fails due to invalid credentials,
+        Verifies that when 'rhc connect' fails due to invalid activation-key
+        credentials,
         the error is logged at ERROR level in the log file, providing
         details useful for troubleshooting.
     :tags: Tier 1
     :steps:
         1. Ensure the system is disconnected.
-        2. Run 'rhc connect' with invalid credentials.
+        2. Run 'rhc connect' with invalid activation-key credentials.
         3. Read new log entries.
         4. Verify log contains an ERROR level entry about the connection failure.
     :expectedresults:
@@ -576,8 +577,8 @@ def test_log_connect_error_logged(
         rhc.disconnect()
 
     credentials = {
-        "username": "non-existent-user",
-        "password": "candlepin.password",
+        "organization": "candlepin.org",
+        "activation-key": "xpto123",
     }
     command_args = prepare_args_for_connect(test_config, credentials=credentials)
     command = ["connect"] + command_args

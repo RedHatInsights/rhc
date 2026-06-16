@@ -306,11 +306,11 @@ def test_connect_failure_does_not_print_success_message(
     :title: Verify 'rhc connect' does not print success message when credentials are invalid
     :description:
         Regression test for the bug where "Successfully connected to Red Hat!"
-        was printed even when connect failed (e.g. wrong username/password).
+        was printed even when connect failed (e.g. invalid activation key).
         Verifies that on failure the success message is absent and error output is present.
     :steps:
         1.  Ensure the system is disconnected from RHC.
-        2.  Run 'rhc connect' with invalid username and password (text output).
+        2.  Run 'rhc connect' with invalid activation key (text output).
         3.  Verify non-zero return code.
         4.  Verify "Successfully connected to Red Hat!" is not in stdout.
         5.  Verify RHSM error message is present in output.
@@ -319,15 +319,15 @@ def test_connect_failure_does_not_print_success_message(
         2.  Connect command runs and fails.
         3.  Return code is non-zero.
         4.  Success message is not printed.
-        5.  Error message indicates connection failure (e.g. Cannot connect to RHSM or Invalid username or password).
+        5.  Error message indicates connection failure (e.g. Cannot connect to RHSM or invalid activation key/org).
     """
     with contextlib.suppress(Exception):
         rhc.disconnect()
 
-    # Wrong username, valid password from config (same pattern as test_connect_wrong_parameters)
+    # Valid organization with invalid activation key (same pattern as test_connect_wrong_parameters)
     credentials = {
-        "username": "notarealuser",
-        "password": "candlepin.password",
+        "organization": "candlepin.org",
+        "activation-key": "xpto123",
     }
     command_args = prepare_args_for_connect(test_config, credentials=credentials)
     command = ["connect"] + command_args
@@ -337,9 +337,12 @@ def test_connect_failure_does_not_print_success_message(
     assert "Successfully connected to Red Hat!" not in result.stdout
 
     output = result.stdout + result.stderr
+    output_lower = output.lower()
     assert (
         "Cannot connect to Red Hat Subscription Management" in output
         or "Invalid username or password" in output
+        or "activation key" in output_lower
+        or "organization" in output_lower
     ), f"Expected RHSM error in output: {output!r}"
 
 
