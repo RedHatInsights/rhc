@@ -31,7 +31,7 @@ $ make archive
 $ # Prepare source RPM
 $ make srpm
 $ # Build binary RPMs
-$ mock -r fedora-43-x86_64 ~/rpmbuild/SRPMS/rhc-*.src.rpm
+$ make rpm
 ```
 
 You can create an RPM package using [packit](https://packit.dev/docs/cli) CLI too:
