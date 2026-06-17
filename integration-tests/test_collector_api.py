@@ -80,12 +80,12 @@ def collector_config():
     # Create a simple collector binary that accepts "collect" subcommand
     collector_script = textwrap.dedent("""
         #!/bin/bash
-        if [ "$1" = "collect" ] && [ -n "$2" ]; then
-            # Create a simple test file in the provided directory
-            echo "test data" > "$2/test-output.txt"
+        if [ "$1" = "collect" ]; then
+            # Create a simple test file in the current working directory
+            echo "test data" > "test-output.txt"
             exit 0
         else
-            echo "Usage: $0 collect <directory>"
+            echo "Usage: $0 collect"
             exit 1
         fi
     """).strip()
