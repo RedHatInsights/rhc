@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -102,66 +101,27 @@ func TestGetConfig(t *testing.T) {
 	})
 }
 
-// TestExecuteCollector verifies that executeCollector runs shell commands in
-// the provided working directory.
+// TestExecuteCollector verifies that executeCollector runs the collector binary
+// with the correct arguments.
 func TestExecuteCollector(t *testing.T) {
-	if err := os.MkdirAll(collector.TimerDir, 0755); err != nil {
-		t.Skipf("Cannot create timer cache directory %s: %v", collector.TimerDir, err)
-	}
-	t.Cleanup(func() {
-		_ = os.Remove(filepath.Join(collector.TimerDir, "test.collector.json"))
-	})
-
-	t.Run("successful command execution", func(t *testing.T) {
+	t.Run("nonexistent collector binary", func(t *testing.T) {
 		tmpDir := t.TempDir()
-		command := "echo 'test output'"
-		err := executeCollector("test.collector", command, tmpDir)
-		if err != nil {
-			t.Errorf("executeCollector() unexpected error: %v", err)
-		}
-	})
-
-	t.Run("command that creates files", func(t *testing.T) {
-		tmpDir := t.TempDir()
-		testFile := "test-output.txt"
-		command := fmt.Sprintf("echo 'test content' > %s", testFile)
-		err := executeCollector("test.collector", command, tmpDir)
-		if err != nil {
-			t.Errorf("executeCollector() unexpected error: %v", err)
-		}
-		createdFile := filepath.Join(tmpDir, testFile)
-		if _, err := os.Stat(createdFile); os.IsNotExist(err) {
-			t.Errorf("executeCollector() did not create expected file: %s", createdFile)
-		}
-	})
-
-	t.Run("failing command", func(t *testing.T) {
-		tmpDir := t.TempDir()
-		command := "exit 1"
-		err := executeCollector("test.collector", command, tmpDir)
+		collectorId := "com.redhat.nonexistent"
+		err := executeCollector(collectorId, tmpDir)
 		if err == nil {
-			t.Error("executeCollector() expected error for failing command")
+			t.Error("executeCollector() expected error for nonexistent collector binary")
 		}
 		if !strings.Contains(err.Error(), "failed to execute collector") {
 			t.Errorf("executeCollector() error = %v, want error containing 'failed to execute collector'", err)
 		}
 	})
 
-	t.Run("nonexistent command", func(t *testing.T) {
+	t.Run("collector binary with invalid ID characters", func(t *testing.T) {
 		tmpDir := t.TempDir()
-		command := "nonexistentcommand123456"
-		err := executeCollector("test.collector", command, tmpDir)
+		collectorId := "../../../etc/passwd"
+		err := executeCollector(collectorId, tmpDir)
 		if err == nil {
-			t.Error("executeCollector() expected error for nonexistent command")
-		}
-	})
-
-	t.Run("command with special characters", func(t *testing.T) {
-		tmpDir := t.TempDir()
-		command := "echo 'test with spaces and \"quotes\"'"
-		err := executeCollector("test.collector", command, tmpDir)
-		if err != nil {
-			t.Errorf("executeCollector() unexpected error with special characters: %v", err)
+			t.Error("executeCollector() expected error for path traversal attempt")
 		}
 	})
 }

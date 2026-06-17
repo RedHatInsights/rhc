@@ -57,11 +57,13 @@ pytestmark = pytest.mark.usefixtures("rhc_server_socket")
 @pytest.fixture
 def collector_config():
     """
-    Fixture to create a test collector configuration.
+    Fixture to create a test collector configuration and binary.
     """
-    collector_dir = "/usr/lib/rhc/collectors"
+    collector_config_dir = "/usr/lib/rhc/collectors"
+    collector_bin_dir = "/usr/libexec/rhc/collectors"
     collector_id = "test.integration.collector"
-    collector_config_path = os.path.join(collector_dir, f"{collector_id}.toml")
+    collector_config_path = os.path.join(collector_config_dir, f"{collector_id}.toml")
+    collector_bin_path = os.path.join(collector_bin_dir, collector_id)
 
     config_content = textwrap.dedent("""
         [meta]
@@ -75,20 +77,42 @@ def collector_config():
         content_type = "application/vnd.redhat.test.collection"
     """).strip()
 
+    # Create a simple collector binary that accepts "collect" subcommand
+    collector_script = textwrap.dedent("""
+        #!/bin/bash
+        if [ "$1" = "collect" ] && [ -n "$2" ]; then
+            # Create a simple test file in the provided directory
+            echo "test data" > "$2/test-output.txt"
+            exit 0
+        else
+            echo "Usage: $0 collect <directory>"
+            exit 1
+        fi
+    """).strip()
+
     # Create the collector config
-    os.makedirs(collector_dir, exist_ok=True)
+    os.makedirs(collector_config_dir, exist_ok=True)
     with open(collector_config_path, "w") as f:
         f.write(config_content)
+
+    # Create the collector binary
+    os.makedirs(collector_bin_dir, exist_ok=True)
+    with open(collector_bin_path, "w") as f:
+        f.write(collector_script)
+    os.chmod(collector_bin_path, 0o755)
 
     yield {
         "id": collector_id,
         "name": "Test Integration Collector",
         "config_path": collector_config_path,
+        "bin_path": collector_bin_path,
     }
 
     # Cleanup
     if os.path.exists(collector_config_path):
         os.remove(collector_config_path)
+    if os.path.exists(collector_bin_path):
+        os.remove(collector_bin_path)
 
 
 @pytest.fixture
@@ -273,7 +297,7 @@ def test_rhc_collector_writes_timer_cache(collector_config, rhc):
 
     try:
         subprocess.run(
-            [RHC_COLLECTOR, collector_id, "/bin/true"],
+            [RHC_COLLECTOR, "run", collector_id],
             capture_output=True,
             check=False,
         )

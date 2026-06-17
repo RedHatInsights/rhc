@@ -23,10 +23,10 @@ const (
 
 func main() {
 	if len(os.Args) <= 2 {
-		slog.Error("usage: rhc-collector COLLECTOR-ID COMMAND")
+		slog.Error("usage: rhc-collector COMMAND COLLECTOR-ID")
 		os.Exit(exitcode.Usage)
 	}
-	collectorId, command := os.Args[1], os.Args[2]
+	command, collectorId := os.Args[1], os.Args[2]
 	slog.Info("starting rhc-collector", slog.String("id", collectorId))
 	if err := run(collectorId, command); err != nil {
 		slog.Error("rhc-collector exited with error", "error", err)
@@ -35,17 +35,29 @@ func main() {
 }
 
 func run(collectorId, command string) error {
+	collectorId, err := collector.ValidateID(collectorId)
+	if err != nil {
+		slog.Error("invalid collector ID", "error", err)
+		return fmt.Errorf("invalid collector ID: %w", err)
+	}
+
+	if command != "run" {
+		slog.Error("invalid command", "command", command)
+		return fmt.Errorf("invalid command %q: must be 'run'", command)
+	}
+
 	config, err := getConfig(collectorId)
 	if err != nil {
 		return err
 	}
+
 	tmpDir, err := createTmpDir()
 	if err != nil {
 		return err
 	}
 	defer cleanup(tmpDir)
 
-	if err = executeCollector(collectorId, command, tmpDir); err != nil {
+	if err = executeCollector(collectorId, tmpDir); err != nil {
 		return err
 	}
 	archivePath, err := getArchivePath(tmpDir)
@@ -70,7 +82,7 @@ func createTmpDir() (string, error) {
 		return "", fmt.Errorf("failed to create rhc temporary directory: %w", err)
 	}
 
-	// Verify permissions and fix if necessary 
+	// Verify permissions and fix if necessary
 	info, err := os.Stat(rhcTmpDir)
 	if err != nil {
 		slog.Error("failed to stat rhc temporary directory", "error", err)
@@ -112,11 +124,14 @@ func getConfig(collectorId string) (collector.Config, error) {
 	return config, nil
 }
 
-// executeCollector runs the specified collector command and stores output in tmpDir.
+// executeCollector runs the specified collector binary with the collect argument and and stores output in tmpDir.
 // Returns an error if the command execution fails.
-func executeCollector(collectorId, command, tmpDir string) error {
+func executeCollector(collectorId, tmpDir string) error {
+	// Construct path to the collector binary
+	collectorPath := fmt.Sprintf("/usr/libexec/rhc/collectors/%s", collectorId)
+
 	// TODO: Run collector as specific user and group (defined in config of collector)
-	cmd := exec.Command("/bin/sh", "-c", fmt.Sprintf("%s %q", command, tmpDir))
+	cmd := exec.Command(collectorPath, "collect", tmpDir)
 	cmd.Dir = tmpDir
 
 	// Capture start/end time and execute the command
