@@ -8,9 +8,9 @@ _cli_bash_autocomplete() {
     COMPREPLY=()
     cur="${COMP_WORDS[COMP_CWORD]}"
     if [[ "$cur" == "-"* ]]; then
-      opts=$( "${COMP_WORDS[@]:0:$COMP_CWORD}" "${cur}" --generate-bash-completion )
+      opts=$( "${COMP_WORDS[@]:0:$COMP_CWORD}" "${cur}" --generate-shell-completion )
     else
-      opts=$( "${COMP_WORDS[@]:0:$COMP_CWORD}" --generate-bash-completion )
+      opts=$( "${COMP_WORDS[@]:0:$COMP_CWORD}" --generate-shell-completion )
     fi
     # Redirect output of command to array variable COMPREPLY
     mapfile -t COMPREPLY < <(compgen -W "${opts}" -- "${cur}")
