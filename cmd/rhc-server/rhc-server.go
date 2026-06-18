@@ -9,6 +9,7 @@ import (
 	"github.com/jirihnidek/rhsm2"
 	"github.com/redhatinsights/rhc/internal/collector"
 	"github.com/redhatinsights/rhc/varlink/collectorapi"
+	"github.com/redhatinsights/rhc/varlink/consumerapi"
 	"github.com/redhatinsights/rhc/varlink/rhsmapi"
 )
 
@@ -114,4 +115,68 @@ func (b *RHSMBackend) IsRegistered(in *rhsmapi.IsRegisteredIn) (*rhsmapi.IsRegis
 		return &rhsmapi.IsRegisteredOut{Registered: false}, nil
 	}
 	return &rhsmapi.IsRegisteredOut{Registered: registered}, nil
+}
+
+// ConsumerBackend implements the consumerapi.Backend interface.
+type ConsumerBackend struct{}
+
+// NewConsumerBackend creates a new ConsumerBackend instance.
+func NewConsumerBackend() *ConsumerBackend {
+	return &ConsumerBackend{}
+}
+
+// GetUUID returns the consumer UUID from the installed consumer certificate.
+func (b *ConsumerBackend) GetUUID(in *consumerapi.GetUUIDIn) (*consumerapi.GetUUIDOut, error) {
+	uuid, err := GetConsumerUUID()
+	if err != nil {
+		slog.Debug("Failed to get consumer UUID", "error", err)
+		return nil, &consumerapi.SystemNotRegisteredError{}
+	}
+	slog.Debug("Retrieved consumer UUID", "uuid", *uuid)
+	return &consumerapi.GetUUIDOut{Uuid: *uuid}, nil
+}
+
+// GetOrganization returns the organization that the registered system belongs to.
+func (b *ConsumerBackend) GetOrganization(in *consumerapi.GetOrganizationIn) (*consumerapi.GetOrganizationOut, error) {
+	org, err := GetConsumerOrganization()
+	if err != nil {
+		slog.Debug("Failed to get consumer organization", "error", err)
+		return nil, &consumerapi.SystemNotRegisteredError{}
+	}
+	orgJSON, err := json.Marshal(org)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal organization data: %w", err)
+	}
+	slog.Debug("Retrieved consumer organization", "key", org.Key)
+	return &consumerapi.GetOrganizationOut{Org: orgJSON}, nil
+}
+
+// GetEnvironments returns the environments assigned to the registered consumer.
+func (b *ConsumerBackend) GetEnvironments(in *consumerapi.GetEnvironmentsIn) (*consumerapi.GetEnvironmentsOut, error) {
+	environments, err := GetConsumerEnvironments()
+	if err != nil {
+		slog.Debug("Failed to get consumer environments", "error", err)
+		return nil, &consumerapi.SystemNotRegisteredError{}
+	}
+	environmentsJSON, err := goObjToVarlinkObj(environments)
+	if err != nil {
+		return nil, err
+	}
+	slog.Debug("Retrieved consumer environments", "count", len(environments))
+	return &consumerapi.GetEnvironmentsOut{Environments: environmentsJSON}, nil
+}
+
+// goObjToVarlinkObj takes any slice of json serializable structs and converts it to
+// a slice of json.RawMessage objects. Useful for when a varlink interface expects
+// type '[]object'
+func goObjToVarlinkObj[K any](goObjects []K) ([]json.RawMessage, error) {
+	objects := make([]json.RawMessage, 0, len(goObjects))
+	for _, obj := range goObjects {
+		data, err := json.Marshal(obj)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal object: %w", err)
+		}
+		objects = append(objects, data)
+	}
+	return objects, nil
 }

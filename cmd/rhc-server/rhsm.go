@@ -54,3 +54,55 @@ func IsSystemRegistered() (bool, error) {
 
 	return true, nil
 }
+
+// GetConsumerUUID retrieves the consumer UUID from the installed consumer certificate.
+func GetConsumerUUID() (*string, error) {
+	appName := AppName
+	rhsmClient, err := rhsm2.GetRHSMClient(&appName, nil)
+	if err != nil {
+		return nil, &ClientError{Message: err.Error()}
+	}
+
+	uuid, err := rhsmClient.GetConsumerUUID()
+	if err != nil {
+		return nil, err
+	}
+
+	return uuid, nil
+}
+
+// GetConsumerOrganization retrieves the organization for the registered consumer.
+func GetConsumerOrganization() (*rhsm2.OrganizationData, error) {
+	appName := AppName
+	rhsmClient, err := rhsm2.GetRHSMClient(&appName, nil)
+	if err != nil {
+		return nil, &ClientError{Message: err.Error()}
+	}
+
+	org, err := rhsmClient.GetOrg(nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return org, nil
+}
+
+// GetConsumerEnvironments retrieves the environments from the registered consumer.
+func GetConsumerEnvironments() ([]rhsm2.Environment, error) {
+	appName := AppName
+	rhsmClient, err := rhsm2.GetRHSMClient(&appName, nil)
+	if err != nil {
+		return nil, &ClientError{Message: err.Error()}
+	}
+
+	consumer, err := rhsmClient.GetConsumer(nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if consumer.Environments == nil {
+		return []rhsm2.Environment{}, nil
+	}
+
+	return consumer.Environments, nil
+}

@@ -1,0 +1,23 @@
+# Consumer interface for the RHSM API
+# Any method in this interface can be used only when the system is registered
+interface com.redhat.rhc.testing.rhsm.consumer
+
+# Error returned when a method is called on an unregistered system
+error SystemNotRegistered()
+
+# Return UUID from installed consumer certificate
+method GetUUID() -> (
+    uuid: string
+)
+
+# Return organization that the registered system belongs to.
+# The object mirrors Candlepin owner fields (e.g. key, displayName, id).
+method GetOrganization() -> (
+    org: object
+)
+
+# Return environments assigned to the registered consumer.
+# Returns an empty list when no environments are assigned.
+method GetEnvironments() -> (
+    environments: []object
+)

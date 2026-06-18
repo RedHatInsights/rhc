@@ -13,6 +13,7 @@ import (
 
 	"github.com/coreos/go-systemd/v22/activation"
 	govarlink "github.com/emersion/go-varlink"
+	"github.com/redhatinsights/rhc/varlink/consumerapi"
 	"github.com/redhatinsights/rhc/varlink/rhsmapi"
 
 	"github.com/redhatinsights/rhc/internal/util"
@@ -58,6 +59,9 @@ func run() error {
 
 	collectorapi.Handler{Backend: NewCollectorBackend()}.Register(registry)
 	rhsmapi.Handler{Backend: NewRHSMBackend()}.Register(registry)
+
+	consumerHandler := consumerapi.Handler{Backend: NewConsumerBackend()}
+	consumerHandler.Register(registry)
 
 	varlinkServer := &govarlink.Server{Handler: registry}
 

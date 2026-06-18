@@ -10,7 +10,7 @@ require (
 	github.com/godbus/dbus/v5 v5.2.2
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
-	github.com/jirihnidek/rhsm2 v0.0.0-20260520095901-f7c8272038dc
+	github.com/jirihnidek/rhsm2 v0.0.0-20260629165410-31bdab0143a0
 	github.com/pelletier/go-toml v1.9.5
 	github.com/urfave/cli-altsrc/v3 v3.1.0
 	github.com/urfave/cli-docs/v3 v3.1.0
@@ -29,5 +29,5 @@ require (
 	github.com/mattn/go-isatty v0.0.22 // indirect
 	github.com/rs/zerolog v1.35.1 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
-	gopkg.in/ini.v1 v1.67.2 // indirect
+	gopkg.in/ini.v1 v1.67.3 // indirect
 )

@@ -3,7 +3,37 @@ import subprocess
 import logging
 import os
 
+from utils.systemctl import is_service_active
+
 logger = logging.getLogger(__name__)
+
+CONSUMER_API = "com.redhat.rhc.testing.rhsm.consumer"
+
+
+@pytest.fixture(scope="module")
+def rhc_server_socket():
+    """
+    Ensure rhc-server.socket is enabled and running before varlink tests.
+    Restores the prior socket state after the module completes.
+    """
+    socket_name = "rhc-server.socket"
+    was_active = is_service_active(socket_name)
+
+    if not was_active:
+        subprocess.run(
+            ["systemctl", "enable", "--now", socket_name],
+            check=True,
+            capture_output=True,
+        )
+
+    yield
+
+    if not was_active:
+        subprocess.run(
+            ["systemctl", "disable", "--now", socket_name],
+            check=False,
+            capture_output=True,
+        )
 
 
 @pytest.fixture(scope="session", autouse=True)
