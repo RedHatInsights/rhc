@@ -7,7 +7,7 @@ rhc-configure - Configure RHC features before or after registration
 # SYNOPSIS
 
 ```
-rhc configure features show
+rhc configure features status
 rhc configure features enable FEATURE
 rhc configure features disable FEATURE
 ```
@@ -26,43 +26,41 @@ The following features are available for configuration:
 : Content and repository configuration. This is the base feature that controls access to package repositories.
 
 **analytics**
-: Red Hat Lightspeed data collection. Enables insights-client for system analytics and recommendations. Depends on the content feature.
+: Red Hat Lightspeed data collection. Enables insights-client for system analytics and recommendations.
 
 **remote-management**
-: Red Hat Lightspeed remote management capabilities. Enables yggdrasil service for remote system management. Depends on the analytics feature.
+: Red Hat Lightspeed remote management capabilities. Enables yggdrasil service for remote system management. Depends on the content and analytics features.
 
 # SUBCOMMANDS
 
-**show**
-: List all available features with their current configuration state and runtime state. The output displays a table with columns for FEATURE, CONFIG (user preference), STATE (actual system state), and DESCRIPTION.
+**status**
+: List all available features and their current configuration. When disconnected, the table shows PREFERENCE. When connected, the table shows STATE. DESCRIPTION is always included.
 
 **enable** FEATURE
-: Enable the specified feature. This sets the user preference and, if the system is already connected, activates the feature on the system. Dependencies are automatically enabled.
+: Enable the specified feature. This sets the user preference and, if the system is already connected, activates the feature on the system. Dependencies are automatically enabled. Multiple features can be configured with a single command.
 
 **disable** FEATURE
-: Disable the specified feature. This sets the user preference and, if the system is already connected, deactivates the feature on the system. Dependent features are automatically disabled.
+: Disable the specified feature. This sets the user preference and, if the system is already connected, deactivates the feature on the system. Dependent features are automatically disabled. Multiple features can be configured with a single command.
 
 # FEATURE STATES
 
-The **show** subcommand displays two states for each feature:
+The **status** subcommand shows one of two columns for each feature, depending on whether the system is connected to Red Hat:
 
-**CONFIG**
-: Indicates the user's preference (configuration). A checkmark (✓) means the feature is configured to be enabled, an x means it is configured to be disabled.
+**PREFERENCE**
+: Shown when the system is disconnected. Indicates the user's saved preference on connect. **enable** indicates that the feature is included on connect, **skip** indicates the feature is excluded on connect.
 
 **STATE**
-: Indicates the actual runtime state of the feature on the system. A checkmark (✓) means the feature is currently active, an x means it is not active.
-
-Before registration, the STATE column shows x for all features since no services are running yet. After registration, STATE reflects whether the underlying services are actually enabled and running.
+: Shown when the system is connected. Indicates the current system status. **enabled** indicates the feature is active and its services are running, **disabled** indicates that the feature is disabled and its services are not running.
 
 # FEATURE DEPENDENCIES
 
 Features have the following dependency hierarchy:
 
-- **remote-management** requires **analytics**
-- **analytics** requires **content**
-- **content** is the base feature with no dependencies
+- **remote-management** requires **content** and **analytics**
+- **analytics** is an independent base feature and has no dependencies
+- **content** is an independent base feature and has no dependencies
 
-When enabling a feature, all required dependencies are automatically enabled. When disabling a feature, all dependent features are automatically disabled.
+When enabling a feature, the required dependencies are automatically enabled. When disabling a feature, the dependent features are automatically disabled.
 
 # PRE-REGISTRATION USAGE
 
@@ -71,66 +69,67 @@ Before running **rhc connect**, you can configure feature preferences.
 **Note:** The commands shown below are examples to demonstrate the functionality. Pre-configuring features is optional and not required for connecting to Red Hat services. You can run **rhc connect** directly without any prior configuration.
 
 ```
-# rhc configure features show
-FEATURE            CONFIG  STATE  DESCRIPTION
-content            ✓       x      Access to package repositories
-analytics          ✓       x      Red Hat Lightspeed data collection
-remote-management  ✓       x      Red Hat Lightspeed remote management
+# rhc configure features status
+FEATURE            PREFERENCE  DESCRIPTION
+content            enable      Red Hat content management
+analytics          enable      Red Hat Lightspeed data collection
+remote-management  enable      Red Hat Lightspeed remote management
 
 # rhc configure features disable analytics
-During registration, analytics will not be enabled.
-During registration, remote management will not be enabled.
+During registration, 'remote-management' will not be enabled (depends on 'analytics').
+During registration, 'analytics' will not be enabled.
 
 # rhc connect
 ```
 
-When you subsequently run **rhc connect**, only the features marked as enabled in CONFIG will be activated.
+When you subsequently run **rhc connect**, only the features marked with PREFERENCE **enable** are activated on connect.
 
 # POST-REGISTRATION USAGE
 
 After the system is connected, you can change features dynamically:
 
 ```
-# rhc configure features show
-FEATURE            CONFIG  STATE  DESCRIPTION
-content            ✓       ✓      Access to package repositories
-analytics          ✓       ✓      Red Hat Lightspeed data collection
-remote-management  ✓       ✓      Red Hat Lightspeed remote management
+# rhc configure features status
+FEATURE            STATE    DESCRIPTION
+content            enabled  Red Hat content management
+analytics          enabled  Red Hat Lightspeed data collection
+remote-management  enabled  Red Hat Lightspeed remote management
 
 # rhc configure features disable analytics
-Disabling remote management (depends on analytics).
-Disabling analytics.
+Feature 'remote-management' disabled (depends on 'analytics').
+Feature 'analytics' disabled.
 
 # rhc configure features enable analytics
-Enabling analytics.
+Feature 'analytics' enabled.
 ```
 
-Changes take effect immediately on the system by enabling or disabling the underlying services (insights-client, yggdrasil).
+Changes take effect immediately on the system by enabling or disabling the underlying services (rhsm, insights-client, yggdrasil).
 
 # CONFIGURATION FILE
 
 Feature preferences are stored in a configuration file at:
 
 ```
-/etc/rhc/config.toml.d/01-features.toml
+/var/lib/rhc/rhc-connect-features-prefs.json
 ```
 
-The file contains a TOML section tracking feature states:
+The file contains JSON booleans tracking connect-time feature preferences:
 
 ```
-[...]
-features = {
-    "content" = true,
-    "analytics" = true,
-    "remote-management" = false
+{
+    "analytics": true,
+    "content": false,
+    "remote-management": false
 }
 ```
 
-The configuration file can be edited manually, though using **rhc configure** is recommended to ensure dependency consistency.
+**true** means the feature is included on connect (shown as **enable** in **status** output); **false** means it is excluded (shown as **skip** in **status** output). Valid keys are **content**, **analytics**, and **remote-management**.
+
+The configuration file can be edited manually, though using **rhc configure** is recommended to ensure dependency consistency. If no preferences file exists, all features default to true (shown as **enable** in status output).
 
 # LIMITATIONS
 
-**rhc configure** performs a one-time configuration change and does not proactively monitor or correct feature states. If an underlying service (such as insights-client or yggdrasil) crashes or is manually disabled, **rhc** will not automatically re-enable it.
+**rhc configure** performs a one-time configuration change and does not proactively monitor or correct feature states. If an underlying service (such as rhsm, insights-client or yggdrasil) crashes or is manually disabled, **rhc** will not automatically re-enable it.
 
 The command cannot change the server a system is connected to (ConsoleDot vs Satellite) without re-registration. Use **rhc disconnect** and **rhc connect** for that purpose.
 
@@ -139,13 +138,27 @@ The command cannot change the server a system is connected to (ConsoleDot vs Sat
 **Show current feature configuration:**
 
 ```
-rhc configure features show
+rhc configure features status
 ```
 
 **Disable analytics before registration:**
 
 ```
 rhc configure features disable analytics
+rhc connect
+```
+
+**Disable content and analytics before registration:**
+
+```
+rhc configure features disable content analytics
+rhc connect
+```
+
+**Enable content and analytics before registration:**
+
+```
+rhc configure features enable content analytics
 rhc connect
 ```
 
@@ -166,8 +179,7 @@ rhc configure features disable analytics
 **0**: Success
 
 **Non-zero**: An error occurred. Common errors include:
-- Attempting to enable a feature while its dependencies are disabled
-- Attempting to enable and disable the same feature simultaneously
+- Invalid feature name or wrong argument count provided
 - System permission errors when modifying configuration or services
 
 # SEE ALSO
