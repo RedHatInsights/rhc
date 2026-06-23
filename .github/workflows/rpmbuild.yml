@@ -33,7 +33,7 @@ jobs:
             git rpm-build go-vendor-tools go-rpm-macros
 
       - name: "Checkout repository"
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: "Adding repository directory to the temporary git global config as a safe directory (again)"
         run: |
