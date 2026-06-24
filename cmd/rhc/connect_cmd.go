@@ -14,6 +14,7 @@ import (
 	"github.com/redhatinsights/rhc/internal/datacollection"
 	"github.com/redhatinsights/rhc/internal/remotemanagement"
 	"github.com/redhatinsights/rhc/internal/rhsm"
+	"github.com/redhatinsights/rhc/internal/subman"
 	"github.com/redhatinsights/rhc/internal/ui"
 	"github.com/redhatinsights/rhc/pkg/exitcode"
 	"github.com/redhatinsights/rhc/pkg/feature"
@@ -233,7 +234,7 @@ func beforeConnectAction(ctx context.Context, cmd *cli.Command) (context.Context
 
 	// Do not continue if the host is already registered
 	slog.Info("Checking system connection status")
-	uuid, err := rhsm.GetConsumerUUID()
+	uuid, err := subman.GetConsumerUUID()
 	if err != nil {
 		return ctx, cli.Exit(
 			fmt.Sprintf("unable to get consumer UUID: %s", err),

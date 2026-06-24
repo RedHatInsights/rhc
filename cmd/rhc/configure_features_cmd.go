@@ -7,7 +7,7 @@ import (
 
 	"github.com/urfave/cli/v3"
 
-	"github.com/redhatinsights/rhc/internal/rhsm"
+	"github.com/redhatinsights/rhc/internal/subman"
 	"github.com/redhatinsights/rhc/internal/ui"
 	"github.com/redhatinsights/rhc/pkg/exitcode"
 	"github.com/redhatinsights/rhc/pkg/feature"
@@ -64,7 +64,7 @@ func beforeFeaturesStatusAction(ctx context.Context, cmd *cli.Command) (context.
 // featuresStatusAction displays the current status or preferences of all features.
 func featuresStatusAction(ctx context.Context, cmd *cli.Command) error {
 	logCommandStart(cmd)
-	isRegistered, err := rhsm.IsRHSMRegistered()
+	isRegistered, err := subman.IsRegistered()
 	if err != nil {
 		return err
 	}
@@ -192,7 +192,7 @@ func beforeFeaturesEnableAction(ctx context.Context, cmd *cli.Command) (context.
 // featuresEnableAction enables one or more features.
 func featuresEnableAction(ctx context.Context, cmd *cli.Command) error {
 	logCommandStart(cmd)
-	isRegistered, err := rhsm.IsRHSMRegistered()
+	isRegistered, err := subman.IsRegistered()
 	if err != nil {
 		return cli.Exit(fmt.Sprintf("failed to check registration status: %v", err), exitcode.Software)
 	}
@@ -316,7 +316,7 @@ func beforeFeaturesDisableAction(ctx context.Context, cmd *cli.Command) (context
 // featuresDisableAction disables one or more features.
 func featuresDisableAction(ctx context.Context, cmd *cli.Command) error {
 	logCommandStart(cmd)
-	isRegistered, err := rhsm.IsRHSMRegistered()
+	isRegistered, err := subman.IsRegistered()
 	if err != nil {
 		return cli.Exit(fmt.Sprintf("failed to check registration status: %v", err), exitcode.Software)
 	}

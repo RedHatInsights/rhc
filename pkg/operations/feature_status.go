@@ -5,7 +5,7 @@ import (
 
 	"github.com/redhatinsights/rhc/internal/datacollection"
 	"github.com/redhatinsights/rhc/internal/remotemanagement"
-	"github.com/redhatinsights/rhc/internal/rhsm"
+	"github.com/redhatinsights/rhc/internal/subman"
 )
 
 // FeatureStatusResult represents the result of checking a feature's status.
@@ -26,7 +26,7 @@ func FeatureStatus(opts FeatureOperationOptions) FeatureStatusResult {
 	case Analytics:
 		enabled, err = datacollection.InsightsClientIsRegistered()
 	case Content:
-		enabled, err = rhsm.IsContentManagementEnabled()
+		enabled, err = subman.IsContentManagementEnabled()
 	case RemoteManagement:
 		enabled, err = remotemanagement.AssertYggdrasilServiceState("active")
 	default:

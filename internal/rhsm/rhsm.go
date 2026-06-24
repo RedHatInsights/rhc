@@ -296,39 +296,6 @@ func registerActivationKey(orgID string, activationKeys []string, environments [
 	return nil
 }
 
-func Unregister() error {
-	conn, err := dbus.SystemBus()
-	if err != nil {
-		return err
-	}
-	// godbus implements SystemBus as a singleton, do not call conn.Close()
-
-	uuid, err := GetConsumerUUID()
-	if err != nil {
-		return err
-	}
-	if uuid == "" {
-		return fmt.Errorf("warning: the system is already unregistered")
-	}
-
-	locale := localization.GetLocale()
-
-	slog.Debug("Calling method com.redhat.RHSM1.Unregister.Unregister")
-	err = conn.Object(
-		"com.redhat.RHSM1",
-		"/com/redhat/RHSM1/Unregister").Call(
-		"com.redhat.RHSM1.Unregister.Unregister",
-		dbus.Flags(0),
-		map[string]string{},
-		locale).Err
-
-	if err != nil {
-		return UnpackDBusError(err)
-	}
-
-	return nil
-}
-
 // DBusError is used for parsing JSON document returned by D-Bus methods.
 type DBusError struct {
 	Exception string `json:"exception"`
@@ -465,19 +432,4 @@ func RegisterRHSM(cmd *cli.Command, enableContent bool) (string, error) {
 		successMsg = "This system is already connected to Red Hat Subscription Management"
 	}
 	return successMsg, nil
-}
-
-// IsRHSMRegistered returns true, when system is registered
-func IsRHSMRegistered() (bool, error) {
-	slog.Debug("Checking if system is registered to Red Hat Subscription Management")
-	uuid, err := GetConsumerUUID()
-	if err != nil {
-		return false, err
-	}
-	if uuid != "" {
-		slog.Debug("Consumer UUID is set, system is registered")
-		return true, nil
-	}
-	slog.Debug("Consumer UUID is not set, system is not registered")
-	return false, nil
 }
