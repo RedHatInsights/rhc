@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"reflect"
 
 	"github.com/redhatinsights/rhc/internal/systemd"
 )
@@ -41,6 +42,54 @@ func ActivateServices() error {
 	}
 
 	return nil
+}
+
+// UnitState holds the state of a systemd unit as reported by systemd.
+type UnitState struct {
+	// ActiveState is the systemd ActiveState property value (e.g. "active", "inactive").
+	ActiveState string
+	// LoadState is the systemd LoadState property value (e.g. "loaded", "not-found").
+	LoadState string
+	// LoadError is the human-readable error message from the systemd LoadError
+	// property. It is non-empty only when the unit failed to load.
+	LoadError string
+}
+
+// GetUnitState returns the current state of a systemd unit.
+func GetUnitState(name string) (*UnitState, error) {
+	conn, err := systemd.NewConnectionContext(context.Background(), systemd.ConnectionTypeSystem)
+	if err != nil {
+		return nil, fmt.Errorf("cannot connect to systemd: %v", err)
+	}
+	defer conn.Close()
+
+	props, err := conn.GetUnitProperties(name)
+	if err != nil {
+		return nil, fmt.Errorf("cannot get properties of %s: %v", name, err)
+	}
+
+	result := &UnitState{}
+	result.ActiveState, _ = props["ActiveState"].(string)
+	result.LoadState, _ = props["LoadState"].(string)
+
+	if result.ActiveState != "active" && result.LoadState != "loaded" {
+		// This part of the systemd D-Bus API returns two objects, one is a slice
+		// representing the error ID ("org.freedesktop.systemd1.NoSuchUnit"), the
+		// other a string representing a human-readable error message.
+		// systemd returns LoadError as []interface{}{errorID string, errorMessage string}.
+		raw := props["LoadError"]
+		t := reflect.TypeOf(raw)
+		if t != nil && t.Kind() == reflect.Slice && t.Elem().Kind() == reflect.Interface {
+			slice := raw.([]interface{})
+			if len(slice) >= 2 {
+				if msg, ok := slice[1].(string); ok {
+					result.LoadError = msg
+				}
+			}
+		}
+	}
+
+	return result, nil
 }
 
 // AssertYggdrasilServiceState returns true, when yggdrasil.service is in given state

@@ -175,7 +175,7 @@ def test_status_disconnected(rhc):
     assert "Not connected to Red Hat Subscription Management" in status_result.stdout
     assert "System has no access to content" in status_result.stdout
     assert "Not connected to Red Hat Lightspeed (formerly Insights)" in status_result.stdout
-    assert "The yggdrasil service is inactive" in status_result.stdout
+    assert "The yggdrasil service is not running" in status_result.stdout
 
 
 @pytest.fixture
@@ -276,7 +276,7 @@ def test_status_disconnected_rhsm_masked(rhc):
     assert status_result.returncode != 0
     assert "Could not activate remote peer" in status_result.stdout
     assert "Not connected to Red Hat Lightspeed (formerly Insights)" in status_result.stdout
-    assert "The yggdrasil service is inactive" in status_result.stdout
+    assert "The yggdrasil service is not running" in status_result.stdout
 
 
 @pytest.mark.tier1
@@ -386,7 +386,7 @@ def test_status_connected_yggdrasil_masked(external_candlepin, rhc, test_config)
         4.  The exit code is not 0.
         5.  The output contains "Connected to Red Hat Subscription Management",
             "Connected to Red Hat Lightspeed (formerly Insights)", "System has access to content",
-            "Unit yggdrasil.service is masked"
+            "The yggdrasil service is not available"
         6.  The 'yggdrasil.service' is unmasked.
     """
 
@@ -409,7 +409,7 @@ def test_status_connected_yggdrasil_masked(external_candlepin, rhc, test_config)
     assert "Connected to Red Hat Lightspeed (formerly Insights)" in status_result.stdout
     # yggdrasil
     assert not yggdrasil_service_is_active()
-    assert "Unit yggdrasil.service is masked" in status_result.stdout
+    assert "The yggdrasil service is not available" in status_result.stdout
 
 
 @pytest.mark.tier1
@@ -471,7 +471,7 @@ def test_status_connected_yggdrasil_masked_format_json(external_candlepin, rhc, 
     assert status_json["yggdrasil_running"] == False
     assert "yggdrasil_error" in status_json
     assert type(status_json["yggdrasil_error"]) == str
-    assert "Unit yggdrasil.service is masked" in status_json["yggdrasil_error"]
+    assert "The yggdrasil service is not available" in status_json["yggdrasil_error"]
 
 
 def test_yggdrasil_service_restart(external_candlepin, rhc, test_config):

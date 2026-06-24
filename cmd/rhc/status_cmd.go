@@ -6,17 +6,11 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"reflect"
-	"time"
 
-	"github.com/godbus/dbus/v5"
 	"github.com/urfave/cli/v3"
 
-	"github.com/briandowns/spinner"
-	systemd "github.com/coreos/go-systemd/v22/dbus"
-
 	"github.com/redhatinsights/rhc/internal/datacollection"
-	"github.com/redhatinsights/rhc/internal/localization"
+	"github.com/redhatinsights/rhc/internal/remotemanagement"
 	"github.com/redhatinsights/rhc/internal/subman"
 	"github.com/redhatinsights/rhc/internal/ui"
 	"github.com/redhatinsights/rhc/pkg/exitcode"
@@ -49,40 +43,26 @@ func rhsmStatus(systemStatus *SystemStatus) error {
 	return nil
 }
 
-// isContentEnabled tries to read the configuration file rhsm.conf using D-Bus API
-// and get the manage_repos option from the section [rhsm]. If the option is equal
-// to "1", then content is managed by subscription-manager/RHSM
+// isContentEnabled checks whether the system is registered and the content management
+// is enabled. Both conditions must be true for content access to be available.
 func isContentEnabled(systemStatus *SystemStatus) error {
 	slog.Info("Checking content status")
 
-	conn, err := dbus.SystemBus()
-	if err != nil {
-		return fmt.Errorf("cannot connect to system D-Bus: %w", err)
-	}
-
-	locale := localization.GetLocale()
-
-	config := conn.Object("com.redhat.RHSM1", "/com/redhat/RHSM1/Config")
-
-	var contentEnabled string
-	if err := config.Call(
-		"com.redhat.RHSM1.Config.Get",
-		0,
-		"rhsm.manage_repos",
-		locale).Store(&contentEnabled); err != nil {
-		systemStatus.returnCode += 1
-		systemStatus.ContentError = err.Error()
-		return subman.UnpackDBusError(err)
-	}
-
-	uuid, err := subman.GetConsumerUUID()
+	contentEnabled, err := subman.IsContentManagementEnabled()
 	if err != nil {
 		systemStatus.returnCode += 1
 		systemStatus.ContentError = err.Error()
-		return fmt.Errorf("unable to get consumer UUID: %s", err)
+		return fmt.Errorf("unable to check content management: %w", err)
 	}
 
-	if contentEnabled == "1" && uuid != "" {
+	registered, err := subman.IsRegistered()
+	if err != nil {
+		systemStatus.returnCode += 1
+		systemStatus.ContentError = err.Error()
+		return fmt.Errorf("unable to check registration status: %s", err)
+	}
+
+	if contentEnabled && registered {
 		systemStatus.ContentEnabled = true
 		infoMsg := "System has access to content"
 		slog.Info(infoMsg)
@@ -100,17 +80,16 @@ func isContentEnabled(systemStatus *SystemStatus) error {
 func insightStatus(systemStatus *SystemStatus) error {
 	slog.Info("Checking status of Red Hat Lightspeed")
 
-	var s *spinner.Spinner
-	if ui.IsOutputRich() {
-		s = spinner.New(spinner.CharSets[9], 100*time.Millisecond)
-		s.Prefix = ui.Indent.Medium + "["
-		s.Suffix = "] Checking Red Hat Lightspeed (formerly Insights)..."
-		s.Start()
+	var isRegistered bool
+	var err error
+	spinErr := ui.Spinner(func() error {
+		isRegistered, err = datacollection.InsightsClientIsRegistered()
+		return nil
+	}, ui.Indent.Medium, "Checking Red Hat Lightspeed (formerly Insights)...")
+	if spinErr != nil {
+		return spinErr
 	}
-	isRegistered, err := datacollection.InsightsClientIsRegistered()
-	if ui.IsOutputRich() {
-		s.Stop()
-	}
+
 	if isRegistered {
 		systemStatus.InsightsConnected = true
 		slog.Info("Connected to Red Hat Lightspeed")
@@ -134,64 +113,35 @@ func insightStatus(systemStatus *SystemStatus) error {
 func serviceStatus(systemStatus *SystemStatus) error {
 	slog.Info("Checking status of yggdrasil service")
 
-	ctx := context.Background()
-	conn, err := systemd.NewSystemConnectionContext(ctx)
+	state, err := remotemanagement.GetUnitState("yggdrasil.service")
 	if err != nil {
 		systemStatus.YggdrasilRunning = false
 		systemStatus.YggdrasilError = err.Error()
-		return fmt.Errorf("unable to connect to systemd: %s", err)
-	}
-	defer conn.Close()
-	unitName := "yggdrasil.service"
-	properties, err := conn.GetUnitPropertiesContext(ctx, unitName)
-	if err != nil {
-		systemStatus.YggdrasilRunning = false
-		systemStatus.YggdrasilError = err.Error()
-		return fmt.Errorf("unable to get properties of %s: %s", unitName, err)
+		return err
 	}
 
-	activeState := properties["ActiveState"]
-	if activeState.(string) == "active" {
+	if state.ActiveState == "active" {
 		systemStatus.YggdrasilRunning = true
 		infoMsg := "The yggdrasil service is active"
 		slog.Info(infoMsg)
 		ui.Printf("%s[%v] Remote Management ... %v\n", ui.Indent.Medium, ui.Icons.Ok, infoMsg)
+	} else if state.LoadState == "loaded" {
+		systemStatus.returnCode += 1
+		systemStatus.YggdrasilRunning = false
+		warnMsg := "The yggdrasil service is not running"
+		slog.Warn(warnMsg)
+		ui.Printf("%s[ ] Remote Management ... %v\n", ui.Indent.Medium, warnMsg)
 	} else {
 		systemStatus.returnCode += 1
-		loadState := properties["LoadState"]
-		if loadState == "loaded" {
-			systemStatus.YggdrasilRunning = false
-			warnMsg := "The yggdrasil service is inactive but loaded"
-			slog.Warn(warnMsg)
-			ui.Printf("%s[ ] Remote Management ... %v\n", ui.Indent.Medium, warnMsg)
+		systemStatus.YggdrasilRunning = false
+		errMsg := "The yggdrasil service is not available"
+		systemStatus.YggdrasilError = errMsg
+		if state.LoadError != "" {
+			slog.Error(errMsg, "reason", state.LoadError)
 		} else {
-			loadError := properties["LoadError"]
-			// This part of the systemd D-Bus API is a little bit tricky. It returns
-			// an empty interface. It should contain a slice of two interfaces. The first
-			// interface in the slice should be the string representing error ID
-			// (e.g. "org.freedesktop.systemd1.NoSuchUnit"). The second interface should be
-			// also string representing the human-readable error message.
-			loadErrorType := reflect.TypeOf(loadError)
-			// Check if the type is []interface{}
-			if loadErrorType.Kind() == reflect.Slice && loadErrorType.Elem().Kind() == reflect.Interface {
-				loadErrorSlice := loadError.([]interface{})
-				if len(loadErrorSlice) >= 2 {
-					// Check if the type of the second interface is string
-					if reflect.TypeOf(loadErrorSlice[1]).Kind() == reflect.String {
-						loadErrorString := loadErrorSlice[1].(string)
-						systemStatus.YggdrasilRunning = false
-						systemStatus.YggdrasilError = loadErrorString
-						slog.Error(loadErrorString)
-						ui.Printf(
-							"%s[%s] Remote Management ... %v\n",
-							ui.Indent.Medium,
-							ui.Icons.Error,
-							loadErrorString,
-						)
-					}
-				}
-			}
+			slog.Error(errMsg)
 		}
+		ui.Printf("%s[%s] Remote Management ... %v\n", ui.Indent.Medium, ui.Icons.Error, errMsg)
 	}
 	return nil
 }
