@@ -3,29 +3,41 @@ package subman
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log/slog"
 
 	"github.com/godbus/dbus/v5"
 )
 
-// DBusError is used for parsing JSON document returned by D-Bus methods.
-type DBusError struct {
+// ErrDBusUnavailable is returned when the system D-Bus daemon cannot be reached.
+var ErrDBusUnavailable = errors.New("system D-Bus is not available")
+
+// ErrAlreadyRegistered is returned when an operation requires the system to be
+// unregistered, but it is already registered with RHSM.
+var ErrAlreadyRegistered = errors.New("system is already registered with RHSM")
+
+// ErrAlreadyUnregistered is returned when an operation requires the system to
+// be registered, but it is already unregistered from RHSM.
+var ErrAlreadyUnregistered = errors.New("system is already unregistered from RHSM")
+
+// ErrOrganizationRequired is returned when an organization must be specified
+// but was not.
+var ErrOrganizationRequired = errors.New("organization is required")
+
+// dbusError holds the structured error body returned by com.redhat.RHSM1 D-Bus methods.
+type dbusError struct {
 	Exception string `json:"exception"`
 	Severity  string `json:"severity"`
 	Message   string `json:"message"`
 }
 
-// Error returns textual representation of DBusError. This implements all necessary
-// methods for the error interface. Thus, DBusError can be handled as a regular error.
-func (dbusError DBusError) Error() string {
-	return fmt.Sprintf("%v: %v", dbusError.Severity, dbusError.Message)
+func (e dbusError) Error() string {
+	return e.Message
 }
 
-// UnpackDBusError tries to unpack a JSON document (part of the error) into the structure DBusError.
-// When it is not possible to parse an error into structure, then a corresponding or original error
-// is returned. When it is possible to parse error into structure, then DBusError is returned
-func UnpackDBusError(err error) error {
+// newDbusError translates a raw D-Bus error into a structured dbusError when
+// the error originates from com.redhat.RHSM1. Returns the original error
+// unchanged for all other cases or when the body cannot be parsed.
+func newDbusError(err error) error {
 	var e dbus.Error
 	ok := errors.As(err, &e)
 	if !ok {
@@ -35,10 +47,10 @@ func UnpackDBusError(err error) error {
 		return err
 	}
 
-	var dbusError DBusError
-	if jsonErr := json.Unmarshal([]byte(e.Error()), &dbusError); jsonErr != nil {
+	var d dbusError
+	if jsonErr := json.Unmarshal([]byte(e.Error()), &d); jsonErr != nil {
 		slog.Debug("Failed to unmarshal D-Bus error body", "error", jsonErr)
 		return err
 	}
-	return dbusError
+	return d
 }

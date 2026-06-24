@@ -234,15 +234,15 @@ func beforeConnectAction(ctx context.Context, cmd *cli.Command) (context.Context
 
 	// Do not continue if the host is already registered
 	slog.Info("Checking system connection status")
-	uuid, err := subman.GetConsumerUUID()
+	registered, err := subman.IsRegistered()
 	if err != nil {
 		return ctx, cli.Exit(
-			fmt.Sprintf("unable to get consumer UUID: %s", err),
+			fmt.Sprintf("unable to check connection status: %s", err),
 			exitcode.Software,
 		)
 	}
-	if uuid != "" {
-		slog.Info("Consumer UUID is set, system is already connected")
+	if registered {
+		slog.Info("System is already connected")
 		return ctx, cli.Exit("this system is already connected", exitcode.Usage)
 	}
 
