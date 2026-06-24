@@ -1,7 +1,7 @@
 package feature
 
 import (
-	"github.com/redhatinsights/rhc/internal/rhsm"
+	"github.com/redhatinsights/rhc/internal/subman"
 )
 
 // Content implements IFeature.
@@ -24,13 +24,13 @@ func (c Content) RequiredBy() []string {
 }
 
 func (c Content) Enable() error {
-	return rhsm.SetContentManagement(true)
+	return subman.SetContentManagement(true)
 }
 
 func (c Content) Disable() error {
-	return rhsm.SetContentManagement(false)
+	return subman.SetContentManagement(false)
 }
 
 func (c Content) IsEnabled() (bool, error) {
-	return rhsm.IsContentManagementEnabled()
+	return subman.IsContentManagementEnabled()
 }

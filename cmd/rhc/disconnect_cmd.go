@@ -12,7 +12,7 @@ import (
 
 	"github.com/redhatinsights/rhc/internal/datacollection"
 	"github.com/redhatinsights/rhc/internal/remotemanagement"
-	"github.com/redhatinsights/rhc/internal/rhsm"
+	"github.com/redhatinsights/rhc/internal/subman"
 	"github.com/redhatinsights/rhc/internal/ui"
 	"github.com/redhatinsights/rhc/pkg/exitcode"
 )
@@ -135,7 +135,7 @@ func (disconnectResult *DisconnectResult) TryUnregisterInsightsClient() error {
 func (disconnectResult *DisconnectResult) TryUnregisterRHSM() error {
 	slog.Info("Unregistering system from Red Hat Subscription Management")
 
-	isRegistered, err := rhsm.IsRHSMRegistered()
+	isRegistered, err := subman.IsRegistered()
 	if err != nil {
 		return err
 	}
@@ -147,7 +147,7 @@ func (disconnectResult *DisconnectResult) TryUnregisterRHSM() error {
 		return nil
 	}
 	err = ui.Spinner(
-		rhsm.Unregister,
+		subman.Unregister,
 		ui.Indent.Small,
 		"Disconnecting from Red Hat Subscription Management...",
 	)

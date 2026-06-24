@@ -17,7 +17,7 @@ import (
 
 	"github.com/redhatinsights/rhc/internal/datacollection"
 	"github.com/redhatinsights/rhc/internal/localization"
-	"github.com/redhatinsights/rhc/internal/rhsm"
+	"github.com/redhatinsights/rhc/internal/subman"
 	"github.com/redhatinsights/rhc/internal/ui"
 	"github.com/redhatinsights/rhc/pkg/exitcode"
 )
@@ -28,7 +28,7 @@ import (
 func rhsmStatus(systemStatus *SystemStatus) error {
 	slog.Info("Checking status of Red Hat Subscription Management")
 
-	uuid, err := rhsm.GetConsumerUUID()
+	uuid, err := subman.GetConsumerUUID()
 	if err != nil {
 		systemStatus.returnCode += 1
 		systemStatus.RHSMError = err.Error()
@@ -72,10 +72,10 @@ func isContentEnabled(systemStatus *SystemStatus) error {
 		locale).Store(&contentEnabled); err != nil {
 		systemStatus.returnCode += 1
 		systemStatus.ContentError = err.Error()
-		return rhsm.UnpackDBusError(err)
+		return subman.UnpackDBusError(err)
 	}
 
-	uuid, err := rhsm.GetConsumerUUID()
+	uuid, err := subman.GetConsumerUUID()
 	if err != nil {
 		systemStatus.returnCode += 1
 		systemStatus.ContentError = err.Error()
