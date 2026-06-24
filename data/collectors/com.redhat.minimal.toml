@@ -1,0 +1,9 @@
+[meta]
+name = "Minimal Host Inventory Collector"
+feature = "analytics"
+type = "ingress"
+
+[ingress]
+user = "root"
+group = "root"
+content_type = "application/vnd.redhat.advisor.minimal"

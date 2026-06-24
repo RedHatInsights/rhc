@@ -11,6 +11,7 @@ build:
 	$(GO_BUILD) -o rhc ./cmd/rhc
 	$(GO_BUILD) -o rhc-server ./cmd/rhc-server
 	$(GO_BUILD) -o rhc-collector ./cmd/rhc-collector
+	$(GO_BUILD) -o com.redhat.minimal ./cmd/minimal-collector
 
 .PHONY: archive
 archive:
@@ -43,6 +44,7 @@ clean:
 	rm -f rhc
 	rm -f rhc-server
 	rm -f rhc-collector
+	rm -f com.redhat.minimal
 	rm -f rhc-*.tar*
 	rm -rf vendor/
 	rm -rf x86_64/

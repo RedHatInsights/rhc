@@ -77,6 +77,7 @@ export GO_LDFLAGS="-X github.com/redhatinsights/rhc/pkg/version.Version=%{versio
 %gobuild -o %{gobuilddir}/bin/rhc           %{goipath}/cmd/rhc
 %gobuild -o %{gobuilddir}/bin/rhc-server    %{goipath}/cmd/rhc-server
 %gobuild -o %{gobuilddir}/bin/rhc-collector %{goipath}/cmd/rhc-collector
+%gobuild -o %{gobuilddir}/bin/com.redhat.minimal %{goipath}/cmd/minimal-collector
 
 # Generate man page
 %{gobuilddir}/bin/rhc --generate-man-page > rhc.1
@@ -112,10 +113,14 @@ install -m 0755 -vd                     %{buildroot}%{_unitdir}
 install -m 0644 -vp data/systemd/rhc-canonical-facts.*  %{buildroot}%{_unitdir}/
 install -m 0644 -vp data/systemd/rhc-server.service  %{buildroot}%{_unitdir}/
 install -m 0644 -vp data/systemd/rhc-server.socket   %{buildroot}%{_unitdir}/
+install -m 0644 -vp data/systemd/rhc-collector-com.redhat.minimal.*  %{buildroot}%{_unitdir}/
 install -m 0755 -vd %{buildroot}%{_prefix}/lib/systemd/system-preset/
 install -m 0644 -vp data/systemd/presets/50-rhc.preset %{buildroot}%{_prefix}/lib/systemd/system-preset/
 # Configuration
 install -m 0755 -vd                     %{buildroot}%{_sysconfdir}/%{name}/
+# Minimal collector
+install -m 0755 -vp _build/bin/com.redhat.minimal %{buildroot}%{_libexecdir}/%{name}/collectors/com.redhat.minimal
+install -m 0644 -vp data/collectors/com.redhat.minimal.toml %{buildroot}%{_prefix}/lib/%{name}/collectors/
 
 %if 0%{?with_rhcd_compat}
 # Yggdrasil used to be called rhcd, and was part of rhc. For historical reasons, rhc
@@ -151,6 +156,7 @@ fi
 %post
 %systemd_post rhc-canonical-facts.timer
 %systemd_post rhc-server.socket
+%systemd_post rhc-collector-com.redhat.minimal.timer
 
 %if 0%{?with_rhcd_compat}
 # rhcd_t is the SELinux type used by the old rhcd daemon. Add it to the
@@ -169,10 +175,12 @@ fi
 %preun
 %systemd_preun rhc-canonical-facts.timer
 %systemd_preun rhc-server.socket rhc-server.service
+%systemd_preun rhc-collector-com.redhat.minimal.timer
 
 %postun
 %systemd_postun_with_restart rhc-canonical-facts.timer
 %systemd_postun_with_restart rhc-server.service
+%systemd_postun_with_restart rhc-collector-com.redhat.minimal.timer
 
 %if 0%{?with_rhcd_compat}
 # Remove rhcd_t from the SELinux permissive list on full package removal.
@@ -201,12 +209,16 @@ fi
 %{_unitdir}/rhc-canonical-facts.*
 %{_unitdir}/rhc-server.service
 %{_unitdir}/rhc-server.socket
+%{_unitdir}/rhc-collector-com.redhat.minimal.*
 %{_prefix}/lib/systemd/system-preset/50-rhc.preset
 # Configuration
 %{_sysconfdir}/%{name}/
 # Collector directories
 %dir %{_prefix}/lib/%{name}/collectors/
 %dir %{_libexecdir}/%{name}/collectors/
+# Minimal collector files
+%{_libexecdir}/%{name}/collectors/com.redhat.minimal
+%{_prefix}/lib/%{name}/collectors/com.redhat.minimal.toml
 # Logs
 %dir %{_localstatedir}/log/%{name}/
 # Logrotate
