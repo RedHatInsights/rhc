@@ -124,14 +124,14 @@ func getConfig(collectorId string) (collector.Config, error) {
 	return config, nil
 }
 
-// executeCollector runs the specified collector binary with the collect argument and and stores output in tmpDir.
+// executeCollector runs the specified collector binary with the collect argument in tmpDir as the working directory.
 // Returns an error if the command execution fails.
 func executeCollector(collectorId, tmpDir string) error {
 	// Construct path to the collector binary
 	collectorPath := fmt.Sprintf("/usr/libexec/rhc/collectors/%s", collectorId)
 
 	// TODO: Run collector as specific user and group (defined in config of collector)
-	cmd := exec.Command(collectorPath, "collect", tmpDir)
+	cmd := exec.Command(collectorPath, "collect")
 	cmd.Dir = tmpDir
 
 	// Capture start/end time and execute the command
