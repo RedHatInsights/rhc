@@ -26,7 +26,11 @@ func FeatureStatus(opts FeatureOperationOptions) FeatureStatusResult {
 	case Analytics:
 		enabled, err = datacollection.InsightsClientIsRegistered()
 	case Content:
-		enabled, err = subman.IsContentManagementEnabled()
+		var client *subman.RHSMClient
+		client, err = subman.NewRHSMClient()
+		if err == nil {
+			enabled, err = client.IsContentManagementEnabled()
+		}
 	case RemoteManagement:
 		enabled, err = remotemanagement.AssertYggdrasilServiceState("active")
 	default:

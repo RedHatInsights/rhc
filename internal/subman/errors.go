@@ -11,13 +11,9 @@ import (
 // ErrDBusUnavailable is returned when the system D-Bus daemon cannot be reached.
 var ErrDBusUnavailable = errors.New("system D-Bus is not available")
 
-// ErrAlreadyRegistered is returned when an operation requires the system to be
-// unregistered, but it is already registered with RHSM.
-var ErrAlreadyRegistered = errors.New("system is already registered with RHSM")
-
-// ErrAlreadyUnregistered is returned when an operation requires the system to
-// be registered, but it is already unregistered from RHSM.
-var ErrAlreadyUnregistered = errors.New("system is already unregistered from RHSM")
+// ErrNotRegistered is returned when the system is not registered with RHSM
+// but the operation requires it to be (e.g. GetConsumerUUID, Unregister).
+var ErrNotRegistered = errors.New("system is not registered with RHSM")
 
 // ErrOrganizationRequired is returned when an organization must be specified
 // but was not.

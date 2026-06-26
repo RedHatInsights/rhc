@@ -1,19 +1,23 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
 	"strings"
+	"text/tabwriter"
 	"time"
 
+	"github.com/briandowns/spinner"
 	"github.com/urfave/cli/v3"
+	"golang.org/x/term"
 
 	"github.com/redhatinsights/rhc/internal/datacollection"
 	"github.com/redhatinsights/rhc/internal/remotemanagement"
-	"github.com/redhatinsights/rhc/internal/rhsm"
 	"github.com/redhatinsights/rhc/internal/subman"
 	"github.com/redhatinsights/rhc/internal/ui"
 	"github.com/redhatinsights/rhc/pkg/exitcode"
@@ -76,43 +80,142 @@ func (connectResult *ConnectResult) errorMessages() map[string]string {
 	return errorMessages
 }
 
+// rhsmFailed records an RHSM registration failure into the result and prints
+// the appropriate error messages.
+func (connectResult *ConnectResult) rhsmFailed(msg string) {
+	connectResult.RHSMConnected = false
+	connectResult.RHSMConnectError = msg
+	connectResult.Features.Content.Successful = false
+	slog.Error(msg)
+	ui.Printf(
+		"%s[%v] Cannot connect to Red Hat Subscription Management\n",
+		ui.Indent.Small,
+		ui.Icons.Error,
+	)
+	slog.Warn("Skipping generation of redhat.repo (RHSM registration failed)")
+	ui.Printf(
+		"%s[%v] Skipping generation of Red Hat repository file\n",
+		ui.Indent.Medium,
+		ui.Icons.Error,
+	)
+}
+
 // TryRegisterRHSM will attempt to register the system with Red Hat Subscription Management.
-// If this fails, then both RHSMConnected and Features.Content.Successful will be set to false, and the error message
-// will be stored in RHSMConnectError.
+// If this fails, then both RHSMConnected and Features.Content.Successful will be set to false,
+// and the error message will be stored in RHSMConnectError.
 func (connectResult *ConnectResult) TryRegisterRHSM(cmd *cli.Command, enableContent bool) {
 	slog.Info("Registering the system with Red Hat Subscription Management")
-	returnedMsg, err := rhsm.RegisterRHSM(cmd, enableContent)
+
+	client, err := subman.NewRHSMClient()
 	if err != nil {
-		connectResult.RHSMConnected = false
-		connectResult.RHSMConnectError = fmt.Sprintf("cannot connect to Red Hat Subscription Management: %s", err)
-		connectResult.Features.Content.Successful = false
-		slog.Error(connectResult.RHSMConnectError)
-		ui.Printf(
-			"%s[%v] Cannot connect to Red Hat Subscription Management\n",
-			ui.Indent.Small,
-			ui.Icons.Error,
-		)
-		slog.Warn("Skipping generation of redhat.repo (RHSM registration failed)")
-		ui.Printf(
-			"%s[%v] Skipping generation of Red Hat repository file\n",
-			ui.Indent.Medium,
-			ui.Icons.Error,
-		)
-	} else {
-		connectResult.RHSMConnected = true
-		slog.Debug(returnedMsg)
-		ui.Printf("%s[%v] %s\n", ui.Indent.Small, ui.Icons.Ok, returnedMsg)
-		if enableContent {
-			connectResult.Features.Content.Successful = true
-			infoMsg := "System has access to content"
-			slog.Info(infoMsg)
-			ui.Printf("%s[%v] Content ... %v\n", ui.Indent.Medium, ui.Icons.Ok, infoMsg)
-		} else {
-			connectResult.Features.Content.Successful = false
-			infoMsg := "System has no access to content"
-			slog.Info(infoMsg)
-			ui.Printf("%s[ ] Content ... %v\n", ui.Indent.Medium, infoMsg)
+		connectResult.rhsmFailed(fmt.Sprintf("cannot connect to subscription-manager: %s", err))
+		return
+	}
+
+	username := cmd.String("username")
+	password := cmd.String("password")
+	organization := cmd.String("organization")
+	activationKeys := cmd.StringSlice("activation-key")
+	contentTemplates := cmd.StringSlice("content-template")
+
+	if len(activationKeys) == 0 {
+		if username == "" {
+			password = ""
+			scanner := bufio.NewScanner(os.Stdin)
+			fmt.Print("Username: ")
+			_ = scanner.Scan()
+			username = strings.TrimSpace(scanner.Text())
 		}
+		if password == "" {
+			fmt.Print("Password: ")
+			data, err := term.ReadPassword(int(os.Stdin.Fd()))
+			if err != nil {
+				connectResult.rhsmFailed(fmt.Sprintf("unable to read password: %s", err))
+				return
+			}
+			password = string(data)
+			fmt.Printf("\n\n")
+		}
+	}
+
+	var s *spinner.Spinner
+	if ui.IsOutputRich() {
+		s = spinner.New(spinner.CharSets[9], 100*time.Millisecond)
+		s.Prefix = ui.Indent.Small + "["
+		s.Suffix = "] Connecting to Red Hat Subscription Management..."
+		s.Start()
+		defer s.Stop()
+	}
+
+	opts := subman.RegisterOptions{
+		EnvironmentNames: contentTemplates,
+		EnableContent:    enableContent,
+	}
+
+	if len(activationKeys) > 0 {
+		slog.Debug("Registering system with activation keys")
+		err = client.RegisterWithActivationKeys(organization, activationKeys, opts)
+	} else {
+		slog.Debug("Registering system with username and password")
+		err = client.RegisterWithPassword(username, password, organization, opts)
+		if errors.Is(err, subman.ErrOrganizationRequired) {
+			if ui.IsOutputMachineReadable() {
+				connectResult.rhsmFailed("no organization specified")
+				return
+			}
+			// Stop spinner to display the organization list and prompt the user
+			if ui.IsOutputRich() {
+				s.Stop()
+			}
+
+			orgs, orgsErr := client.GetOrganizations(username, password)
+			if orgsErr != nil {
+				connectResult.rhsmFailed(fmt.Sprintf("cannot retrieve organizations: %s", orgsErr))
+				return
+			}
+
+			scanner := bufio.NewScanner(os.Stdin)
+			fmt.Println("Available Organizations:")
+			writer := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
+			for i, org := range orgs {
+				_, _ = fmt.Fprintf(writer, "%v\t", org)
+				if (i+1)%4 == 0 {
+					_, _ = fmt.Fprint(writer, "\n")
+				}
+			}
+			_ = writer.Flush()
+			fmt.Print("\nOrganization: ")
+			_ = scanner.Scan()
+			organization = strings.TrimSpace(scanner.Text())
+			fmt.Printf("\n")
+
+			if ui.IsOutputRich() {
+				s.Start()
+			}
+
+			slog.Debug("Re-attempting registration with username, password and organization")
+			err = client.RegisterWithPassword(username, password, organization, opts)
+		}
+	}
+
+	if err != nil {
+		connectResult.rhsmFailed(fmt.Sprintf("cannot connect to Red Hat Subscription Management: %s", err))
+		return
+	}
+
+	connectResult.RHSMConnected = true
+	slog.Debug("Connected to Red Hat Subscription Management")
+	ui.Printf("%s[%v] %s\n", ui.Indent.Small, ui.Icons.Ok, "Connected to Red Hat Subscription Management")
+	if enableContent {
+		connectResult.Features.Content.Successful = true
+		infoMsg := "System has access to content"
+		slog.Info(infoMsg)
+		ui.Printf("%s[%v] Content ... %v\n", ui.Indent.Medium, ui.Icons.Ok, infoMsg)
+	} else {
+		connectResult.Features.Content.Successful = false
+		infoMsg := "System has no access to content"
+		slog.Info(infoMsg)
+		ui.Printf("%s[ ] Content ... %v\n", ui.Indent.Medium, infoMsg)
 	}
 }
 
@@ -234,7 +337,14 @@ func beforeConnectAction(ctx context.Context, cmd *cli.Command) (context.Context
 
 	// Do not continue if the host is already registered
 	slog.Info("Checking system connection status")
-	registered, err := subman.IsRegistered()
+	rhsmClient, err := subman.NewRHSMClient()
+	if err != nil {
+		return ctx, cli.Exit(
+			fmt.Sprintf("unable to check connection status: %s", err),
+			exitcode.Software,
+		)
+	}
+	registered, err := rhsmClient.IsRegistered()
 	if err != nil {
 		return ctx, cli.Exit(
 			fmt.Sprintf("unable to check connection status: %s", err),
