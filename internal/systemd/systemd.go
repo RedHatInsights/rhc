@@ -137,6 +137,15 @@ func (c *Conn) StopUnit(name string, wait bool) error {
 	return nil
 }
 
+// GetUnitProperties returns all properties of the given unit as a map.
+func (c *Conn) GetUnitProperties(name string) (map[string]interface{}, error) {
+	props, err := c.conn.GetUnitPropertiesContext(c.ctx, name)
+	if err != nil {
+		return nil, fmt.Errorf("cannot get unit properties for %q: %v", name, err)
+	}
+	return props, nil
+}
+
 // GetUnitState checks the given unit's "ActiveState" property.
 func (c *Conn) GetUnitState(name string) (string, error) {
 	prop, err := c.conn.GetUnitPropertyContext(c.ctx, name, "ActiveState")
