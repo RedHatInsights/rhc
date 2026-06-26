@@ -5,61 +5,62 @@ import (
 	"log/slog"
 
 	"github.com/godbus/dbus/v5"
-
 	"github.com/redhatinsights/rhc/internal/localization"
 )
 
-// IsContentManagementEnabled returns true if content management is enabled for the system in rhsm.conf
+// IsContentManagementEnabled reports whether content management is enabled for
+// the system in rhsm.conf (rhsm.manage_repos).
 func IsContentManagementEnabled() (bool, error) {
-	conn, err := dbus.SystemBus()
+	slog.Debug("Checking content management status")
+	conn, err := bus()
 	if err != nil {
-		return false, fmt.Errorf("cannot connect to system D-Bus: %w", err)
+		return false, err
 	}
-	// godbus implements SystemBus as a singleton, do not call conn.Close()
 
 	locale := localization.GetLocale()
 	config := conn.Object("com.redhat.RHSM1", "/com/redhat/RHSM1/Config")
 
-	var contentEnabled string
+	var value string
 	err = config.Call(
 		"com.redhat.RHSM1.Config.Get",
 		dbus.Flags(0),
 		"rhsm.manage_repos",
-		locale).Store(&contentEnabled)
+		locale,
+	).Store(&value)
 	if err != nil {
-		slog.Debug("Failed to get rhsm.manage_repos config", "error", err)
-		return false, UnpackDBusError(err)
+		return false, fmt.Errorf("reading content management setting: %w", newDbusError(err))
 	}
 
-	return contentEnabled == "1", nil
+	return value == "1", nil
 }
 
-// SetContentManagement tries to enable or disable content management for the system in rhsm.conf
+// SetContentManagement enables or disables content management for the system
+// in rhsm.conf (rhsm.manage_repos).
 func SetContentManagement(enabled bool) error {
-	conn, err := dbus.SystemBus()
+	slog.Debug("Setting content management", "enabled", enabled)
+	conn, err := bus()
 	if err != nil {
-		return fmt.Errorf("cannot connect to system D-Bus: %w", err)
+		return err
 	}
-	// godbus implements SystemBus as a singleton, do not call conn.Close()
 
 	locale := localization.GetLocale()
 	config := conn.Object("com.redhat.RHSM1", "/com/redhat/RHSM1/Config")
-	enabledStr := "1"
-	if !enabled {
-		enabledStr = "0"
+
+	value := "0"
+	if enabled {
+		value = "1"
 	}
 
 	err = config.Call(
 		"com.redhat.RHSM1.Config.Set",
 		dbus.Flags(0),
 		"rhsm.manage_repos",
-		enabledStr,
+		value,
 		locale,
 	).Err
 	if err != nil {
-		slog.Debug("Failed to set rhsm.manage_repos config", "error", err)
-		return UnpackDBusError(err)
+		slog.Debug("Could not set rhsm.manage_repos", "error", err)
+		return fmt.Errorf("setting content management: %w", newDbusError(err))
 	}
-
 	return nil
 }

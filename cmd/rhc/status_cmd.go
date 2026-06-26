@@ -22,13 +22,13 @@ import (
 func rhsmStatus(systemStatus *SystemStatus) error {
 	slog.Info("Checking status of Red Hat Subscription Management")
 
-	uuid, err := subman.GetConsumerUUID()
+	registered, err := subman.IsRegistered()
 	if err != nil {
 		systemStatus.returnCode += 1
 		systemStatus.RHSMError = err.Error()
-		return fmt.Errorf("unable to get consumer UUID: %s", err)
+		return fmt.Errorf("unable to check registration status: %s", err)
 	}
-	if uuid == "" {
+	if !registered {
 		systemStatus.returnCode += 1
 		systemStatus.RHSMConnected = false
 		infoMsg := "Not connected to Red Hat Subscription Management"
@@ -43,8 +43,8 @@ func rhsmStatus(systemStatus *SystemStatus) error {
 	return nil
 }
 
-// isContentEnabled checks whether the system is registered and the content management
-// is enabled. Both conditions must be true for content access to be available.
+// isContentEnabled reports whether the system has access to RHSM content.
+// It relies on systemStatus.RHSMConnected already being populated by rhsmStatus.
 func isContentEnabled(systemStatus *SystemStatus) error {
 	slog.Info("Checking content status")
 
@@ -55,14 +55,7 @@ func isContentEnabled(systemStatus *SystemStatus) error {
 		return fmt.Errorf("unable to check content management: %w", err)
 	}
 
-	registered, err := subman.IsRegistered()
-	if err != nil {
-		systemStatus.returnCode += 1
-		systemStatus.ContentError = err.Error()
-		return fmt.Errorf("unable to check registration status: %s", err)
-	}
-
-	if contentEnabled && registered {
+	if contentEnabled && systemStatus.RHSMConnected {
 		systemStatus.ContentEnabled = true
 		infoMsg := "System has access to content"
 		slog.Info(infoMsg)
