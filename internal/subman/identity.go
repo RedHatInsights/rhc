@@ -20,26 +20,6 @@ type RegisterOptions struct {
 	EnableContent bool
 }
 
-// getConsumerUUID returns the RHSM consumer UUID via D-Bus.
-// An empty string indicates the system is not registered.
-func getConsumerUUID(conn *dbus.Conn) (string, error) {
-	var uuid string
-
-	locale := localization.GetLocale()
-	err := conn.Object(
-		"com.redhat.RHSM1",
-		"/com/redhat/RHSM1/Consumer").Call(
-		"com.redhat.RHSM1.Consumer.GetUuid",
-		dbus.Flags(0),
-		locale,
-	).Store(&uuid)
-	if err != nil {
-		return "", fmt.Errorf("getting consumer UUID: %w", newDbusError(err))
-	}
-
-	return uuid, nil
-}
-
 // buildOptions converts RegisterOptions into the D-Bus options map expected by
 // the RHSM registration methods.
 func buildOptions(opts RegisterOptions) map[string]string {
@@ -52,35 +32,47 @@ func buildOptions(opts RegisterOptions) map[string]string {
 	return options
 }
 
-// IsRegistered reports whether the system is currently registered with RHSM.
-func IsRegistered() (bool, error) {
-	slog.Debug("Checking if system is registered to Red Hat Subscription Management")
-	conn, err := bus()
+// GetConsumerUUID returns the RHSM consumer UUID.
+// Returns [ErrNotRegistered] if the system is not currently registered.
+func (c *RHSMClient) GetConsumerUUID() (string, error) {
+	slog.Debug("Getting consumer UUID")
+	var uuid string
+	locale := localization.GetLocale()
+	err := c.conn.Object(
+		"com.redhat.RHSM1",
+		"/com/redhat/RHSM1/Consumer").Call(
+		"com.redhat.RHSM1.Consumer.GetUuid",
+		dbus.Flags(0),
+		locale,
+	).Store(&uuid)
 	if err != nil {
-		return false, err
+		return "", fmt.Errorf("getting consumer UUID: %w", newDbusError(err))
 	}
+	if uuid == "" {
+		return "", ErrNotRegistered
+	}
+	return uuid, nil
+}
 
-	uuid, err := getConsumerUUID(conn)
+// IsRegistered reports whether the system is currently registered with RHSM.
+func (c *RHSMClient) IsRegistered() (bool, error) {
+	slog.Debug("Checking if system is registered to Red Hat Subscription Management")
+	_, err := c.GetConsumerUUID()
+	if errors.Is(err, ErrNotRegistered) {
+		slog.Debug("Consumer UUID is not set, system is not registered")
+		return false, nil
+	}
 	if err != nil {
 		return false, fmt.Errorf("could not determine registration status: %w", err)
 	}
-	if uuid != "" {
-		slog.Debug("Consumer UUID is set, system is registered")
-		return true, nil
-	}
-
-	slog.Debug("Consumer UUID is not set, system is not registered")
-	return false, nil
+	slog.Debug("Consumer UUID is set, system is registered")
+	return true, nil
 }
 
 // GetOrganizations returns the list of organization names available for the
 // given username and password.
-func GetOrganizations(username, password string) ([]string, error) {
+func (c *RHSMClient) GetOrganizations(username, password string) ([]string, error) {
 	slog.Debug("Retrieving available organizations")
-	conn, err := bus()
-	if err != nil {
-		return nil, err
-	}
 
 	var organizations []string
 	getOrganizations := func(privConn *dbus.Conn, locale string) error {
@@ -108,7 +100,7 @@ func GetOrganizations(username, password string) ([]string, error) {
 		return nil
 	}
 
-	if err = withPrivateRegisterSocket(conn, getOrganizations); err != nil {
+	if err := withPrivateRegisterSocket(c.conn, getOrganizations); err != nil {
 		return nil, err
 	}
 
@@ -117,25 +109,12 @@ func GetOrganizations(username, password string) ([]string, error) {
 
 // RegisterWithPassword registers the system using username/password credentials.
 //
-// Returns [ErrAlreadyRegistered] if the system is already registered.
-//
 // If the account belongs to multiple organizations, and an empty string has been
-// passed in, the caller should call [GetOrganizations] to retrieve the available
-// organization names, prompt the user, and retry with an explicit value.
-func RegisterWithPassword(username, password, organization string, opts RegisterOptions) error {
+// passed in, [ErrOrganizationRequired] is returned; the caller should call
+// [RHSMClient.GetOrganizations] to retrieve the available organization names,
+// prompt the user, and retry with an explicit value.
+func (c *RHSMClient) RegisterWithPassword(username, password, organization string, opts RegisterOptions) error {
 	slog.Debug("Registering system with username and password")
-	conn, err := bus()
-	if err != nil {
-		return err
-	}
-
-	registered, err := IsRegistered()
-	if err != nil {
-		return err
-	}
-	if registered {
-		return ErrAlreadyRegistered
-	}
 
 	registerWithPassword := func(privConn *dbus.Conn, locale string) error {
 		options := buildOptions(opts)
@@ -164,31 +143,16 @@ func RegisterWithPassword(username, password, organization string, opts Register
 		return nil
 	}
 
-	return withPrivateRegisterSocket(conn, registerWithPassword)
+	return withPrivateRegisterSocket(c.conn, registerWithPassword)
 }
 
 // RegisterWithActivationKeys registers the system using activation keys.
 //
-// Returns [ErrAlreadyRegistered] if the system is already registered.
-//
-// Returns [ErrOrganizationRequired] if it is empty.
-func RegisterWithActivationKeys(organization string, activationKeys []string, opts RegisterOptions) error {
+// Returns [ErrOrganizationRequired] if organization is empty.
+func (c *RHSMClient) RegisterWithActivationKeys(organization string, activationKeys []string, opts RegisterOptions) error {
 	slog.Debug("Registering system with activation keys")
 	if organization == "" {
 		return ErrOrganizationRequired
-	}
-
-	conn, err := bus()
-	if err != nil {
-		return err
-	}
-
-	registered, err := IsRegistered()
-	if err != nil {
-		return err
-	}
-	if registered {
-		return ErrAlreadyRegistered
 	}
 
 	registerWithActivationKeys := func(privConn *dbus.Conn, locale string) error {
@@ -210,31 +174,15 @@ func RegisterWithActivationKeys(organization string, activationKeys []string, op
 		return nil
 	}
 
-	return withPrivateRegisterSocket(conn, registerWithActivationKeys)
+	return withPrivateRegisterSocket(c.conn, registerWithActivationKeys)
 }
 
 // Unregister removes the system's RHSM registration.
-//
-// Returns [ErrAlreadyUnregistered] if the system is not currently registered.
-func Unregister() error {
+func (c *RHSMClient) Unregister() error {
 	slog.Debug("Unregistering system from Red Hat Subscription Management")
-	conn, err := bus()
-	if err != nil {
-		return err
-	}
-
-	uuid, err := getConsumerUUID(conn)
-	if err != nil {
-		return err
-	}
-	if uuid == "" {
-		slog.Debug("System is not registered, nothing to unregister")
-		return ErrAlreadyUnregistered
-	}
-
 	slog.Debug("Calling method com.redhat.RHSM1.Unregister.Unregister")
 	locale := localization.GetLocale()
-	if err := conn.Object(
+	if err := c.conn.Object(
 		"com.redhat.RHSM1",
 		"/com/redhat/RHSM1/Unregister").Call(
 		"com.redhat.RHSM1.Unregister.Unregister",
