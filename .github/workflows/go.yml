@@ -19,6 +19,8 @@ jobs:
         run: sudo apt-get -qq update
 
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Setup go
         uses: actions/setup-go@v6

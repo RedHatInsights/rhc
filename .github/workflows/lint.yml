@@ -17,6 +17,7 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
       - uses: actions/cache@v6
         with:
           path: ~/go/pkg/mod
@@ -36,6 +37,8 @@ jobs:
           go-version: "stable"
       - name: Check out code
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v9.3.0
         with:
@@ -51,6 +54,8 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Run woke
         uses: get-woke/woke-action@v0
         with:
