@@ -6,6 +6,8 @@ After=rhc-server.socket
 
 [Service]
 Type=simple
+User=root
+Group=root
 ExecStart=/usr/libexec/rhc/rhc-server
 StandardOutput=journal
 StandardError=journal

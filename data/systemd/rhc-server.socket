@@ -5,7 +5,9 @@ Documentation=https://github.com/RedHatInsights/rhc
 [Socket]
 ListenStream=/run/rhc/com.redhat.rhc
 FileDescriptorName=varlink
-SocketMode=0660
+SocketUser=root
+SocketGroup=root
+SocketMode=0600
 
 [Install]
 WantedBy=sockets.target
