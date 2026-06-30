@@ -40,7 +40,6 @@ jobs:
     trigger: pull_request
     identifier: "unit/centos-stream"
     targets:
-      - centos-stream-8
       - centos-stream-9
     labels:
       - integration_test
