@@ -10,6 +10,12 @@ You may treat it as a mix of layered and ports-and-adapters architecture: `cmd/`
 It is important to note the only public API is the command line interface and the Varlink objects and methods.
 rhc is not meant to be a library, and the major version will _not_ be bumped when a breaking change is made to methods or structs.
 
+## Varlink
+
+rhc may implement features available over Varlink API under a `.testing.` namespace. These methods MUST NOT be used by any external tooling other than rhc itself. They are not stable and may change at any time.
+
+Methods outside of `.testing.` namespace MUST NOT break their behavior within a minor version of RHEL, and they MUST NOT return opaque `object` types: stable Varlink API MUST be strongly typed.
+
 ## Exit behavior
 
 Try to follow `sysexits.h(3)` values when returning a status to the user (64 for a bad flag, 65 for a bad value; 1 for a generic error).
