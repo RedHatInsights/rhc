@@ -44,14 +44,12 @@ BuildRequires:  /usr/bin/dbus-launch
 %endif
 
 Requires: subscription-manager
-%if 0%{?fedora}
-# insights-client does not exist on Fedora
-Recommends: insights-client
-%else
-Requires: insights-client
-%endif
 Requires: yggdrasil >= 0.4
+%if 0%{?rhel}
+# insights-client and yggdrasil-worker-package-manager are only available on RHEL <= 10
+Requires: insights-client
 Requires: yggdrasil-worker-package-manager
+%endif
 
 %description
 Client tool to register Fedora, CentOS Stream or Red Hat Enterprise Linux
