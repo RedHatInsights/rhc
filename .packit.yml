@@ -53,7 +53,7 @@ jobs:
           - RHEL-8-Released
       rhel-9-x86_64:
         distros:
-          - RHEL-9.7.0-Nightly
+          - RHEL-9-Nightly
     labels:
       - integration_test
     tf_extra_params:
