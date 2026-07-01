@@ -1,3 +1,5 @@
 package main
 
-const AppName = "rhc-server"
+import "github.com/redhatinsights/rhc/internal/subman"
+
+const AppName = subman.RHSMClientAppName

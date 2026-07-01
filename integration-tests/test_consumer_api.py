@@ -75,6 +75,9 @@ class TestConsumerAPIRegistered:
         assert "key" in response["org"]
         assert isinstance(response["org"]["key"], str)
         assert len(response["org"]["key"]) > 0
+        assert "id" in response["org"]
+        assert isinstance(response["org"]["id"], str)
+        assert len(response["org"]["id"]) > 0
 
     def test_get_environments(self):
         """
@@ -97,6 +100,12 @@ class TestConsumerAPIRegistered:
 
         assert "environments" in response
         assert isinstance(response["environments"], list)
+        if response["environments"]:
+            first = response["environments"][0]
+            assert isinstance(first, dict)
+            assert "id" in first
+            assert isinstance(first["id"], str)
+            assert len(first["id"]) > 0
 
 
 @pytest.mark.tier2

@@ -7,6 +7,44 @@ import (
 	govarlink "github.com/emersion/go-varlink"
 )
 
+type Environment struct {
+	ContentPrefix      *string               `json:"contentPrefix,omitempty"`
+	Created            *string               `json:"created,omitempty"`
+	Description        *string               `json:"description,omitempty"`
+	EnvironmentContent *[]EnvironmentContent `json:"environmentContent,omitempty"`
+	Id                 string                `json:"id"`
+	Name               *string               `json:"name,omitempty"`
+	Owner              *EnvironmentOwner     `json:"owner,omitempty"`
+	Type               *string               `json:"type,omitempty"`
+	Updated            *string               `json:"updated,omitempty"`
+}
+type EnvironmentContent struct {
+	ContentId string `json:"contentId"`
+	Enabled   bool   `json:"enabled"`
+}
+type EnvironmentOwner struct {
+	ContentAccessMode *string `json:"contentAccessMode,omitempty"`
+	DisplayName       *string `json:"displayName,omitempty"`
+	Href              *string `json:"href,omitempty"`
+	Id                string  `json:"id"`
+	Key               *string `json:"key,omitempty"`
+}
+type Organization struct {
+	AutobindDisabled           *bool   `json:"autobindDisabled,omitempty"`
+	AutobindHypervisorDisabled *bool   `json:"autobindHypervisorDisabled,omitempty"`
+	ContentAccessMode          *string `json:"contentAccessMode,omitempty"`
+	ContentAccessModeList      *string `json:"contentAccessModeList,omitempty"`
+	ContentPrefix              *string `json:"contentPrefix,omitempty"`
+	Created                    *string `json:"created,omitempty"`
+	DefaultServiceLevel        *string `json:"defaultServiceLevel,omitempty"`
+	DisplayName                *string `json:"displayName,omitempty"`
+	Id                         string  `json:"id"`
+	Key                        string  `json:"key"`
+	LastRefreshed              *string `json:"lastRefreshed,omitempty"`
+	LogLevel                   *string `json:"logLevel,omitempty"`
+	Updated                    *string `json:"updated,omitempty"`
+}
+
 type SystemNotRegisteredError struct{}
 
 func (err *SystemNotRegisteredError) Error() string {
@@ -15,12 +53,12 @@ func (err *SystemNotRegisteredError) Error() string {
 
 type GetEnvironmentsIn struct{}
 type GetEnvironmentsOut struct {
-	Environments []json.RawMessage `json:"environments"`
+	Environments []Environment `json:"environments"`
 }
 
 type GetOrganizationIn struct{}
 type GetOrganizationOut struct {
-	Org json.RawMessage `json:"org"`
+	Org Organization `json:"org"`
 }
 
 type GetUUIDIn struct{}
@@ -135,7 +173,7 @@ func (h Handler) HandleVarlink(call *govarlink.ServerCall, req *govarlink.Server
 
 func (h Handler) Register(reg *govarlink.Registry) {
 	reg.Add(&govarlink.RegistryInterface{
-		Definition: "# Consumer interface for the RHSM API\n# Any method in this interface can be used only when the system is registered\ninterface com.redhat.rhc.testing.rhsm.consumer\n\n# Error returned when a method is called on an unregistered system\nerror SystemNotRegistered()\n\n# Return UUID from installed consumer certificate\nmethod GetUUID() -> (\n    uuid: string\n)\n\n# Return organization that the registered system belongs to.\n# The object mirrors Candlepin owner fields (e.g. key, displayName, id).\nmethod GetOrganization() -> (\n    org: object\n)\n\n# Return environments assigned to the registered consumer.\n# Returns an empty list when no environments are assigned.\nmethod GetEnvironments() -> (\n    environments: []object\n)\n",
+		Definition: "# Consumer interface for the RHSM API\n# Any method in this interface can be used only when the system is registered\ninterface com.redhat.rhc.testing.rhsm.consumer\n\n# Error returned when a method is called on an unregistered system\nerror SystemNotRegistered()\n\ntype EnvironmentOwner (\n    id: string,\n    key: ?string,\n    displayName: ?string,\n    href: ?string,\n    contentAccessMode: ?string\n)\n\ntype EnvironmentContent (\n    contentId: string,\n    enabled: bool\n)\n\ntype Environment (\n    id: string,\n    created: ?string,\n    updated: ?string,\n    name: ?string,\n    type: ?string,\n    description: ?string,\n    contentPrefix: ?string,\n    owner: ?EnvironmentOwner,\n    environmentContent: ?[]EnvironmentContent\n)\n\ntype Organization (\n    id: string,\n    key: string,\n    displayName: ?string,\n    created: ?string,\n    updated: ?string,\n    contentPrefix: ?string,\n    defaultServiceLevel: ?string,\n    logLevel: ?string,\n    contentAccessMode: ?string,\n    contentAccessModeList: ?string,\n    autobindHypervisorDisabled: ?bool,\n    autobindDisabled: ?bool,\n    lastRefreshed: ?string\n)\n\n# Return UUID from installed consumer certificate\nmethod GetUUID() -> (\n    uuid: string\n)\n\n# Return organization that the registered system belongs to.\n# The object mirrors Candlepin owner fields (e.g. key, displayName, id).\nmethod GetOrganization() -> (\n    org: Organization\n)\n\n# Return environments assigned to the registered consumer.\n# Returns an empty list when no environments are assigned.\nmethod GetEnvironments() -> (\n    environments: []Environment\n)\n",
 		Name:       "com.redhat.rhc.testing.rhsm.consumer",
 	}, h)
 }

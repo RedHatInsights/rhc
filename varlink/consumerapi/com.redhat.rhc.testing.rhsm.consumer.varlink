@@ -1,9 +1,55 @@
 # Consumer interface for the RHSM API
 # Any method in this interface can be used only when the system is registered
+#
+# Schema note: GetOrganization and GetEnvironments return typed Organization and
+# Environment objects instead of generic object types. JSON wire payloads remain
+# compatible with prior clients; varlink type introspection and generated client
+# code from older schemas are not backward compatible.
 interface com.redhat.rhc.testing.rhsm.consumer
 
 # Error returned when a method is called on an unregistered system
 error SystemNotRegistered()
+
+type EnvironmentOwner (
+    id: string,
+    key: ?string,
+    displayName: ?string,
+    href: ?string,
+    contentAccessMode: ?string
+)
+
+type EnvironmentContent (
+    contentId: string,
+    enabled: bool
+)
+
+type Environment (
+    id: string,
+    created: ?string,
+    updated: ?string,
+    name: ?string,
+    type: ?string,
+    description: ?string,
+    contentPrefix: ?string,
+    owner: ?EnvironmentOwner,
+    environmentContent: ?[]EnvironmentContent
+)
+
+type Organization (
+    id: string,
+    key: string,
+    displayName: ?string,
+    created: ?string,
+    updated: ?string,
+    contentPrefix: ?string,
+    defaultServiceLevel: ?string,
+    logLevel: ?string,
+    contentAccessMode: ?string,
+    contentAccessModeList: ?string,
+    autobindHypervisorDisabled: ?bool,
+    autobindDisabled: ?bool,
+    lastRefreshed: ?string
+)
 
 # Return UUID from installed consumer certificate
 method GetUUID() -> (
@@ -13,11 +59,11 @@ method GetUUID() -> (
 # Return organization that the registered system belongs to.
 # The object mirrors Candlepin owner fields (e.g. key, displayName, id).
 method GetOrganization() -> (
-    org: object
+    org: Organization
 )
 
 # Return environments assigned to the registered consumer.
 # Returns an empty list when no environments are assigned.
 method GetEnvironments() -> (
-    environments: []object
+    environments: []Environment
 )

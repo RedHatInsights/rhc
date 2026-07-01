@@ -1,7 +1,10 @@
 package main
 
 import (
+	"fmt"
+
 	"github.com/jirihnidek/rhsm2"
+	"github.com/redhatinsights/rhc/internal/subman"
 )
 
 type ClientError struct {
@@ -41,68 +44,27 @@ func GetStatus(ipcSender *string, locale *string, correlationID *string) (*rhsm2
 // IsSystemRegistered checks if the system is registered with RHSM.
 // When it is not possible to retrieve the consumer UUID, it returns false.
 func IsSystemRegistered() (bool, error) {
-	appName := AppName
-	rhsmClient, err := rhsm2.GetRHSMClient(&appName, nil)
-	if err != nil {
-		return false, &ClientError{Message: err.Error()}
-	}
-
-	_, err = rhsmClient.GetConsumerUUID()
-	if err != nil {
-		return false, err
-	}
-
-	return true, nil
+	return subman.IsRegistered()
 }
 
 // GetConsumerUUID retrieves the consumer UUID from the installed consumer certificate.
 func GetConsumerUUID() (*string, error) {
-	appName := AppName
-	rhsmClient, err := rhsm2.GetRHSMClient(&appName, nil)
-	if err != nil {
-		return nil, &ClientError{Message: err.Error()}
-	}
-
-	uuid, err := rhsmClient.GetConsumerUUID()
+	uuid, err := subman.GetConsumerUUID()
 	if err != nil {
 		return nil, err
 	}
-
-	return uuid, nil
+	if uuid == "" {
+		return nil, fmt.Errorf("system is not registered")
+	}
+	return &uuid, nil
 }
 
 // GetConsumerOrganization retrieves the organization for the registered consumer.
-func GetConsumerOrganization() (*rhsm2.OrganizationData, error) {
-	appName := AppName
-	rhsmClient, err := rhsm2.GetRHSMClient(&appName, nil)
-	if err != nil {
-		return nil, &ClientError{Message: err.Error()}
-	}
-
-	org, err := rhsmClient.GetOrg(nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return org, nil
+func GetConsumerOrganization() (*subman.Organization, error) {
+	return subman.GetOrganization()
 }
 
 // GetConsumerEnvironments retrieves the environments from the registered consumer.
-func GetConsumerEnvironments() ([]rhsm2.Environment, error) {
-	appName := AppName
-	rhsmClient, err := rhsm2.GetRHSMClient(&appName, nil)
-	if err != nil {
-		return nil, &ClientError{Message: err.Error()}
-	}
-
-	consumer, err := rhsmClient.GetConsumer(nil)
-	if err != nil {
-		return nil, err
-	}
-
-	if consumer.Environments == nil {
-		return []rhsm2.Environment{}, nil
-	}
-
-	return consumer.Environments, nil
+func GetConsumerEnvironments() ([]subman.Environment, error) {
+	return subman.GetEnvironments()
 }
