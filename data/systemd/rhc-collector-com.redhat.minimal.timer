@@ -1,0 +1,13 @@
+[Unit]
+Description=Minimal Host Inventory data collector timer
+Documentation=https://github.com/RedHatInsights/rhc
+
+[Timer]
+OnCalendar=daily
+RandomizedDelaySec=4h
+
+# Run if the system was down
+Persistent=true
+
+[Install]
+WantedBy=timers.target
