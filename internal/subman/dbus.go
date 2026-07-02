@@ -20,10 +20,9 @@ func bus() (*dbus.Conn, error) {
 	return conn, nil
 }
 
-// unpackOrganizations unmarshals the JSON list of organizations returned by the D-Bus
-// GetOrgs method into a plain slice of organization key strings.
+// unpackOrganizations unmarshals the JSON list of organizations returned by the
+// D-Bus GetOrgs method into a plain slice of organization key strings.
 func unpackOrganizations(s string) ([]string, error) {
-	// The D-Bus object contains multiple keys, but we only care about the organization names.
 	var orgs []struct {
 		Key string `json:"key"`
 	}
@@ -39,8 +38,8 @@ func unpackOrganizations(s string) ([]string, error) {
 	return keys, nil
 }
 
-// withPrivateRegisterSocket opens the private RHSM registration socket, authenticates,
-// and calls fn with the live connection and the resolved locale string.
+// withPrivateRegisterSocket opens the private RHSM registration socket and
+// calls fn with the live connection and the resolved locale string.
 // It ensures the socket is stopped and closed on return regardless of outcome.
 // fn must not retain the connection after it returns.
 func withPrivateRegisterSocket(conn *dbus.Conn, fn func(*dbus.Conn, string) error) error {
@@ -67,16 +66,16 @@ func withPrivateRegisterSocket(conn *dbus.Conn, fn func(*dbus.Conn, string) erro
 	if err != nil {
 		return fmt.Errorf("connecting to private D-Bus socket: %w", err)
 	}
+	if err = privConn.Auth(nil); err != nil {
+		_ = privConn.Close()
+		return fmt.Errorf("authenticating private D-Bus connection: %w", err)
+	}
 	defer func() {
 		slog.Debug("Closing connection to private D-Bus UNIX socket", "socket", socketURI)
 		if closeErr := privConn.Close(); closeErr != nil {
 			slog.Debug("Unable to close private D-Bus socket", "socket", socketURI, "err", closeErr)
 		}
 	}()
-
-	if err = privConn.Auth(nil); err != nil {
-		return fmt.Errorf("authenticating private D-Bus connection: %w", err)
-	}
 
 	return fn(privConn, locale)
 }

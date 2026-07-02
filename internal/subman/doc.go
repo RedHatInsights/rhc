@@ -1,35 +1,47 @@
 // Package subman provides a D-Bus client adapter for subscription-manager.
 //
-// All operations communicate with com.redhat.RHSM1 over the system bus.
-// The underlying godbus library manages the system bus connection as
-// a process-wide singleton; functions in this package must never close
-// the connection they obtain from the bus.
+// # Architecture overview
 //
-// # Identity and registration
+// All operations communicate with the com.redhat.RHSM1 D-Bus service. The
+// package is structured around two connection types with different lifetimes
+// and purposes:
 //
-//   - [IsRegistered] reports whether the system is currently registered with RHSM.
-//   - [RegisterWithPassword] registers the system using a username and password.
-//     If the account belongs to multiple organizations, and none has been passed
-//     in, [ErrOrganizationRequired] is returned; the caller should call
-//     [GetOrganizations] to obtain the list, prompt the user, and retry with an
-//     explicit organization.
-//   - [GetOrganizations] returns the organization keys available for a username
-//     and password. Use this after [RegisterWithPassword] returns
-//     [ErrOrganizationRequired].
-//   - [RegisterWithActivationKeys] registers the system using activation keys.
-//     An organization must always be specified for this method.
-//   - [Unregister] removes the system's RHSM registration.
+//  1. The system bus connection — a process-wide singleton managed by godbus.
+//     Callers must never close it. Used for every operation except registration.
 //
-// # Content management
+//  2. The private registration socket — a temporary UNIX socket opened only
+//     for the duration of a registration call. RHSM requires credentials to be
+//     sent over this private channel rather than the shared system bus.
 //
-//   - [IsContentManagementEnabled] reports whether RHSM content management is
-//     enabled in rhsm.conf (rhsm.manage_repos).
-//   - [SetContentManagement] enables or disables RHSM content management.
+// # Private registration socket flow
 //
-// # Registration options
+// Registration (password or activation-key) uses a two-step connection
+// sequence that differs from all other operations:
 //
-// Both registration methods accept a [RegisterOptions] value that groups the
-// options shared by all registration flows (environment names and content
-// enablement). The EnvironmentNames field corresponds to the --content-template
-// CLI flag.
+//  1. Call RegisterServer.Start on the system bus — returns a private UNIX
+//     socket address (e.g. "unix:path=/run/dbus-XXXXXX").
+//
+//  2. Dial that address, authenticate (Auth), and call the actual Register
+//     or RegisterWithActivationKeys method on the private connection.
+//
+//  3. Call RegisterServer.Stop on the system bus when done (deferred).
+//
+// This flow is encapsulated in withPrivateRegisterSocket, which dials and
+// authenticates the private connection directly and closes it on return.
+//
+// # Service interface and RHSMClient
+//
+// [Service] defines the full contract for subscription-manager operations.
+// [RHSMClient] is the concrete implementation backed by *dbus.Conn:
+//
+//	type RHSMClient struct {
+//	    conn *dbus.Conn  // system bus (process-wide singleton)
+//	}
+//
+// Construct a client with [NewRHSMClient]:
+//
+//	client, err := subman.NewRHSMClient()
+//	if err != nil {
+//	    // system D-Bus daemon is not reachable
+//	}
 package subman

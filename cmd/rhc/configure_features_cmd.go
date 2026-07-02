@@ -64,9 +64,13 @@ func beforeFeaturesStatusAction(ctx context.Context, cmd *cli.Command) (context.
 // featuresStatusAction displays the current status or preferences of all features.
 func featuresStatusAction(ctx context.Context, cmd *cli.Command) error {
 	logCommandStart(cmd)
-	isRegistered, err := subman.IsRegistered()
+	rhsmClient, err := subman.NewRHSMClient()
 	if err != nil {
-		return err
+		return cli.Exit(fmt.Sprintf("failed to check registration status: %v", err), exitcode.Software)
+	}
+	isRegistered, err := rhsmClient.IsRegistered()
+	if err != nil {
+		return cli.Exit(fmt.Sprintf("failed to check registration status: %v", err), exitcode.Software)
 	}
 
 	if isRegistered {
@@ -192,7 +196,11 @@ func beforeFeaturesEnableAction(ctx context.Context, cmd *cli.Command) (context.
 // featuresEnableAction enables one or more features.
 func featuresEnableAction(ctx context.Context, cmd *cli.Command) error {
 	logCommandStart(cmd)
-	isRegistered, err := subman.IsRegistered()
+	rhsmClient, err := subman.NewRHSMClient()
+	if err != nil {
+		return cli.Exit(fmt.Sprintf("failed to check registration status: %v", err), exitcode.Software)
+	}
+	isRegistered, err := rhsmClient.IsRegistered()
 	if err != nil {
 		return cli.Exit(fmt.Sprintf("failed to check registration status: %v", err), exitcode.Software)
 	}
@@ -316,7 +324,11 @@ func beforeFeaturesDisableAction(ctx context.Context, cmd *cli.Command) (context
 // featuresDisableAction disables one or more features.
 func featuresDisableAction(ctx context.Context, cmd *cli.Command) error {
 	logCommandStart(cmd)
-	isRegistered, err := subman.IsRegistered()
+	rhsmClient, err := subman.NewRHSMClient()
+	if err != nil {
+		return cli.Exit(fmt.Sprintf("failed to check registration status: %v", err), exitcode.Software)
+	}
+	isRegistered, err := rhsmClient.IsRegistered()
 	if err != nil {
 		return cli.Exit(fmt.Sprintf("failed to check registration status: %v", err), exitcode.Software)
 	}
