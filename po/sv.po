@@ -1,0 +1,166 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# Luna Jernberg <droidbittin@gmail.com>, 2026.
+msgid ""
+msgstr ""
+"Project-Id-Version: rhc\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-02-16 16:35+0100\n"
+"PO-Revision-Date: 2026-04-14 06:47+0000\n"
+"Last-Translator: Luna Jernberg <droidbittin@gmail.com>\n"
+"Language-Team: Swedish <https://translate.fedoraproject.org/projects/rhc/rhc/"
+"sv/>\n"
+"Language: sv\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=n != 1;\n"
+"X-Generator: Weblate 5.16.2\n"
+
+#: cmd/rhc/connect_cmd.go:83
+#, c-format
+msgid "cannot connect to Red Hat Subscription Management: %s"
+msgstr "kunde inte ansluta till Red Hat-prenumerationshantering: %s"
+
+#: cmd/rhc/connect_cmd.go:87
+msgid "%s[%v] Cannot connect to Red Hat Subscription Management\n"
+msgstr "%s%v Kunde inte ansluta till Red Hat-prenumerationshantering\n"
+
+#: cmd/rhc/connect_cmd.go:93
+msgid "%s[%v] Skipping generation of Red Hat repository file\n"
+msgstr "%s%vHoppar över generering av Red Hat-arkivfil\n"
+
+#: cmd/rhc/connect_cmd.go:100
+msgid "%s[%v] %s\n"
+msgstr "%s[%v] %s\n"
+
+#: cmd/rhc/connect_cmd.go:104
+msgid "%s[%v] Content ... Red Hat repository file generated\n"
+msgstr "%s[%v] Innehåll ... Red Hat arkivfil genererad\n"
+
+#: cmd/rhc/connect_cmd.go:108
+#, c-format
+msgid "%s[ ] Content ... Red Hat repository file not generated\n"
+msgstr "%s[ ] Innehåll ... Red Hat arkivfil inte genererad\n"
+
+#: cmd/rhc/connect_cmd.go:120
+#, c-format
+msgid ""
+"%s[ ] Analytics ... Connecting to Red Hat Lightspeed (formerly Insights) "
+"disabled\n"
+msgstr ""
+"%s[ ] Analys ... Anslutning till Red Hat Lightspeed (tidigare Insights) "
+"inaktiverad\n"
+
+#: cmd/rhc/connect_cmd.go:127
+msgid "%s[%v] Skipping connection to Red Hat Lightspeed (formerly Insights)\n"
+msgstr ""
+"%s[%v] Hoppar över anslutning till Red Hat Lightspeed (tidigare Insights)\n"
+
+#: cmd/rhc/connect_cmd.go:138
+msgid "cannot connect to Red Hat Lightspeed (formerly Insights): %v"
+msgstr "kan inte ansluta till Red Hat Lightspeed (tidigare Insights): %v"
+
+#: cmd/rhc/connect_cmd.go:139
+msgid "cannot connect to Red Hat Lightspeed: %v"
+msgstr "kan inte ansluta till Red Hat Lightspeed %v"
+
+#: cmd/rhc/connect_cmd.go:141
+msgid ""
+"%s[%v] Analytics ... Cannot connect to Red Hat Lightspeed (formerly "
+"Insights)\n"
+msgstr ""
+"%s[%v]Analys ... Kan inte ansluta till Red Hat Lightspeed (tidigare Insights)"
+"\n"
+
+#: cmd/rhc/connect_cmd.go:150
+msgid ""
+"%s[%v] Analytics ... Connected to Red Hat Lightspeed (formerly Insights)\n"
+msgstr ""
+"%s[%v] Analys ... Ansluten till Red Hat Lightspeed (tidigare Insights)\n"
+
+#: cmd/rhc/connect_cmd.go:160
+#, c-format
+msgid "Starting yggdrasil service disabled (%s)"
+msgstr "Start av yggdrasil-tjänst inaktiverad (%s)"
+
+#: cmd/rhc/connect_cmd.go:162 cmd/rhc/connect_cmd.go:166
+#, c-format
+msgid "%s[ ] Management .... %s\n"
+msgstr "%s[ ] Hantering .... %s\n"
+
+#: cmd/rhc/connect_cmd.go:178
+msgid "%s[%v] Skipping activation of yggdrasil service\n"
+msgstr "%s[%v] Hoppar över aktivering av yggdrasil tjänst\n"
+
+#: cmd/rhc/connect_cmd.go:189
+msgid "cannot activate the yggdrasil service: %v"
+msgstr "kan inte aktivera yggdrasil-tjänst: %v"
+
+#: cmd/rhc/connect_cmd.go:192
+msgid "%s[%v] Remote Management ... Cannot activate the yggdrasil service\n"
+msgstr "%s[%v] Fjärrhantering ... Kan inte aktivera yggdrasil-tjänst\n"
+
+#: cmd/rhc/connect_cmd.go:202
+msgid "%s[%v] Remote Management ... %s\n"
+msgstr "%s[%v] Fjärrhantering ... %s\n"
+
+#: cmd/rhc/connect_cmd.go:224
+#, c-format
+msgid "unable to get consumer UUID: %s"
+msgstr "kunde inte hämta konsument-UUID: %s"
+
+#: cmd/rhc/connect_cmd.go:318
+#, c-format
+msgid "error: %s"
+msgstr "fel: %s"
+
+#: cmd/rhc/connect_cmd.go:328
+msgid "Error retrieving system hostname: %v"
+msgstr "Fel vid hämtning av systemvärdnamn: %v"
+
+#: cmd/rhc/connect_cmd.go:337
+msgid ""
+"Connecting %v to Red Hat.\n"
+"This might take a few seconds.\n"
+"\n"
+msgstr ""
+"Ansluter %v till Red Hat.\n"
+"Det här kan ta några sekunder.\n"
+"\n"
+
+#: cmd/rhc/connect_cmd.go:353
+#, c-format
+msgid "Feature '%s' marked enabled"
+msgstr "Funktion '%s' markerad aktiverad"
+
+#: cmd/rhc/connect_cmd.go:366
+#, c-format
+msgid "Feature '%s' marked disabled"
+msgstr "Funktion '%s' markerad inaktiverad"
+
+#: cmd/rhc/connect_cmd.go:370
+#, c-format
+msgid ""
+"Features preferences: %s\n"
+"\n"
+msgstr ""
+"Funktionsinställningar: %s\n"
+"\n"
+
+#: cmd/rhc/connect_cmd.go:390
+msgid ""
+"\n"
+"Successfully connected to Red Hat!\n"
+msgstr ""
+"\n"
+"Framgångsrikt ansluten till Red Hat!\n"
+
+#: cmd/rhc/connect_cmd.go:394
+msgid ""
+"\n"
+"Manage your connected systems: https://red.ht/connector\n"
+msgstr ""
+"\n"
+"Hantera dina anslutna system: https://red.ht/connector\n"
