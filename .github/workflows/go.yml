@@ -35,3 +35,108 @@ jobs:
 
       - name: Go vet
         run: go vet ./...
+
+  its-compare:
+    name: "ITS compare (non-blocking)"
+    runs-on: ubuntu-latest
+    needs: build
+    if: always()
+    continue-on-error: true
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "stable"
+
+      - name: Install selector dependencies
+        run: python -m pip install --upgrade pip pyyaml
+
+      - name: Resolve base and head refs
+        id: refs
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            BASE_REF="${{ github.event.pull_request.base.sha }}"
+            HEAD_REF="${{ github.event.pull_request.head.sha }}"
+          else
+            BASE_REF="$(git merge-base HEAD origin/main)"
+            HEAD_REF="$(git rev-parse HEAD)"
+          fi
+          echo "base=${BASE_REF}" >> "${GITHUB_OUTPUT}"
+          echo "head=${HEAD_REF}" >> "${GITHUB_OUTPUT}"
+
+      - name: Run ITS selector
+        id: selector
+        run: |
+          python scripts/its_select_tests.py \
+            --base "${{ steps.refs.outputs.base }}" \
+            --head "${{ steps.refs.outputs.head }}" \
+            --map-file "scripts/its_test_map.yaml" \
+            --output-json "selector-output.json" \
+            --github-output "${GITHUB_OUTPUT}"
+
+      - name: Run selected Go tests
+        id: selected-go
+        continue-on-error: true
+        run: |
+          GO_CMD="$(python - <<'PY'
+          import json
+          with open("selector-output.json", "r", encoding="utf-8") as file:
+              data = json.load(file)
+          print(data["recommended_commands"]["go"])
+          PY
+          )"
+          echo "Running: ${GO_CMD}"
+          eval "${GO_CMD}"
+
+      - name: Upload ITS compare artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: its-selector-output
+          path: selector-output.json
+
+      - name: Publish ITS comparison summary
+        if: always()
+        env:
+          FULL_GO_RESULT: ${{ needs.build.result }}
+          SELECTED_GO_RESULT: ${{ steps.selected-go.outcome }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+
+          with open("selector-output.json", "r", encoding="utf-8") as file:
+              data = json.load(file)
+
+          full_result = os.environ["FULL_GO_RESULT"]
+          selected_result = os.environ["SELECTED_GO_RESULT"]
+
+          lines = [
+              "## ITS Compare (Non-Blocking)",
+              "",
+              f"- Full Go job result (existing CI): `{full_result}`",
+              f"- Selected Go run result (ITS): `{selected_result}`",
+              f"- Risk level: `{data['risk_level']}`",
+              f"- Full integration suggested: `{data['run_full_integration']}`",
+              f"- Matched rules: `{', '.join(data['matched_rules']) if data['matched_rules'] else 'none'}`",
+              "",
+              "### Selected Commands",
+              f"- `{data['recommended_commands']['go']}`",
+              f"- `{data['recommended_commands']['pytest']}`",
+              "",
+              "> Note: In this workflow we compare Go behavior only. Integration test selection remains informational in shadow mode.",
+          ]
+
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+              summary.write("\n".join(lines) + "\n")
+          PY
