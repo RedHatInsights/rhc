@@ -45,7 +45,7 @@ BuildRequires:  /usr/bin/dbus-launch
 
 Requires: subscription-manager
 Requires: yggdrasil >= 0.4
-%if 0%{?rhel}
+%if 0%{?rhel} && 0%{?rhel} < 11
 # insights-client and yggdrasil-worker-package-manager are only available on RHEL <= 10
 Requires: insights-client
 Requires: yggdrasil-worker-package-manager
