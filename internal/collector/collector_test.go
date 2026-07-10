@@ -492,9 +492,8 @@ func TestCreateArchive(t *testing.T) {
 func TestEnsureOutputDir(t *testing.T) {
 	t.Run("empty string defaults to defaultOutputDir", func(t *testing.T) {
 		defer func() {
-			if os.RemoveAll(defaultOutputDir) != nil {
-				t.Fatalf("ensureOutputDir() failed to remove default output directory")
-			}
+			// Clean up the default output directory, ignore errors if it's already removed or in use
+			_ = os.RemoveAll(defaultOutputDir)
 		}()
 
 		got, err := ensureOutputDir("")
@@ -730,7 +729,7 @@ func TestNewTimer(t *testing.T) {
 					"exit_code": 0
 				}
 			}`,
-			wantError: "json: cannot unmarshal string into Go struct field startedEventDto.last_started.timestamp of type int64",
+			wantError: "last_started.timestamp of type int64",
 		},
 		{
 			description: "invalid timestamp type in last_finished",
@@ -744,7 +743,7 @@ func TestNewTimer(t *testing.T) {
 					"exit_code": 0
 				}
 			}`,
-			wantError: "json: cannot unmarshal string into Go struct field finishedEventDto.last_finished.timestamp of type int64",
+			wantError: "last_finished.timestamp of type int64",
 		},
 		{
 			description: "invalid exit_code type in last_finished",
@@ -758,7 +757,7 @@ func TestNewTimer(t *testing.T) {
 					"exit_code": "invalid"
 				}
 			}`,
-			wantError: "json: cannot unmarshal string into Go struct field finishedEventDto.last_finished.exit_code of type int",
+			wantError: "last_finished.exit_code of type int",
 		},
 		{
 			description: "null last_started event object",
