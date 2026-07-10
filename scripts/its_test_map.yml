@@ -1,0 +1,123 @@
+version: 1
+
+# Files that should never influence test selection.
+ignore_patterns:
+  - "^\\.gomodcache/"
+  - "^artifacts/"
+  - "^\\.pytest_cache/"
+  - "^venv/"
+
+# Changes matching only these patterns are considered low-risk.
+docs_only_patterns:
+  - "^README\\.md$"
+  - "^CONTRIBUTING\\.md$"
+  - "^SECURITY\\.md$"
+  - "^TESTING\\.md$"
+  - "^doc/"
+  - "^po/"
+  - "^.*\\.md$"
+
+# Any hit here escalates to full integration testing.
+fallback_patterns:
+  - "^integration-tests/conftest\\.py$"
+  - "^integration-tests/utils/"
+  - "^systemtest/"
+  - "^go\\.mod$"
+  - "^go\\.sum$"
+
+# Top-level directories that are treated as Go package roots
+# when deriving package targets from changed .go files.
+go_package_roots:
+  - "cmd"
+  - "internal"
+  - "pkg"
+
+# Smoke pack is always included unless full integration run is requested.
+smoke:
+  go_packages:
+    - "./cmd/rhc"
+    - "./cmd/rhc-collector"
+  pytest_files:
+    - "integration-tests/test_version.py"
+    - "integration-tests/test_man_page.py"
+
+rules:
+  - id: connect-surface
+    description: Connect/auth/proxy flows and status side effects.
+    patterns:
+      - "^cmd/rhc/connect_cmd\\.go$"
+      - "^cmd/rhc/main\\.go$"
+      - "^internal/rhsm/"
+      - "^internal/http/"
+      - "^internal/conf/"
+    go_packages:
+      - "./cmd/rhc"
+      - "./internal/rhsm"
+      - "./internal/http"
+      - "./internal/conf"
+    pytest_files:
+      - "integration-tests/test_connect.py"
+      - "integration-tests/test_status.py"
+      - "integration-tests/test_logging.py"
+
+  - id: disconnect-surface
+    description: Disconnect command and user-facing status/logging behavior.
+    patterns:
+      - "^cmd/rhc/disconnect_cmd\\.go$"
+      - "^cmd/rhc/status_cmd\\.go$"
+    go_packages:
+      - "./cmd/rhc"
+    pytest_files:
+      - "integration-tests/test_disconnect.py"
+      - "integration-tests/test_status.py"
+      - "integration-tests/test_logging.py"
+
+  - id: feature-config-surface
+    description: Feature toggle flow and dependency behavior.
+    patterns:
+      - "^cmd/rhc/configure_features_cmd\\.go$"
+      - "^pkg/feature/"
+      - "^pkg/operations/"
+    go_packages:
+      - "./cmd/rhc"
+      - "./pkg/feature"
+      - "./pkg/operations"
+    pytest_files:
+      - "integration-tests/test_configure_feature.py"
+      - "integration-tests/test_connect.py"
+
+  - id: collector-surface
+    description: Collector command, binary, and collector internals.
+    patterns:
+      - "^cmd/rhc/collector_cmd\\.go$"
+      - "^cmd/rhc-collector/"
+      - "^internal/collector/"
+    go_packages:
+      - "./cmd/rhc"
+      - "./cmd/rhc-collector"
+      - "./internal/collector"
+    pytest_files:
+      - "integration-tests/test_collector_api.py"
+
+  - id: systemd-service-surface
+    description: Service/socket/timer and activation behavior.
+    patterns:
+      - "^internal/systemd/"
+      - "^data/systemd/"
+      - "^cmd/rhc-server/"
+    go_packages:
+      - "./internal/systemd"
+      - "./cmd/rhc-server"
+    pytest_files:
+      - "integration-tests/test_socket_activated_service.py"
+      - "integration-tests/test_status.py"
+
+  - id: logging-surface
+    description: Logging implementation and logrotate packaging.
+    patterns:
+      - "^cmd/rhc/logging\\.go$"
+      - "^data/logrotate\\.d/"
+    go_packages:
+      - "./cmd/rhc"
+    pytest_files:
+      - "integration-tests/test_logging.py"
