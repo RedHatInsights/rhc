@@ -22,7 +22,13 @@ import (
 func rhsmStatus(systemStatus *SystemStatus) error {
 	slog.Info("Checking status of Red Hat Subscription Management")
 
-	registered, err := subman.IsRegistered()
+	client, err := subman.NewRHSMClient()
+	if err != nil {
+		systemStatus.returnCode += 1
+		systemStatus.RHSMError = err.Error()
+		return fmt.Errorf("unable to check registration status: %s", err)
+	}
+	registered, err := client.IsRegistered()
 	if err != nil {
 		systemStatus.returnCode += 1
 		systemStatus.RHSMError = err.Error()
@@ -48,7 +54,13 @@ func rhsmStatus(systemStatus *SystemStatus) error {
 func isContentEnabled(systemStatus *SystemStatus) error {
 	slog.Info("Checking content status")
 
-	contentEnabled, err := subman.IsContentManagementEnabled()
+	client, err := subman.NewRHSMClient()
+	if err != nil {
+		systemStatus.returnCode += 1
+		systemStatus.ContentError = err.Error()
+		return fmt.Errorf("unable to check content management: %w", err)
+	}
+	contentEnabled, err := client.IsContentManagementEnabled()
 	if err != nil {
 		systemStatus.returnCode += 1
 		systemStatus.ContentError = err.Error()

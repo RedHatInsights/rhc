@@ -10,18 +10,14 @@ import (
 
 // IsContentManagementEnabled reports whether content management is enabled for
 // the system in rhsm.conf (rhsm.manage_repos).
-func IsContentManagementEnabled() (bool, error) {
+func (c *RHSMClient) IsContentManagementEnabled() (bool, error) {
 	slog.Debug("Checking content management status")
-	conn, err := bus()
-	if err != nil {
-		return false, err
-	}
 
 	locale := localization.GetLocale()
-	config := conn.Object("com.redhat.RHSM1", "/com/redhat/RHSM1/Config")
+	config := c.conn.Object("com.redhat.RHSM1", "/com/redhat/RHSM1/Config")
 
 	var value string
-	err = config.Call(
+	err := config.Call(
 		"com.redhat.RHSM1.Config.Get",
 		dbus.Flags(0),
 		"rhsm.manage_repos",
@@ -36,22 +32,18 @@ func IsContentManagementEnabled() (bool, error) {
 
 // SetContentManagement enables or disables content management for the system
 // in rhsm.conf (rhsm.manage_repos).
-func SetContentManagement(enabled bool) error {
+func (c *RHSMClient) SetContentManagement(enabled bool) error {
 	slog.Debug("Setting content management", "enabled", enabled)
-	conn, err := bus()
-	if err != nil {
-		return err
-	}
 
 	locale := localization.GetLocale()
-	config := conn.Object("com.redhat.RHSM1", "/com/redhat/RHSM1/Config")
+	config := c.conn.Object("com.redhat.RHSM1", "/com/redhat/RHSM1/Config")
 
 	value := "0"
 	if enabled {
 		value = "1"
 	}
 
-	err = config.Call(
+	err := config.Call(
 		"com.redhat.RHSM1.Config.Set",
 		dbus.Flags(0),
 		"rhsm.manage_repos",

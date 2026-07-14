@@ -24,13 +24,25 @@ func (c Content) RequiredBy() []string {
 }
 
 func (c Content) Enable() error {
-	return subman.SetContentManagement(true)
+	client, err := subman.NewRHSMClient()
+	if err != nil {
+		return err
+	}
+	return client.SetContentManagement(true)
 }
 
 func (c Content) Disable() error {
-	return subman.SetContentManagement(false)
+	client, err := subman.NewRHSMClient()
+	if err != nil {
+		return err
+	}
+	return client.SetContentManagement(false)
 }
 
 func (c Content) IsEnabled() (bool, error) {
-	return subman.IsContentManagementEnabled()
+	client, err := subman.NewRHSMClient()
+	if err != nil {
+		return false, err
+	}
+	return client.IsContentManagementEnabled()
 }
