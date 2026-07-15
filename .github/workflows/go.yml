@@ -99,7 +99,7 @@ jobs:
           eval "${GO_CMD}"
 
       - name: Upload ITS compare artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: its-selector-output
