@@ -1,0 +1,53 @@
+interface com.redhat.rhsm.testing.content.release
+
+type Metadata (
+    # The user agent string (e.g. "rhc/5.4.3")
+    user_agent: ?string,
+    # The correlation id
+    correlation_id: ?string,
+    # The locale string (e.g. en_US.UTF-8)
+    locale: ?string
+)
+
+# Many methods in this interface can be used only in the situation, when the system is registered
+error SystemNotRegistered()
+
+# Get release from the candlepin server. This method does not have any side effects.
+# It only returns the release. If application wants to set the release to releasever file,
+# then it should use SetRelease method. When system is not registered, then error SystemNotRegistered
+# is returned.
+method Download(
+    metadata: ?Metadata
+) -> (
+    release: string
+)
+
+# Return current release, when it is set. Otherwise, return null
+method GetCurrentRelease() -> (
+    release: ?string
+)
+
+# Return the list of available releases. When system is not registered, then error SystemNotRegistered
+# is returned.
+method GetAvailableReleases(
+    metadata: ?Metadata
+) -> (
+    releases: []string
+)
+
+# Try to set release locally and when the system is registered,
+# then send the release to candlepin server
+method SetRelease(
+   release: string,
+   metadata: ?Metadata
+) -> (
+    success: bool
+)
+
+# Try to unset release locally and when the system is registered,
+# then send empty release to candlepin server
+method UnsetRelease(
+   metadata: ?Metadata
+) -> (
+    success: bool
+)

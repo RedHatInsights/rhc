@@ -24,8 +24,7 @@ func (e *ServerError) Error() string {
 
 // GetStatus retrieves the current status of the Red Hat Subscription Management (RHSM) server.
 func GetStatus(ipcSender *string, locale *string, correlationID *string) (*rhsm2.RHSMStatus, error) {
-	appName := AppName
-	rhsmClient, err := rhsm2.GetRHSMClient(&appName, nil)
+	rhsmClient, err := rhsm2.GetRHSMClient(nil, nil)
 	if err != nil {
 		return nil, &ClientError{Message: err.Error()}
 	}
@@ -43,8 +42,7 @@ func GetStatus(ipcSender *string, locale *string, correlationID *string) (*rhsm2
 // IsSystemRegistered checks if the system is registered with RHSM.
 // When it is not possible to retrieve the consumer UUID, it returns false.
 func IsSystemRegistered() (bool, error) {
-	appName := AppName
-	rhsmClient, err := rhsm2.GetRHSMClient(&appName, nil)
+	rhsmClient, err := rhsm2.GetRHSMClient(nil, nil)
 	if err != nil {
 		return false, &ClientError{Message: err.Error()}
 	}
@@ -59,8 +57,7 @@ func IsSystemRegistered() (bool, error) {
 
 // GetContentOverrides retrieves content overrides from the candlepin server.
 func GetContentOverrides(ipcSender *string, locale *string, correlationID *string) ([]rhsm2.ContentOverride, error) {
-	appName := AppName
-	rhsmClient, err := rhsm2.GetRHSMClient(&appName, nil)
+	rhsmClient, err := rhsm2.GetRHSMClient(nil, nil)
 	if err != nil {
 		return nil, &ClientError{Message: err.Error()}
 	}
@@ -76,8 +73,7 @@ func GetContentOverrides(ipcSender *string, locale *string, correlationID *strin
 
 // UploadContentOverrides reads local DNF5 repo overrides and pushes them to the candlepin server.
 func UploadContentOverrides(ipcSender *string, locale *string, correlationID *string) error {
-	appName := AppName
-	rhsmClient, err := rhsm2.GetRHSMClient(&appName, nil)
+	rhsmClient, err := rhsm2.GetRHSMClient(nil, nil)
 	if err != nil {
 		return &ClientError{Message: err.Error()}
 	}
@@ -98,3 +94,45 @@ func UploadContentOverrides(ipcSender *string, locale *string, correlationID *st
 
 	return nil
 }
+
+// DownloadRelease downloads the current release information from the server. The release can be set
+// on the candlepin server for the given system. The client has to have chance to get this information
+// from the server.
+func DownloadRelease(ipcSender *string, locale *string, correlationID *string) (*string, error) {
+	rhsmClient, err := rhsm2.GetRHSMClient(nil, nil)
+	if err != nil {
+		return nil, &ClientError{Message: err.Error()}
+	}
+
+	// Create client information from provided parameters
+	clientInfo := rhsm2.RequestMetadata{IPCSender: ipcSender, Locale: locale, CorrelationId: correlationID}
+	// Try to get release from server
+	release, err := rhsmClient.GetReleaseFromServer(&clientInfo)
+	if err != nil {
+		return nil, &ServerError{Message: err.Error()}
+	}
+
+	return &release, nil
+}
+
+func GetAvailableReleases(ipcSender *string, locale *string, correlationID *string) (map[string]struct{}, error) {
+	rhsmClient, err := rhsm2.GetRHSMClient(nil, nil)
+	if err != nil {
+		return nil, &ClientError{Message: err.Error()}
+	}
+
+	// Create client information from provided parameters
+	clientInfo := rhsm2.RequestMetadata{IPCSender: ipcSender, Locale: locale, CorrelationId: correlationID}
+	return rhsmClient.GetCdnReleases(&clientInfo)
+}
+
+func SetRelease(release string, ipcSender *string, locale *string, correlationID *string) error {
+	rhsmClient, err := rhsm2.GetRHSMClient(nil, nil)
+	if err != nil {
+		return &ClientError{Message: err.Error()}
+	}
+	// Create client information from provided parameters
+	clientInfo := rhsm2.RequestMetadata{IPCSender: ipcSender, Locale: locale, CorrelationId: correlationID}
+	return rhsmClient.SetRelease(release, &clientInfo)
+}
+
