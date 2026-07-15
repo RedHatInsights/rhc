@@ -27,6 +27,8 @@ github.com/jeandeaual/go-locale v0.0.0-20250612000132-0ef82f21eade h1:FmusiCI1wH
 github.com/jeandeaual/go-locale v0.0.0-20250612000132-0ef82f21eade/go.mod h1:ZDXo8KHryOWSIqnsb/CiDq7hQUYryCgdVnxbj8tDG7o=
 github.com/jirihnidek/rhsm2 v0.0.0-20260729132541-bd687fccd469 h1:3/3RmAOqNXc8V9m/+EGiG0k8m3xpX05WXgZS8GfclJk=
 github.com/jirihnidek/rhsm2 v0.0.0-20260729132541-bd687fccd469/go.mod h1:OhFF2Ju6ZLtmvh1uFiGUIsO9+4vXdXYIp08ZxjpFp3g=
+github.com/jirihnidek/rhsm2 v0.0.0-20260806054428-629538e7441d h1:1jpnEBDJ0ZXQjP8UlBJZZLU/sjD3tCaP7BGXNRdfyQ4=
+github.com/jirihnidek/rhsm2 v0.0.0-20260806054428-629538e7441d/go.mod h1:OhFF2Ju6ZLtmvh1uFiGUIsO9+4vXdXYIp08ZxjpFp3g=
 github.com/mattn/go-colorable v0.1.14 h1:9A9LHSqF/7dyVVX6g0U9cwm9pG3kP9gSzcuIPHPsaIE=
 github.com/mattn/go-colorable v0.1.14/go.mod h1:6LmQG8QLFO4G5z1gPvYEzlUgJ2wF+stgPZH1UqBm1s8=
 github.com/mattn/go-isatty v0.0.22 h1:j8l17JJ9i6VGPUFUYoTUKPSgKe/83EYU2zBC7YNKMw4=
