@@ -15,6 +15,16 @@ import (
 	"github.com/redhatinsights/rhc/pkg/exitcode"
 )
 
+// isShellCompletion returns true when the process was invoked for shell completion.
+func isShellCompletion() bool {
+	for _, arg := range os.Args {
+		if arg == "--generate-shell-completion" {
+			return true
+		}
+	}
+	return false
+}
+
 // isTerminal returns true if the file descriptor is terminal.
 func isTerminal(fd uintptr) bool {
 	_, err := unix.IoctlGetTermios(int(fd), unix.TCGETS)
@@ -124,6 +134,9 @@ func validateCollectorCommand(cmd *cli.Command, requiresCollectorID, requiresFor
 		}
 	}
 	if requiresCollectorID && cmd.Args().Len() == 0 {
+		if isShellCompletion() {
+			return nil
+		}
 		commandName := getFullCommandName(cmd)
 		return cli.Exit(fmt.Sprintf("%s requires a collector ID", commandName), exitcode.Usage)
 	}

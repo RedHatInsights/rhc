@@ -109,6 +109,24 @@ func GetArchive(sourceDir, outputDir string) (string, error) {
 	return archivePath, nil
 }
 
+// ListCollectorIDs returns the IDs of available collectors by listing TOML files
+// in ConfigDir without parsing their contents.
+func ListCollectorIDs() ([]string, error) {
+	configFiles, err := os.ReadDir(ConfigDir)
+	if err != nil {
+		return nil, err
+	}
+
+	var collectors []string
+	for _, configFile := range configFiles {
+		if isFileToml(configFile) {
+			collectors = append(collectors, strings.TrimSuffix(configFile.Name(), ".toml"))
+		}
+	}
+
+	return collectors, nil
+}
+
 // GetCollectors returns list of available collectors from valid TOML files in ConfigDir.
 func GetCollectors() ([]string, error) {
 	configFiles, err := os.ReadDir(ConfigDir)
