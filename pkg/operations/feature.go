@@ -47,6 +47,45 @@ func ParseFeature(s string) (Feature, error) {
 	case "remote-management":
 		return RemoteManagement, nil
 	default:
-		return 0, fmt.Errorf("unknown feature: %s", s)
+		return 0, fmt.Errorf("feature %q not found", s)
+	}
+}
+
+// AllFeatures returns all known features in a stable order.
+func AllFeatures() []Feature {
+	return []Feature{Content, Analytics, RemoteManagement}
+}
+
+// Description returns the human-readable description of the feature.
+func (f Feature) Description() string {
+	switch f {
+	case Analytics:
+		return "Red Hat Lightspeed data collection"
+	case Content:
+		return "Red Hat content management"
+	case RemoteManagement:
+		return "Red Hat Lightspeed remote management"
+	default:
+		return fmt.Sprintf("unknown(%d)", int(f))
+	}
+}
+
+// Requires returns the features that must be enabled before this feature.
+func (f Feature) Requires() []Feature {
+	switch f {
+	case RemoteManagement:
+		return []Feature{Content, Analytics}
+	default:
+		return nil
+	}
+}
+
+// RequiredBy returns the features that depend on this feature.
+func (f Feature) RequiredBy() []Feature {
+	switch f {
+	case Content, Analytics:
+		return []Feature{RemoteManagement}
+	default:
+		return nil
 	}
 }
