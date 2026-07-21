@@ -13,6 +13,11 @@ The easiest way to create a development build of `rhc` is to call `go build` dir
 $ go build ./cmd/rhc
 ```
 
+## Collectors
+
+See [doc/COLLECTORS.md](doc/COLLECTORS.md) for information on collectors and how to create them.
+Collectors are packaged and shipped by their owning projects (for example, insights-core or Foreman), not by this repository.
+
 ## Translating
 
 We use [Fedora Weblate](https://translate.fedoraproject.org/engage/rhc/) to manage localization.
