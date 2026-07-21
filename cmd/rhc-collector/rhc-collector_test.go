@@ -106,8 +106,12 @@ func TestGetConfig(t *testing.T) {
 func TestExecuteCollector(t *testing.T) {
 	t.Run("nonexistent collector binary", func(t *testing.T) {
 		tmpDir := t.TempDir()
-		collectorId := "com.redhat.nonexistent"
-		err := executeCollector(collectorId, tmpDir)
+		config := collector.Config{
+			ID:    "com.redhat.nonexistent",
+			User:  "root",
+			Group: "root",
+		}
+		err := executeCollector(config, tmpDir)
 		if err == nil {
 			t.Error("executeCollector() expected error for nonexistent collector binary")
 		}
@@ -118,8 +122,12 @@ func TestExecuteCollector(t *testing.T) {
 
 	t.Run("collector binary with invalid ID characters", func(t *testing.T) {
 		tmpDir := t.TempDir()
-		collectorId := "../../../etc/passwd"
-		err := executeCollector(collectorId, tmpDir)
+		config := collector.Config{
+			ID:    "../../../etc/passwd",
+			User:  "root",
+			Group: "root",
+		}
+		err := executeCollector(config, tmpDir)
 		if err == nil {
 			t.Error("executeCollector() expected error for path traversal attempt")
 		}

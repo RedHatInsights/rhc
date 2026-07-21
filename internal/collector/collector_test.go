@@ -1,8 +1,10 @@
 package collector
 
 import (
+	"fmt"
 	"io/fs"
 	"os"
+	"os/user"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -848,4 +850,120 @@ func TestValidateID(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestResolveUserGroupAttr(t *testing.T) {
+	mockLookupUser := func(uid, username string) UserLookupFunc {
+		return func(name string) (*user.User, error) {
+			if name == username {
+				return &user.User{Uid: uid, Username: username}, nil
+			}
+			return nil, fmt.Errorf("user %q not found", name)
+		}
+	}
+
+	mockLookupGroup := func(gid, groupname string) GroupLookupFunc {
+		return func(name string) (*user.Group, error) {
+			if name == groupname {
+				return &user.Group{Gid: gid, Name: groupname}, nil
+			}
+			return nil, fmt.Errorf("group %q not found", name)
+		}
+	}
+
+	t.Run("valid user and group", func(t *testing.T) {
+		attr, err := ResolveUserGroupAttr(
+			"testuser", "testgroup",
+			mockLookupUser("1000", "testuser"),
+			mockLookupGroup("1000", "testgroup"),
+		)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if attr.Credential.Uid != 1000 {
+			t.Errorf("UID = %d, want 1000", attr.Credential.Uid)
+		}
+		if attr.Credential.Gid != 1000 {
+			t.Errorf("GID = %d, want 1000", attr.Credential.Gid)
+		}
+	})
+
+	t.Run("root user and group", func(t *testing.T) {
+		attr, err := ResolveUserGroupAttr(
+			"root", "root",
+			mockLookupUser("0", "root"),
+			mockLookupGroup("0", "root"),
+		)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if attr.Credential.Uid != 0 {
+			t.Errorf("UID = %d, want 0", attr.Credential.Uid)
+		}
+		if attr.Credential.Gid != 0 {
+			t.Errorf("GID = %d, want 0", attr.Credential.Gid)
+		}
+	})
+
+	t.Run("user lookup failure", func(t *testing.T) {
+		_, err := ResolveUserGroupAttr(
+			"nonexistent", "testgroup",
+			mockLookupUser("1000", "testuser"),
+			mockLookupGroup("1000", "testgroup"),
+		)
+		if err == nil {
+			t.Fatal("expected error for nonexistent user")
+		}
+		if !strings.Contains(err.Error(), "failed to look up user") {
+			t.Errorf("error = %v, want error containing %q", err, "failed to look up user")
+		}
+	})
+
+	t.Run("group lookup failure", func(t *testing.T) {
+		_, err := ResolveUserGroupAttr(
+			"testuser", "nonexistent",
+			mockLookupUser("1000", "testuser"),
+			mockLookupGroup("1000", "testgroup"),
+		)
+		if err == nil {
+			t.Fatal("expected error for nonexistent group")
+		}
+		if !strings.Contains(err.Error(), "failed to look up group") {
+			t.Errorf("error = %v, want error containing %q", err, "failed to look up group")
+		}
+	})
+
+	t.Run("invalid UID", func(t *testing.T) {
+		badUserLookup := func(name string) (*user.User, error) {
+			return &user.User{Uid: "notanumber", Username: name}, nil
+		}
+		_, err := ResolveUserGroupAttr(
+			"testuser", "testgroup",
+			badUserLookup,
+			mockLookupGroup("1000", "testgroup"),
+		)
+		if err == nil {
+			t.Fatal("expected error for invalid UID")
+		}
+		if !strings.Contains(err.Error(), "failed to parse UID") {
+			t.Errorf("error = %v, want error containing %q", err, "failed to parse UID")
+		}
+	})
+
+	t.Run("invalid GID", func(t *testing.T) {
+		badGroupLookup := func(name string) (*user.Group, error) {
+			return &user.Group{Gid: "notanumber", Name: name}, nil
+		}
+		_, err := ResolveUserGroupAttr(
+			"testuser", "testgroup",
+			mockLookupUser("1000", "testuser"),
+			badGroupLookup,
+		)
+		if err == nil {
+			t.Fatal("expected error for invalid GID")
+		}
+		if !strings.Contains(err.Error(), "failed to parse GID") {
+			t.Errorf("error = %v, want error containing %q", err, "failed to parse GID")
+		}
+	})
 }

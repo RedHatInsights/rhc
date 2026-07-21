@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"os/user"
 	"time"
 
 	"github.com/redhatinsights/rhc/internal/collector"
@@ -57,7 +58,7 @@ func run(collectorId, command string) error {
 	}
 	defer cleanup(tmpDir)
 
-	if err = executeCollector(collectorId, tmpDir); err != nil {
+	if err = executeCollector(config, tmpDir); err != nil {
 		return err
 	}
 	archivePath, err := getArchivePath(tmpDir)
@@ -125,14 +126,21 @@ func getConfig(collectorId string) (collector.Config, error) {
 }
 
 // executeCollector runs the specified collector binary with the collect argument in tmpDir as the working directory.
+// The collector process is executed as the user and group defined in the collector configuration.
 // Returns an error if the command execution fails.
-func executeCollector(collectorId, tmpDir string) error {
-	// Construct path to the collector binary
-	collectorPath := fmt.Sprintf("/usr/libexec/rhc/collectors/%s", collectorId)
+func executeCollector(config collector.Config, tmpDir string) error {
+	collectorPath := fmt.Sprintf("/usr/libexec/rhc/collectors/%s", config.ID)
 
-	// TODO: Run collector as specific user and group (defined in config of collector)
+	sysProcAttr, err := collector.ResolveUserGroupAttr(config.User, config.Group, user.Lookup, user.LookupGroup)
+	if err != nil {
+		return fmt.Errorf("failed to resolve user and group: %w", err)
+	}
+
+	slog.Info("executing collector as configured user/group", "collector", config.ID, "user", config.User, "group", config.Group)
+
 	cmd := exec.Command(collectorPath, "collect")
 	cmd.Dir = tmpDir
+	cmd.SysProcAttr = sysProcAttr
 
 	// Capture start/end time and execute the command
 	startTime := time.Now()
@@ -150,12 +158,12 @@ func executeCollector(collectorId, tmpDir string) error {
 
 	// Timer payload and writing to cache
 	timerPayload := collector.Timer{
-		ID:           collectorId,
+		ID:           config.ID,
 		LastStarted:  startTime,
 		LastFinished: endTime,
 		ExitCode:     exitCode,
 	}
-	cacheErr := collector.WriteTimerCache(collectorId, timerPayload)
+	cacheErr := collector.WriteTimerCache(config.ID, timerPayload)
 	if cacheErr != nil {
 		slog.Error("Failed to write timer cache", "error", cacheErr)
 	}
