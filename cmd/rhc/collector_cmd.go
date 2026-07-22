@@ -44,6 +44,24 @@ func newCollectorClient() (*collectorapi.Client, func(), error) {
 	return client, cleanup, nil
 }
 
+// collectorIDShellComplete provides shell completion for commands that accept a collector ID
+// as a positional argument.
+func collectorIDShellComplete(_ context.Context, cmd *cli.Command) {
+	PrintFlagNames(cmd.VisibleFlags(), cmd.Root().Writer)
+
+	if cmd.Args().Len() > 0 {
+		return
+	}
+
+	collectors, err := collector.ListCollectorIDs()
+	if err != nil {
+		return
+	}
+	for _, id := range collectors {
+		_, _ = fmt.Fprintln(cmd.Root().Writer, id)
+	}
+}
+
 // beforeCollectorInfoAction validates the collector info command arguments and configuration.
 func beforeCollectorInfoAction(ctx context.Context, cmd *cli.Command) (context.Context, error) {
 	return ctx, validateCollectorCommand(cmd, true, true)

@@ -12,6 +12,7 @@ _cli_bash_autocomplete() {
     else
       opts=$( "${COMP_WORDS[@]:0:$COMP_CWORD}" --generate-shell-completion )
     fi
+    opts=$(echo "${opts}" | cut -d: -f1)
     # Redirect output of command to array variable COMPREPLY
     mapfile -t COMPREPLY < <(compgen -W "${opts}" -- "${cur}")
     return 0
