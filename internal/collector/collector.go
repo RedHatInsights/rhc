@@ -7,14 +7,23 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"os/user"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/BurntSushi/toml"
 	"github.com/redhatinsights/rhc/internal/systemd"
 )
+
+// UserLookupFunc is a function that looks up a user by username.
+type UserLookupFunc func(string) (*user.User, error)
+
+// GroupLookupFunc is a function that looks up a group by name.
+type GroupLookupFunc func(string) (*user.Group, error)
 
 // ConfigDir is the default directory path where collector configuration files are stored.
 const ConfigDir = "/usr/lib/rhc/collectors/"
@@ -204,6 +213,37 @@ func ValidateID(id string) (string, error) {
 		return "", fmt.Errorf("invalid collector ID %q", id)
 	}
 	return filepath.Base(id), nil
+}
+
+// ResolveUserGroupAttr resolves a username and group name into a syscall.SysProcAttr
+// suitable for setting on exec.Cmd to run a process as the specified user and group.
+func ResolveUserGroupAttr(username, groupname string, lookupUser UserLookupFunc, lookupGroup GroupLookupFunc) (*syscall.SysProcAttr, error) {
+	slog.Debug("resolving user and group for collector execution", "user", username, "group", groupname)
+
+	u, err := lookupUser(username)
+	if err != nil {
+		return nil, fmt.Errorf("failed to look up user %q: %w", username, err)
+	}
+	uid, err := strconv.ParseUint(u.Uid, 10, 32)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse UID %q: %w", u.Uid, err)
+	}
+
+	g, err := lookupGroup(groupname)
+	if err != nil {
+		return nil, fmt.Errorf("failed to look up group %q: %w", groupname, err)
+	}
+	gid, err := strconv.ParseUint(g.Gid, 10, 32)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse GID %q: %w", g.Gid, err)
+	}
+
+	return &syscall.SysProcAttr{
+		Credential: &syscall.Credential{
+			Uid: uint32(uid),
+			Gid: uint32(gid),
+		},
+	}, nil
 }
 
 // writeTimerToFile marshals a timerDto to JSON and writes it to the cache file.
