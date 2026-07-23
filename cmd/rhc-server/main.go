@@ -13,12 +13,13 @@ import (
 
 	"github.com/coreos/go-systemd/v22/activation"
 	govarlink "github.com/emersion/go-varlink"
-	"github.com/redhatinsights/rhc/varlink/rhsmapi"
-
+	"github.com/jirihnidek/rhsm2"
 	"github.com/redhatinsights/rhc/internal/util"
 	"github.com/redhatinsights/rhc/pkg/exitcode"
 	"github.com/redhatinsights/rhc/pkg/version"
 	"github.com/redhatinsights/rhc/varlink/collectorapi"
+	"github.com/redhatinsights/rhc/varlink/releaseapi"
+	"github.com/redhatinsights/rhc/varlink/rhsmapi"
 )
 
 const (
@@ -56,8 +57,17 @@ func run() error {
 		URL:     "https://github.com/redhatinsights/rhc",
 	})
 
+	// Try to initialize the rhsm client. It will create the singleton instance and further
+	// calls of rhsm2.GetRHSMClient will return the same instance.
+	appName := AppName
+	_, err := rhsm2.GetRHSMClient(&appName, nil)
+	if err != nil {
+		return fmt.Errorf("failed to initialize rhsm client: %w", err)
+	}
+
 	collectorapi.Handler{Backend: NewCollectorBackend()}.Register(registry)
 	rhsmapi.Handler{Backend: NewRHSMBackend()}.Register(registry)
+	releaseapi.Handler{Backend: NewComRedhatRhsmContentReleaseRHSMBackend()}.Register(registry)
 
 	varlinkServer := &govarlink.Server{Handler: registry}
 
