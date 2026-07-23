@@ -1,0 +1,74 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Generated schema for Root",
+  "type": "object",
+  "properties": {
+    "status": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "type": "string"
+        },
+        "modeReason": {},
+        "modeChangeTime": {},
+        "result": {
+          "type": "boolean"
+        },
+        "version": {
+          "type": "string"
+        },
+        "release": {
+          "type": "string"
+        },
+        "standalone": {
+          "type": "boolean"
+        },
+        "timeUTC": {
+          "type": "string"
+        },
+        "rulesSource": {
+          "type": "string"
+        },
+        "rulesVersion": {
+          "type": "string"
+        },
+        "managerCapabilities": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "keycloakRealm": {},
+        "keycloakAuthUrl": {},
+        "keycloakResource": {},
+        "deviceAuthRealm": {},
+        "deviceAuthUrl": {},
+        "deviceAuthClientId": {},
+        "deviceAuthScope": {}
+      },
+      "required": [
+        "mode",
+        "modeReason",
+        "modeChangeTime",
+        "result",
+        "version",
+        "release",
+        "standalone",
+        "timeUTC",
+        "rulesSource",
+        "rulesVersion",
+        "managerCapabilities",
+        "keycloakRealm",
+        "keycloakAuthUrl",
+        "keycloakResource",
+        "deviceAuthRealm",
+        "deviceAuthUrl",
+        "deviceAuthClientId",
+        "deviceAuthScope"
+      ]
+    }
+  },
+  "required": [
+    "status"
+  ]
+}

@@ -1,0 +1,129 @@
+name: Integration Tests
+
+on:
+  workflow_dispatch:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-rpms:
+    uses: ./.github/workflows/rpmbuild.yml
+
+  integration-tests:
+    name: "Integration Tests (${{ matrix.name }})"
+    needs: build-rpms
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: "Fedora latest"
+            image: "registry.fedoraproject.org/fedora:latest"
+            artifact: "rpms-fedora-latest"
+          - name: "Fedora Rawhide"
+            image: "registry.fedoraproject.org/fedora:rawhide"
+            artifact: "rpms-fedora-rawhide"
+
+    container:
+      image: ${{ matrix.image }}
+
+    services:
+      candlepin:
+        image: ghcr.io/candlepin/candlepin-unofficial:latest
+        options: --privileged --hostname candlepin.local
+
+    steps:
+      - name: "Checkout repository"
+        uses: actions/checkout@v7
+
+      - name: "Download RPM artifacts"
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ matrix.artifact }}
+          path: ./rpms
+
+      - name: "Install test dependencies"
+        run: |
+          dnf --setopt install_weak_deps=False install -y \
+            subscription-manager rhc python3-behave openssl curl \
+            python3-jsonschema dbus-daemon
+
+      - name: "Install built RPMs"
+        run: |
+          dnf install -y ./rpms/*.rpm
+
+      - name: "Wait for candlepin to be ready"
+        run: |
+          for i in $(seq 1 60); do
+            if curl -sf http://candlepin:8080/candlepin/status > /dev/null 2>&1; then
+              echo "Candlepin is ready"
+              curl -s http://candlepin:8080/candlepin/status
+              exit 0
+            fi
+            echo "Waiting for candlepin... attempt $i/60"
+            sleep 5
+          done
+          echo "ERROR: Candlepin failed to start within timeout"
+          exit 1
+
+      - name: "Configure subscription-manager for candlepin"
+        run: |
+          subscription-manager config \
+            --server.hostname candlepin \
+            --server.port 8443 \
+            --server.prefix /candlepin \
+            --server.insecure 1 \
+            --rhsm.baseurl http://candlepin:8080
+
+      - name: "Trust candlepin TLS certificate"
+        run: |
+          openssl s_client -connect candlepin:8443 -showcerts </dev/null 2>/dev/null \
+            | openssl x509 -outform PEM > /etc/rhsm/ca/candlepin-ca.pem
+          ln -sf /etc/rhsm/ca/candlepin-ca.pem \
+            /etc/pki/ca-trust/source/anchors/candlepin-ca.pem
+          update-ca-trust
+
+      - name: "Import candlepin RPM GPG key"
+        run: |
+          curl -sf http://candlepin:8080/RPM-GPG-KEY-candlepin \
+            > /etc/pki/rpm-gpg/RPM-GPG-KEY-candlepin || \
+          echo "WARNING: Could not fetch RPM GPG key (test repos likely use gpgcheck=0)"
+
+      - name: "Start D-Bus system bus"
+        run: |
+          mkdir -p /run/dbus
+          dbus-daemon --system --fork
+          sleep 1
+
+      - name: "Start RHSM D-Bus service"
+        run: |
+          /usr/libexec/rhsm-service &
+          sleep 2
+          busctl --system status com.redhat.RHSM1
+
+      - name: "Verify candlepin connectivity"
+        run: |
+          subscription-manager version
+
+      - name: "Start RHC Varlink service"
+        run: |
+          /usr/libexec/rhc/rhc-server &
+          sleep 2
+          varlinkctl info /run/rhc/com.redhat.rhc
+
+      - name: "Run integration tests"
+        run: |
+          mkdir -p results
+          behave features/ --no-capture --verbose \
+            --junit --junit-directory results/
+
+      - name: "Upload test results"
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results-${{ matrix.artifact }}
+          path: results/
+          retention-days: 30
