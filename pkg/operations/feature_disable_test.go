@@ -151,6 +151,39 @@ func TestDisableUnknownFeature(t *testing.T) {
 	}
 }
 
+// TestDisableAnalyticsAlwaysProcessesDependents verifies the convergent
+// behavior: disabling Analytics always checks whether RemoteManagement (its
+// dependent) is still running, even when Analytics itself is already disabled.
+// This repairs inconsistent states where a dependency was disabled but
+// RemoteManagement was not torn down (e.g. after a partial disconnect).
+func TestDisableAnalyticsAlwaysProcessesDependents(t *testing.T) {
+	rmStatus := FeatureStatus(FeatureOperationOptions{Feature: RemoteManagement})
+	if rmStatus.Err != nil {
+		t.Skipf("Cannot determine RemoteManagement status: %v", rmStatus.Err)
+	}
+
+	result := DisableFeature(FeatureOperationOptions{Feature: Analytics})
+	if result.Feature != Analytics {
+		t.Fatalf("Feature = %v, want %v", result.Feature, Analytics)
+	}
+
+	if rmStatus.Enabled {
+		// RemoteManagement was running — disable should have attempted to
+		// tear it down regardless of Analytics' own state
+		found := false
+		for _, dep := range result.DependentsDisabled {
+			if dep.Feature == RemoteManagement {
+				found = true
+				break
+			}
+		}
+		if !found && result.Status != DisableStatusFailed && result.Status != DisableStatusDependentFailed {
+			t.Errorf("RemoteManagement was enabled but not in DependentsDisabled "+
+				"(status=%q, err=%v)", result.Status, result.Err)
+		}
+	}
+}
+
 // TestDisableIdempotency tests that calling DisableFeature multiple times is safe.
 func TestDisableIdempotency(t *testing.T) {
 	feature := RemoteManagement

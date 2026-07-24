@@ -44,8 +44,11 @@ const (
 // If any dependent fails to disable, the operation stops immediately and returns
 // Status="dependent-failed" with partial progress visible in DependentsDisabled.
 //
-// The operation is idempotent: if the feature is already disabled, it returns
-// immediately with Status="already-disabled" and no error.
+// The operation is convergent: dependents are always verified and disabled even
+// if the target feature is already disabled, repairing inconsistent states where
+// the target is stopped but its dependents are still running. If the target is
+// already disabled and no dependents need teardown, it returns
+// Status="already-disabled" and no error.
 func DisableFeature(opts FeatureOperationOptions) DisableFeatureResult {
 	result := DisableFeatureResult{
 		Feature:            opts.Feature,
@@ -61,12 +64,12 @@ func DisableFeature(opts FeatureOperationOptions) DisableFeatureResult {
 		result.Status = DisableStatusFailed
 		return result
 	}
-	if !status.Enabled {
-		result.Status = DisableStatusAlreadyDisabled
-		return result
-	}
+	targetAlreadyDisabled := !status.Enabled
 
-	// Disable dependents first (explicit dependency graph reversed)
+	// Disable dependents first (explicit dependency graph reversed).
+	// This runs even when the target is already disabled, so that
+	// re-running disable converges to a consistent state when
+	// dependents are still running (e.g. after a partial disconnect).
 	switch opts.Feature {
 	case Analytics, Content:
 		// Analytics and Content are required by RemoteManagement
@@ -91,6 +94,11 @@ func DisableFeature(opts FeatureOperationOptions) DisableFeatureResult {
 	default:
 		result.Err = fmt.Errorf("unknown feature: %s", opts.Feature)
 		result.Status = DisableStatusFailed
+		return result
+	}
+
+	if targetAlreadyDisabled {
+		result.Status = DisableStatusAlreadyDisabled
 		return result
 	}
 

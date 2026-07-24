@@ -44,8 +44,11 @@ const (
 // If any dependency fails to enable, the operation stops immediately and returns
 // Status="dependency-failed" with partial progress visible in DependenciesEnabled.
 //
-// The operation is idempotent: if the feature is already enabled, it returns
-// immediately with Status="already-enabled" and no error.
+// The operation is convergent: dependencies are always verified and enabled even
+// if the target feature is already enabled, repairing inconsistent states where
+// the target is running but its dependencies are not (e.g. after a partial
+// disconnect). If the target is already enabled and all dependencies are
+// satisfied, it returns Status="already-enabled" and no error.
 func EnableFeature(opts FeatureOperationOptions) EnableFeatureResult {
 	result := EnableFeatureResult{
 		Feature:             opts.Feature,
@@ -61,12 +64,12 @@ func EnableFeature(opts FeatureOperationOptions) EnableFeatureResult {
 		result.Status = EnableStatusFailed
 		return result
 	}
-	if status.Enabled {
-		result.Status = EnableStatusAlreadyEnabled
-		return result
-	}
+	targetAlreadyEnabled := status.Enabled
 
-	// Enable dependencies first (explicit dependency graph)
+	// Enable dependencies first (explicit dependency graph).
+	// This runs even when the target is already enabled, so that
+	// re-running enable converges to a consistent state when
+	// dependencies were disabled externally or by a partial disconnect.
 	switch opts.Feature {
 	case Analytics, Content:
 		// No dependencies
@@ -90,6 +93,11 @@ func EnableFeature(opts FeatureOperationOptions) EnableFeatureResult {
 	default:
 		result.Err = fmt.Errorf("unknown feature: %s", opts.Feature)
 		result.Status = EnableStatusFailed
+		return result
+	}
+
+	if targetAlreadyEnabled {
+		result.Status = EnableStatusAlreadyEnabled
 		return result
 	}
 
