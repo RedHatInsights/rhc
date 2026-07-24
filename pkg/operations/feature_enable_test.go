@@ -112,6 +112,37 @@ func TestEnableResultStructure(t *testing.T) {
 	}
 }
 
+// TestEnableRemoteManagementAlwaysProcessesDependencies verifies the convergent
+// behavior: enabling RemoteManagement always walks the dependency chain (Content
+// and Analytics), even when RemoteManagement itself is already enabled. This
+// repairs inconsistent states where yggdrasil is running but dependencies were
+// disabled externally.
+func TestEnableRemoteManagementAlwaysProcessesDependencies(t *testing.T) {
+	result := EnableFeature(FeatureOperationOptions{Feature: RemoteManagement})
+	if result.Feature != RemoteManagement {
+		t.Fatalf("Feature = %v, want %v", result.Feature, RemoteManagement)
+	}
+
+	switch result.Status {
+	case EnableStatusEnabled, EnableStatusAlreadyEnabled:
+		// In both cases, dependencies must have been processed
+		if len(result.DependenciesEnabled) != 2 {
+			t.Fatalf("DependenciesEnabled length = %d, want 2 (Content, Analytics) "+
+				"even when status is %q", len(result.DependenciesEnabled), result.Status)
+		}
+		if result.DependenciesEnabled[0].Feature != Content {
+			t.Errorf("first dependency = %v, want Content", result.DependenciesEnabled[0].Feature)
+		}
+		if result.DependenciesEnabled[1].Feature != Analytics {
+			t.Errorf("second dependency = %v, want Analytics", result.DependenciesEnabled[1].Feature)
+		}
+	case EnableStatusFailed, EnableStatusDependencyFailed:
+		// Status check or dependency failed — can't verify further, but
+		// the test should not fail on systems without the required services
+		t.Skipf("enable failed (expected on systems without required services): %v", result.Err)
+	}
+}
+
 // TestEnableUnknownFeature tests handling of an unknown/invalid feature type.
 func TestEnableUnknownFeature(t *testing.T) {
 	invalidFeature := Feature(999)
