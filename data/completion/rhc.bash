@@ -2,7 +2,7 @@
 
 : "${PROG:=$(basename "${BASH_SOURCE[0]}")}"
 
-_cli_bash_autocomplete() {
+_rhc_bash_autocomplete() {
   if [[ "${COMP_WORDS[0]}" != "source" ]]; then
     local cur opts
     COMPREPLY=()
@@ -19,5 +19,5 @@ _cli_bash_autocomplete() {
   fi
 }
 
-complete -o bashdefault -o default -o nospace -F _cli_bash_autocomplete "${PROG}"
+complete -o bashdefault -o default -o nospace -F _rhc_bash_autocomplete "${PROG}"
 unset PROG
