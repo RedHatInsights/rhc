@@ -9,7 +9,7 @@ import (
 
 	"github.com/redhatinsights/rhc/internal/ui"
 	"github.com/redhatinsights/rhc/pkg/exitcode"
-	"github.com/redhatinsights/rhc/pkg/feature/prefcache"
+	"github.com/redhatinsights/rhc/pkg/feature"
 	"github.com/redhatinsights/rhc/pkg/operations"
 )
 
@@ -104,7 +104,7 @@ func printConfigureFeaturesStatus(
 }
 
 func featuresStatusActionNotRegistered(_ context.Context, cmd *cli.Command) error {
-	cache, err := prefcache.LoadCache(ConnectFeaturesPrefsPath)
+	cache, err := feature.LoadCache(ConnectFeaturesPrefsPath)
 	if err != nil {
 		return err
 	}
@@ -114,12 +114,8 @@ func featuresStatusActionNotRegistered(_ context.Context, cmd *cli.Command) erro
 	rows := [][]string{}
 	for _, f := range operations.AllFeatures() {
 		featureID := f.String()
-		enabled, err := cache.Get(featureID)
-		if err != nil {
-			return cli.Exit(fmt.Sprintf("failed to get feature preference: %v", err), exitcode.Software)
-		}
 		pref := "enable"
-		if !enabled {
+		if !cache.Get(f) {
 			pref = "skip"
 		}
 		status.setFeatureResult(
@@ -207,7 +203,7 @@ func featuresEnableAction(ctx context.Context, cmd *cli.Command) error {
 
 // featuresEnableActionNotRegistered handles enabling a feature on a non-registered system.
 func featuresEnableActionNotRegistered(_ context.Context, _ *cli.Command, targetNames []string) error {
-	cache, err := prefcache.LoadCache(ConnectFeaturesPrefsPath)
+	cache, err := feature.LoadCache(ConnectFeaturesPrefsPath)
 	if err != nil {
 		return cli.Exit(fmt.Sprintf("failed to load feature preferences: %v", err), exitcode.Software)
 	}
@@ -219,32 +215,17 @@ func featuresEnableActionNotRegistered(_ context.Context, _ *cli.Command, target
 		}
 		// enable required features
 		for _, required := range target.Requires() {
-			requiredName := required.String()
-			enabled, err := cache.Get(requiredName)
-			if err != nil {
-				return cli.Exit(fmt.Sprintf("failed to get feature preference: %v", err), exitcode.Software)
-			}
-			if !enabled {
-				fmt.Printf("During registration, '%s' will be enabled (required by '%s').\n", requiredName, targetName)
-				if err = cache.Set(requiredName, true); err != nil {
-					return cli.Exit(fmt.Sprintf("failed to update preference: %v", err), exitcode.Software)
-				}
-				slog.Debug("enabling feature", "name", requiredName)
+			if !cache.Get(required) {
+				fmt.Printf("During registration, '%s' will be enabled (required by '%s').\n", required.String(), targetName)
+				cache.Set(required, true)
+				slog.Debug("enabling feature", "name", required.String())
 			}
 		}
-		// enable target features
-		{
-			enabled, err := cache.Get(targetName)
-			if err != nil {
-				return cli.Exit(fmt.Sprintf("failed to get feature preference: %v", err), exitcode.Software)
-			}
-			if !enabled {
-				fmt.Printf("During registration, '%s' will be enabled.\n", targetName)
-				if err = cache.Set(targetName, true); err != nil {
-					return cli.Exit(fmt.Sprintf("failed to update preference: %v", err), exitcode.Software)
-				}
-				slog.Debug("enabling feature", "name", targetName)
-			}
+		// enable target feature
+		if !cache.Get(target) {
+			fmt.Printf("During registration, '%s' will be enabled.\n", targetName)
+			cache.Set(target, true)
+			slog.Debug("enabling feature", "name", targetName)
 		}
 	}
 
@@ -331,7 +312,7 @@ func featuresDisableAction(ctx context.Context, cmd *cli.Command) error {
 
 // featuresDisableActionNotRegistered handles disabling a feature on a non-registered system.
 func featuresDisableActionNotRegistered(_ context.Context, _ *cli.Command, targetNames []string) error {
-	cache, err := prefcache.LoadCache(ConnectFeaturesPrefsPath)
+	cache, err := feature.LoadCache(ConnectFeaturesPrefsPath)
 	if err != nil {
 		return cli.Exit(fmt.Sprintf("failed to load feature preferences: %v", err), exitcode.Software)
 	}
@@ -343,32 +324,17 @@ func featuresDisableActionNotRegistered(_ context.Context, _ *cli.Command, targe
 		}
 		// disable dependent features
 		for _, dependent := range target.RequiredBy() {
-			dependentName := dependent.String()
-			enabled, err := cache.Get(dependentName)
-			if err != nil {
-				return cli.Exit(fmt.Sprintf("failed to get feature preference: %v", err), exitcode.Software)
-			}
-			if enabled {
-				fmt.Printf("During registration, '%s' will not be enabled (depends on '%s').\n", dependentName, targetName)
-				if err = cache.Set(dependentName, false); err != nil {
-					return cli.Exit(fmt.Sprintf("failed to update preference: %v", err), exitcode.Software)
-				}
-				slog.Debug("disabling feature", "name", dependentName)
+			if cache.Get(dependent) {
+				fmt.Printf("During registration, '%s' will not be enabled (depends on '%s').\n", dependent.String(), targetName)
+				cache.Set(dependent, false)
+				slog.Debug("disabling feature", "name", dependent.String())
 			}
 		}
-		// disable target features
-		{
-			enabled, err := cache.Get(targetName)
-			if err != nil {
-				return cli.Exit(fmt.Sprintf("failed to get feature preference: %v", err), exitcode.Software)
-			}
-			if enabled {
-				fmt.Printf("During registration, '%s' will not be enabled.\n", targetName)
-				if err = cache.Set(targetName, false); err != nil {
-					return cli.Exit(fmt.Sprintf("failed to update preference: %v", err), exitcode.Software)
-				}
-				slog.Debug("disabling feature", "name", targetName)
-			}
+		// disable target feature
+		if cache.Get(target) {
+			fmt.Printf("During registration, '%s' will not be enabled.\n", targetName)
+			cache.Set(target, false)
+			slog.Debug("disabling feature", "name", targetName)
 		}
 	}
 

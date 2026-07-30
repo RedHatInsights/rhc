@@ -1,4 +1,4 @@
-package prefcache
+package feature
 
 import (
 	"encoding/json"
@@ -6,6 +6,8 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+
+	"github.com/redhatinsights/rhc/pkg/operations"
 )
 
 // PreferenceCache manages feature preferences in memory with lazy file persistence.
@@ -97,28 +99,18 @@ func LoadCache(filePath string) (*PreferenceCache, error) {
 	return cache, nil
 }
 
-// Get returns the preference value for a feature by name.
-// Returns an error if the feature preference is not set.
-func (c *PreferenceCache) Get(featureName string) (bool, error) {
-	value, exists := c.prefs[featureName]
-	if !exists {
-		return false, fmt.Errorf("no such feature: %q", featureName)
-	}
-	return value, nil
+// Get returns the preference value for a feature.
+func (c *PreferenceCache) Get(f operations.Feature) bool {
+	return c.prefs[f.String()]
 }
 
-// Set updates the preference value for a feature by name and marks the cache as dirty.
-// Returns an error if the feature name does not exist in the cache.
-func (c *PreferenceCache) Set(featureName string, enabled bool) error {
-	currentValue, exists := c.prefs[featureName]
-	if !exists {
-		return fmt.Errorf("no such feature: %q", featureName)
-	}
-	if currentValue != enabled {
-		c.prefs[featureName] = enabled
+// Set updates the preference value for a feature and marks the cache as dirty.
+func (c *PreferenceCache) Set(f operations.Feature, enabled bool) {
+	key := f.String()
+	if c.prefs[key] != enabled {
+		c.prefs[key] = enabled
 		c.dirty = true
 	}
-	return nil
 }
 
 // Save writes the cache to the disk if it has been modified.

@@ -22,7 +22,7 @@ import (
 	"github.com/redhatinsights/rhc/internal/ui"
 	"github.com/redhatinsights/rhc/pkg/exitcode"
 	"github.com/redhatinsights/rhc/pkg/feature"
-	"github.com/redhatinsights/rhc/pkg/feature/prefcache"
+	"github.com/redhatinsights/rhc/pkg/operations"
 )
 
 type FeatureResult struct {
@@ -287,26 +287,26 @@ func checkFeatureFlags(toEnable, toDisable []string) error {
 
 	// Check for enabling a feature while disabling its dependencies
 	for _, e := range toEnable {
-		f, err := feature.Get(e)
+		f, err := operations.ParseFeature(e)
 		if err != nil {
 			return err
 		}
 		for _, dep := range f.Requires() {
-			if toDisableMap[dep] {
-				return fmt.Errorf("invalid combination: enable '%s', disable '%s'", e, dep)
+			if toDisableMap[dep.String()] {
+				return fmt.Errorf("invalid combination: enable '%s', disable '%s'", e, dep.String())
 			}
 		}
 	}
 
 	// Check for disabling a feature while enabling features that depend on it
 	for _, d := range toDisable {
-		f, err := feature.Get(d)
+		f, err := operations.ParseFeature(d)
 		if err != nil {
 			return err
 		}
 		for _, dependent := range f.RequiredBy() {
-			if toEnableMap[dependent] {
-				return fmt.Errorf("invalid combination: enable '%s', disable '%s'", dependent, d)
+			if toEnableMap[dependent.String()] {
+				return fmt.Errorf("invalid combination: enable '%s', disable '%s'", dependent.String(), d)
 			}
 		}
 	}
@@ -403,27 +403,31 @@ func beforeConnectAction(ctx context.Context, cmd *cli.Command) (context.Context
 	// Load preference cache created by 'rhc configure features'.
 	// If --enable-feature or --disable-feature flags are provided, ignore the cache file
 	// and start with defaults.
-	var cache *prefcache.PreferenceCache
+	var cache *feature.PreferenceCache
 	if len(cmd.StringSlice("enable-feature")) > 0 || len(cmd.StringSlice("disable-feature")) > 0 {
-		cache, err = prefcache.NewDefaultCache(ConnectFeaturesPrefsPath)
+		cache, err = feature.NewDefaultCache(ConnectFeaturesPrefsPath)
 		if err != nil {
 			return ctx, cli.Exit(fmt.Sprintf("failed to create default cache: %v", err), exitcode.Software)
 		}
-		for _, f := range cmd.StringSlice("enable-feature") {
-			if err = cache.Set(f, true); err != nil {
-				return ctx, cli.Exit(err.Error(), exitcode.DataErr)
+		for _, name := range cmd.StringSlice("enable-feature") {
+			feat, parseErr := operations.ParseFeature(name)
+			if parseErr != nil {
+				return ctx, cli.Exit(parseErr.Error(), exitcode.DataErr)
 			}
+			cache.Set(feat, true)
 		}
-		for _, f := range cmd.StringSlice("disable-feature") {
-			if err = cache.Set(f, false); err != nil {
-				return ctx, cli.Exit(err.Error(), exitcode.DataErr)
+		for _, name := range cmd.StringSlice("disable-feature") {
+			feat, parseErr := operations.ParseFeature(name)
+			if parseErr != nil {
+				return ctx, cli.Exit(parseErr.Error(), exitcode.DataErr)
 			}
+			cache.Set(feat, false)
 		}
 		ui.Printf("Notice: ignoring preferences set via 'rhc configure features'.\n")
 		ui.Printf("\n")
 	} else {
 		// No flags provided, load cache from file (or defaults if file doesn't exist)
-		cache, err = prefcache.LoadCache(ConnectFeaturesPrefsPath)
+		cache, err = feature.LoadCache(ConnectFeaturesPrefsPath)
 		if err != nil {
 			return ctx, cli.Exit(fmt.Sprintf("failed to load preferences: %v", err), exitcode.Software)
 		}
@@ -432,11 +436,7 @@ func beforeConnectAction(ctx context.Context, cmd *cli.Command) (context.Context
 	cmd.Root().Metadata[connectCacheKey] = cache
 
 	// Error out if we're trying to set content templates without having enabling content
-	contentEnabled, err := cache.Get("content")
-	if err != nil {
-		return ctx, cli.Exit(fmt.Sprintf("failed to get content preference: %v", err), exitcode.Software)
-	}
-	if !contentEnabled && len(contentTemplates) > 0 {
+	if !cache.Get(operations.Content) && len(contentTemplates) > 0 {
 		return ctx, cli.Exit("content feature is disabled, cannot use --content-template", exitcode.Usage)
 	}
 
@@ -454,14 +454,7 @@ func beforeConnectAction(ctx context.Context, cmd *cli.Command) (context.Context
 // then we start remote management service yggdrasil.
 func connectAction(ctx context.Context, cmd *cli.Command) error {
 	logCommandStart(cmd)
-	cache := cmd.Root().Metadata[connectCacheKey].(*prefcache.PreferenceCache)
-
-	// FIXME Refactor
-	//   - Either implement cache.MustGet, or convert it to use enum instead of strings
-	//   - Stop mutating connectResult
-	//     - Rewrite it in terms of IFeature
-	//     - Collect outputs into output DTO
-	//     - Move error handling to consistent and understandable pattern
+	cache := cmd.Root().Metadata[connectCacheKey].(*feature.PreferenceCache)
 
 	var connectResult ConnectResult
 	connectResult.format = cmd.String("format")
@@ -492,25 +485,13 @@ func connectAction(ctx context.Context, cmd *cli.Command) error {
 
 	ui.Printf("Connecting %v to Red Hat.", hostname)
 	var toEnableList []string
-	contentEnabled, err := cache.Get("content")
-	if err != nil {
-		return cli.Exit(fmt.Sprintf("failed to get content preference: %v", err), exitcode.Software)
-	}
-	if contentEnabled {
+	if cache.Get(operations.Content) {
 		toEnableList = append(toEnableList, "content")
 	}
-	analyticsEnabled, err := cache.Get("analytics")
-	if err != nil {
-		return cli.Exit(fmt.Sprintf("failed to get analytics preference: %v", err), exitcode.Software)
-	}
-	if analyticsEnabled {
+	if cache.Get(operations.Analytics) {
 		toEnableList = append(toEnableList, "analytics")
 	}
-	remoteManagementEnabled, err := cache.Get("remote-management")
-	if err != nil {
-		return cli.Exit(fmt.Sprintf("failed to get remote-management preference: %v", err), exitcode.Software)
-	}
-	if remoteManagementEnabled {
+	if cache.Get(operations.RemoteManagement) {
 		toEnableList = append(toEnableList, "remote management")
 	}
 	if len(toEnableList) > 0 {
@@ -525,23 +506,12 @@ func connectAction(ctx context.Context, cmd *cli.Command) error {
 	// Register to Red Hat Subscription Management
 	{
 		start = time.Now()
-		contentRequested, err := cache.Get("content")
-		if err != nil {
-			return cli.Exit(fmt.Sprintf("failed to get content preference: %v", err), exitcode.Software)
-		}
-		connectResult.TryRegisterRHSM(
-			cmd,
-			contentRequested,
-		)
+		connectResult.TryRegisterRHSM(cmd, cache.Get(operations.Content))
 		durations["rhsm"] = time.Since(start)
 	}
 
 	// Enable data collection
-	analyticsRequested, err := cache.Get("analytics")
-	if err != nil {
-		return cli.Exit(fmt.Sprintf("failed to get analytics preference: %v", err), exitcode.Software)
-	}
-	if analyticsRequested {
+	if cache.Get(operations.Analytics) {
 		start = time.Now()
 		connectResult.TryRegisterInsightsClient()
 		durations["insights"] = time.Since(start)
@@ -550,11 +520,7 @@ func connectAction(ctx context.Context, cmd *cli.Command) error {
 	}
 
 	// Enable remote management
-	remoteManagementRequested, err := cache.Get("remote-management")
-	if err != nil {
-		return cli.Exit(fmt.Sprintf("failed to get remote-management preference: %v", err), exitcode.Software)
-	}
-	if remoteManagementRequested {
+	if cache.Get(operations.RemoteManagement) {
 		if !connectResult.Features.Content.Successful {
 			connectResult.Features.RemoteManagement.Skipped = true
 			connectResult.Features.RemoteManagement.Successful = false
@@ -602,13 +568,16 @@ func connectAction(ctx context.Context, cmd *cli.Command) error {
 	}
 
 	if ui.IsOutputMachineReadable() {
-		connectResult.Features.Content.Enabled, _ = feature.MustGet("content").IsEnabled()
-		connectResult.Features.Analytics.Enabled, _ = feature.MustGet("analytics").IsEnabled()
-		connectResult.Features.RemoteManagement.Enabled, _ = feature.MustGet("remote-management").IsEnabled()
+		connectResult.Features.Content.Enabled = operations.FeatureStatus(
+			operations.FeatureOperationOptions{Feature: operations.Content}).Enabled
+		connectResult.Features.Analytics.Enabled = operations.FeatureStatus(
+			operations.FeatureOperationOptions{Feature: operations.Analytics}).Enabled
+		connectResult.Features.RemoteManagement.Enabled = operations.FeatureStatus(
+			operations.FeatureOperationOptions{Feature: operations.RemoteManagement}).Enabled
 		fmt.Println(connectResult.Error())
 	}
 
-	err = cmd.Root().Metadata[connectCacheKey].(*prefcache.PreferenceCache).Delete()
+	err = cache.Delete()
 	if err != nil {
 		slog.Debug("could not delete preferences cache", "err", err)
 	}
