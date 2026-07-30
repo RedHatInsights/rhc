@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+
 	"github.com/jirihnidek/rhsm2"
 )
 
@@ -53,4 +55,42 @@ func IsSystemRegistered() (bool, error) {
 	}
 
 	return true, nil
+}
+
+// GetContentOverrides retrieves content overrides from the candlepin server.
+func GetContentOverrides(ipcSender *string, locale *string, correlationID *string) ([]rhsm2.ContentOverride, error) {
+	appName := AppName
+	rhsmClient, err := rhsm2.GetRHSMClient(&appName, nil)
+	if err != nil {
+		return nil, &ClientError{Message: err.Error()}
+	}
+
+	clientInfo := rhsm2.RequestMetadata{IPCSender: ipcSender, Locale: locale, CorrelationId: correlationID}
+	overrides, err := rhsmClient.GetContentOverrides(&clientInfo)
+	if err != nil {
+		return nil, &ServerError{Message: err.Error()}
+	}
+
+	return overrides, nil
+}
+
+// UploadContentOverrides reads local DNF5 repo overrides and pushes them to the candlepin server.
+func UploadContentOverrides(ipcSender *string, locale *string, correlationID *string) error {
+	appName := AppName
+	rhsmClient, err := rhsm2.GetRHSMClient(&appName, nil)
+	if err != nil {
+		return &ClientError{Message: err.Error()}
+	}
+
+	overrides, err := rhsm2.ReadLocalContentOverrides(rhsm2.Dnf5RedHatReposOverrideFilePath)
+	if err != nil {
+		return &ServerError{Message: fmt.Sprintf("failed to read local DNF5 repo overrides: %s", err)}
+	}
+
+	clientInfo := rhsm2.RequestMetadata{IPCSender: ipcSender, Locale: locale, CorrelationId: correlationID}
+	if err := rhsmClient.SendContentOverrides(overrides, &clientInfo); err != nil {
+		return &ServerError{Message: err.Error()}
+	}
+
+	return nil
 }

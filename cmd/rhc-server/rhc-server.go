@@ -9,6 +9,7 @@ import (
 	"github.com/jirihnidek/rhsm2"
 	"github.com/redhatinsights/rhc/internal/collector"
 	"github.com/redhatinsights/rhc/varlink/collectorapi"
+	"github.com/redhatinsights/rhc/varlink/overrideapi"
 	"github.com/redhatinsights/rhc/varlink/rhsmapi"
 )
 
@@ -114,4 +115,80 @@ func (b *RHSMBackend) IsRegistered(in *rhsmapi.IsRegisteredIn) (*rhsmapi.IsRegis
 		return &rhsmapi.IsRegisteredOut{Registered: false}, nil
 	}
 	return &rhsmapi.IsRegisteredOut{Registered: registered}, nil
+}
+
+// ContentOverrideBackend implements the overrideapi.Backend interface.
+type ContentOverrideBackend struct{}
+
+// NewContentOverrideBackend creates a new ContentOverrideBackend instance.
+func NewContentOverrideBackend() *ContentOverrideBackend {
+	return &ContentOverrideBackend{}
+}
+
+// Download fetches content overrides from the candlepin server.
+func (b *ContentOverrideBackend) Download(in *overrideapi.DownloadIn) (*overrideapi.DownloadOut, error) {
+	registered, err := IsSystemRegistered()
+	if err != nil || !registered {
+		return nil, &overrideapi.SystemNotRegisteredError{}
+	}
+
+	var overrides []rhsm2.ContentOverride
+
+	if in.Metadata != nil {
+		overrides, err = GetContentOverrides(
+			in.Metadata.UserAgent,
+			in.Metadata.Locale,
+			in.Metadata.CorrelationId,
+		)
+	} else {
+		overrides, err = GetContentOverrides(nil, nil, nil)
+	}
+	if err != nil {
+		slog.Error("Failed to download content overrides", "error", err)
+		return nil, err
+	}
+
+	result := make([]overrideapi.ContentOverride, 0, len(overrides))
+	for _, o := range overrides {
+		co := overrideapi.ContentOverride{
+			ContentLabel: o.ContentLabel,
+			Name:         o.Name,
+			Value:        o.Value,
+		}
+		if o.Created != "" {
+			created := o.Created
+			co.Created = &created
+		}
+		if o.Updated != "" {
+			updated := o.Updated
+			co.Updated = &updated
+		}
+		result = append(result, co)
+	}
+
+	return &overrideapi.DownloadOut{ContentOverrides: result}, nil
+}
+
+// Upload reads local DNF5 repo overrides and sends them to the candlepin server.
+func (b *ContentOverrideBackend) Upload(in *overrideapi.UploadIn) (*overrideapi.UploadOut, error) {
+	registered, err := IsSystemRegistered()
+	if err != nil || !registered {
+		return nil, &overrideapi.SystemNotRegisteredError{}
+	}
+
+	if in.Metadata != nil {
+		err = UploadContentOverrides(
+			in.Metadata.UserAgent,
+			in.Metadata.Locale,
+			in.Metadata.CorrelationId,
+		)
+	} else {
+		err = UploadContentOverrides(nil, nil, nil)
+	}
+	if err != nil {
+		slog.Error("Failed to upload content overrides", "error", err)
+		return nil, err
+	}
+
+	return &overrideapi.UploadOut{Success: true}, nil
 }

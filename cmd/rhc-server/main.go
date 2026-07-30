@@ -19,6 +19,7 @@ import (
 	"github.com/redhatinsights/rhc/pkg/exitcode"
 	"github.com/redhatinsights/rhc/pkg/version"
 	"github.com/redhatinsights/rhc/varlink/collectorapi"
+	"github.com/redhatinsights/rhc/varlink/overrideapi"
 )
 
 const (
@@ -58,6 +59,7 @@ func run() error {
 
 	collectorapi.Handler{Backend: NewCollectorBackend()}.Register(registry)
 	rhsmapi.Handler{Backend: NewRHSMBackend()}.Register(registry)
+	overrideapi.Handler{Backend: NewContentOverrideBackend()}.Register(registry)
 
 	varlinkServer := &govarlink.Server{Handler: registry}
 
