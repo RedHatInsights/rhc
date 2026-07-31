@@ -1,33 +1,31 @@
 /*
-Package feature provides a unified interface for managing feature levels.
+Package feature keeps track of feature preferences.
 
-# System and feature lifecycle
+The PreferenceCache keeps track of feature preferences in memory and
+synchronizes them to filesystem when needed, using a dirty flag to track
+state.
 
-  - Before registration: Use the prefcache subpackage. No system changes are
-    applied yet.
-  - During and after registration: Features are enabled and disabled
-    immediately by altering the system configuration.
+	│ NewDefaultCache()
+	│ LoadCache()
+	▼
+	┌──────────────┐───────────>┌──────────────┐
+	│ not dirty    │ Set()      │ dirty        │
+	│ file absent  │   Delete() │ file absent  │
+	└──────────────┘<───────────└──────────────┘
+	▲                                   Save() │
+	│ Delete()                                 ▼
+	┌──────────────┐───────────>┌──────────────┐
+	│ dirty        │ Save()     │ not dirty    │
+	│ file present │      Set() │ file present │
+	└──────────────┘<───────────└──────────────┘
+	                                           ▲
+	                               LoadCache() │
 
-Features declare dependencies on other features. Dependencies are enforced:
-  - before a feature is enabled, all required features will be enabled,
-  - before a feature is disabled, all dependent features will be disabled.
+This diagram omits parts of the internal behavior:
 
-# Package usage
-
-Every feature must implement the IFeature interface. Several feature levels
-are available:
-  - content: Red Hat content management
-  - analytics: Red Hat Lightspeed data collection
-  - remote-management: Red Hat Lightspeed remote management
-
-Feature objects can be retrieved using Get() or MustGet():
-
-	feature, err := feature.Get("analytics")
-	if err != nil {
-		// handle error
-	}
-	if err := feature.Enable(); err != nil {
-		// handle error
-	}
+  - Set does not set a dirty flag if nothing changed (i.e., enabled feature is
+    requested to be enabled).
+  - Save does not write down the cache if it is not dirty.
+  - Save deletes the file if the cache matches the default cache.
 */
 package feature

@@ -1,10 +1,12 @@
-package prefcache
+package feature
 
 import (
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/redhatinsights/rhc/pkg/operations"
 )
 
 // Helper function to create a temporary directory for tests.
@@ -34,32 +36,14 @@ func assertCacheDirty(t *testing.T, c *PreferenceCache, stage string, dirty bool
 func assertCacheFeatures(t *testing.T, c *PreferenceCache, stage string, content, analytics, mgmt bool) {
 	t.Helper()
 
-	{
-		v, e := c.Get("content")
-		if e != nil {
-			t.Errorf("%s: 'content' must exist, got %v", stage, e)
-		}
-		if v != content {
-			t.Errorf("%s: content: expected %v, got %v", stage, content, v)
-		}
+	if v := c.Get(operations.Content); v != content {
+		t.Errorf("%s: content: expected %v, got %v", stage, content, v)
 	}
-	{
-		v, e := c.Get("analytics")
-		if e != nil {
-			t.Errorf("%s: 'analytics' must exist, got %v", stage, e)
-		}
-		if v != analytics {
-			t.Errorf("%s: analytics: expected %v, got %v", stage, analytics, v)
-		}
+	if v := c.Get(operations.Analytics); v != analytics {
+		t.Errorf("%s: analytics: expected %v, got %v", stage, analytics, v)
 	}
-	{
-		v, e := c.Get("remote-management")
-		if e != nil {
-			t.Errorf("%s: 'remote-management' must exist, got %v", stage, e)
-		}
-		if v != mgmt {
-			t.Errorf("%s: remote-management: expected %v, got %v", stage, mgmt, v)
-		}
+	if v := c.Get(operations.RemoteManagement); v != mgmt {
+		t.Errorf("%s: remote-management: expected %v, got %v", stage, mgmt, v)
 	}
 }
 
@@ -125,17 +109,13 @@ func TestFunctional(t *testing.T) {
 	assertFileAbsent(t, "DefaultCache()", filePath)
 
 	// Enabling already enabled feature is noop; keep 'dirty' false
-	if err := cache.Set("remote-management", true); err != nil {
-		t.Fatalf("Set() returned error: %v", err)
-	}
+	cache.Set(operations.RemoteManagement, true)
 	assertCacheDirty(t, cache, "Set() [noop]", false)
 	assertCacheFeatures(t, cache, "Set() [noop]", true, true, true)
 	assertFileAbsent(t, "Set() [noop]", filePath)
 
 	// Disabling enabled feature sets 'dirty' and the feature bool
-	if err := cache.Set("remote-management", false); err != nil {
-		t.Fatalf("Set() returned error: %v", err)
-	}
+	cache.Set(operations.RemoteManagement, false)
 	assertCacheDirty(t, cache, "Set() [dirty]", true)
 	assertCacheFeatures(t, cache, "Set() [dirty]", true, true, false)
 	assertFileAbsent(t, "Set() [dirty]", filePath)
@@ -158,17 +138,13 @@ func TestFunctional(t *testing.T) {
 	assertFileContent(t, "Reload", filePath, true, true, false)
 
 	// Disabling already disabled feature is noop; keep 'dirty' false
-	if err = cache.Set("remote-management", false); err != nil {
-		t.Fatalf("Set() returned error: %v", err)
-	}
+	cache.Set(operations.RemoteManagement, false)
 	assertCacheDirty(t, cache, "Set() [noop,file]", false)
 	assertCacheFeatures(t, cache, "Set() [noop,file]", true, true, false)
 	assertFileContent(t, "Set() [noop,file]", filePath, true, true, false)
 
 	// Disabling enabled feature sets 'dirty' to true
-	if err = cache.Set("remote-management", true); err != nil {
-		t.Fatalf("Set() returned error: %v", err)
-	}
+	cache.Set(operations.RemoteManagement, true)
 	assertCacheDirty(t, cache, "Set() [dirty,file]", true)
 	assertCacheFeatures(t, cache, "Set() [dirty,file]", true, true, true)
 	assertFileContent(t, "Set() [dirty,file]", filePath, true, true, false)
@@ -205,9 +181,7 @@ func TestFunctionalFSBacked(t *testing.T) {
 	assertFileContent(t, "LoadCache()", filePath, true, true, false)
 
 	// Enable remote management, getting us to the default state
-	if err = cache.Set("remote-management", true); err != nil {
-		t.Fatalf("Set() returned error: %v", err)
-	}
+	cache.Set(operations.RemoteManagement, true)
 	assertCacheDirty(t, cache, "Set()", true)
 	assertCacheFeatures(t, cache, "Set()", true, true, true)
 	assertFileContent(t, "Set()", filePath, true, true, false)
@@ -235,29 +209,5 @@ func TestPathValidation(t *testing.T) {
 				t.Errorf("validatePath('%q') expected an error, got nil", path)
 			}
 		})
-	}
-}
-
-// TestInvalidInput validates Get() and Set() return errors on invalid feature names.
-func TestInvalidInput(t *testing.T) {
-	tmpDir, cleanup := setupTestDir(t)
-	defer cleanup()
-	filePath := filepath.Join(tmpDir, "prefs.json")
-
-	cache, err := NewDefaultCache(filePath)
-	if err != nil {
-		t.Fatalf("NewDefaultCache() returned error: %v", err)
-	}
-
-	// Test Get() with invalid feature name
-	_, err = cache.Get("nonexistent-feature")
-	if err == nil {
-		t.Errorf("Get('nonexistent-feature') expected error, got nil")
-	}
-
-	// Test Set() with invalid feature name
-	err = cache.Set("invalid-feature", true)
-	if err == nil {
-		t.Errorf("Set('invalid-feature', true) expected error, got nil")
 	}
 }

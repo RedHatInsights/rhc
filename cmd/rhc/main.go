@@ -18,7 +18,7 @@ import (
 	"github.com/redhatinsights/rhc/internal/conf"
 	"github.com/redhatinsights/rhc/internal/ui"
 	"github.com/redhatinsights/rhc/pkg/exitcode"
-	"github.com/redhatinsights/rhc/pkg/feature"
+	"github.com/redhatinsights/rhc/pkg/operations"
 	"github.com/redhatinsights/rhc/pkg/version"
 )
 
@@ -149,8 +149,8 @@ func main() {
 		"Run '" + app.Name + " command --help' for more details."
 
 	var featureIdSlice []string
-	for _, f := range feature.All() {
-		featureIdSlice = append(featureIdSlice, f.ID())
+	for _, f := range operations.AllFeatures() {
+		featureIdSlice = append(featureIdSlice, f.String())
 	}
 	featureIDs := strings.Join(featureIdSlice, ", ")
 
