@@ -1,0 +1,41 @@
+interface com.redhat.rhsm.testing.content.override
+
+type Metadata (
+    # The user agent string (e.g. "rhc/5.4.3")
+    user_agent: ?string,
+    # The correlation id
+    correlation_id: ?string,
+    # The locale string (e.g. en_US.UTF-8)
+    locale: ?string
+)
+
+# Content override representing repo override
+type ContentOverride (
+    created: ?string,
+    updated: ?string,
+    content_label: string,
+    name: string,
+    value: string
+)
+
+# Many methods in this interface can be used only in the situation, when the system is registered
+error SystemNotRegistered()
+
+# This error is used, when rhsm is configured to not manage content
+error ContentNotManaged()
+
+# Get content overrides from the candlepin server
+# When system is not registered, then return error SystemNotRegistered
+method Download(
+    metadata: ?Metadata
+) -> (
+    content_overrides: []ContentOverride
+)
+
+# Read current repo-overrides in /etc/dnf/repo.override.d/ and convert it to
+# content overrides and send this document to candlepin server
+method Upload(
+    metadata: ?Metadata
+) -> (
+    success: bool
+)
