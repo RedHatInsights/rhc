@@ -2,8 +2,237 @@ import pytest
 import subprocess
 import logging
 import os
+import json
+import time
+import textwrap
+
+from utils.systemctl import is_service_active
 
 logger = logging.getLogger(__name__)
+
+RHC_COLLECTOR = "/usr/libexec/rhc/rhc-collector"
+TIMER_CACHE_DIR = "/var/cache/rhc/collectors"
+
+MINIMAL_COLLECTOR_ID = "com.redhat.minimal"
+MINIMAL_COLLECTOR_NAME = "Minimal Host Inventory Collector"
+MINIMAL_COLLECTOR_CONFIG_PATH = "/usr/lib/rhc/collectors/com.redhat.minimal.toml"
+MINIMAL_TIMER_UNIT = f"rhc-collector-{MINIMAL_COLLECTOR_ID}.timer"
+MINIMAL_SERVICE_UNIT = f"rhc-collector-{MINIMAL_COLLECTOR_ID}.service"
+
+
+@pytest.fixture(scope="module")
+def rhc_server_socket():
+    """
+    Fixture to ensure rhc-server.socket is enabled and running before collector tests.
+    This is required for varlinkctl to communicate with the rhc-server.
+    """
+    socket_name = "rhc-server.socket"
+
+    was_active = is_service_active(socket_name)
+
+    if not was_active:
+        subprocess.run(
+            ["systemctl", "enable", "--now", socket_name],
+            check=True,
+            capture_output=True,
+        )
+
+    yield
+
+    if not was_active:
+        subprocess.run(
+            ["systemctl", "disable", "--now", socket_name],
+            check=False,
+            capture_output=True,
+        )
+
+
+@pytest.fixture
+def collector_config():
+    """
+    Fixture to create a test collector configuration and binary
+    that has NO systemd timer/service units.
+    Used by tests that need a collector without systemd units
+    (e.g. testing the 'missing timer' error path).
+    """
+    collector_config_dir = "/usr/lib/rhc/collectors"
+    collector_bin_dir = "/usr/libexec/rhc/collectors"
+    collector_id = "test.integration.collector"
+    collector_config_path = os.path.join(collector_config_dir, f"{collector_id}.toml")
+    collector_bin_path = os.path.join(collector_bin_dir, collector_id)
+
+    config_content = textwrap.dedent("""
+        [meta]
+        name = "Test Integration Collector"
+        feature = "analytics"
+        type = "ingress"
+
+        [ingress]
+        user = "root"
+        group = "root"
+        content_type = "application/vnd.redhat.test.collection"
+    """).strip()
+
+    collector_script = textwrap.dedent("""
+        #!/bin/bash
+        if [ "$1" = "collect" ]; then
+            echo "test data" > "test-output.txt"
+            exit 0
+        else
+            echo "Usage: $0 collect"
+            exit 1
+        fi
+    """).strip()
+
+    os.makedirs(collector_config_dir, exist_ok=True)
+    with open(collector_config_path, "w") as f:
+        f.write(config_content)
+
+    os.makedirs(collector_bin_dir, exist_ok=True)
+    with open(collector_bin_path, "w") as f:
+        f.write(collector_script)
+    os.chmod(collector_bin_path, 0o755)
+
+    yield {
+        "id": collector_id,
+        "name": "Test Integration Collector",
+        "config_path": collector_config_path,
+        "bin_path": collector_bin_path,
+    }
+
+    if os.path.exists(collector_config_path):
+        os.remove(collector_config_path)
+    if os.path.exists(collector_bin_path):
+        os.remove(collector_bin_path)
+
+
+@pytest.fixture
+def collector_minimal():
+    """
+    Fixture to create a minimal collector with only a config file.
+    No binary, no cache, no systemd units.
+    """
+    collector_dir = "/usr/lib/rhc/collectors"
+    os.makedirs(collector_dir, exist_ok=True)
+
+    collector_id = "test.collector1"
+    collector_name = "Test Minimal Collector"
+
+    config_path = os.path.join(collector_dir, f"{collector_id}.toml")
+    config_content = textwrap.dedent("""
+        [meta]
+        name = "Test Minimal Collector"
+        feature = "analytics"
+        type = "ingress"
+
+        [ingress]
+        user = "root"
+        group = "root"
+        content_type = "application/vnd.redhat.advisor.collection"
+    """).strip()
+
+    with open(config_path, "w") as f:
+        f.write(config_content)
+
+    yield {
+        "id": collector_id,
+        "name": collector_name,
+        "config_path": config_path,
+    }
+
+    if os.path.exists(config_path):
+        os.remove(config_path)
+
+
+@pytest.fixture
+def minimal_collector_timer_disabled():
+    """
+    Ensure the shipped com.redhat.minimal timer starts disabled for the test
+    and is restored to enabled + daemon-reloaded afterwards.
+    """
+    subprocess.run(
+        ["systemctl", "disable", "--now", MINIMAL_TIMER_UNIT],
+        check=False,
+        capture_output=True,
+    )
+    subprocess.run(["systemctl", "daemon-reload"], check=True)
+
+    yield
+
+    subprocess.run(
+        ["systemctl", "enable", "--now", MINIMAL_TIMER_UNIT],
+        check=False,
+        capture_output=True,
+    )
+    subprocess.run(["systemctl", "daemon-reload"], check=True)
+
+
+@pytest.fixture
+def minimal_collector_with_timing():
+    """
+    Enable the shipped com.redhat.minimal timer and seed a timer cache
+    so the collector has both next_run and last_run data.
+    """
+    cache_dir = TIMER_CACHE_DIR
+    os.makedirs(cache_dir, exist_ok=True)
+
+    cache_path = os.path.join(cache_dir, f"{MINIMAL_COLLECTOR_ID}.json")
+    last_finished_timestamp = int(time.time()) - 3600
+    last_started_timestamp = last_finished_timestamp - 30
+
+    cache_content = {
+        "last_started": {"timestamp": last_started_timestamp},
+        "last_finished": {"timestamp": last_finished_timestamp, "exit_code": 0},
+    }
+    with open(cache_path, "w") as f:
+        json.dump(cache_content, f)
+
+    subprocess.run(["systemctl", "daemon-reload"], check=True)
+    subprocess.run(
+        ["systemctl", "enable", "--now", MINIMAL_TIMER_UNIT],
+        check=True,
+    )
+
+    yield {
+        "id": MINIMAL_COLLECTOR_ID,
+        "name": MINIMAL_COLLECTOR_NAME,
+        "config_path": MINIMAL_COLLECTOR_CONFIG_PATH,
+        "cache_path": cache_path,
+        "last_run": last_finished_timestamp,
+    }
+
+    subprocess.run(
+        ["systemctl", "disable", "--now", MINIMAL_TIMER_UNIT],
+        check=False,
+    )
+    subprocess.run(["systemctl", "daemon-reload"], check=True)
+
+    if os.path.exists(cache_path):
+        os.remove(cache_path)
+
+
+@pytest.fixture
+def minimal_collector_timer_cache():
+    """
+    Fixture to create a timer cache for the shipped com.redhat.minimal collector.
+    """
+    cache_dir = TIMER_CACHE_DIR
+    os.makedirs(cache_dir, exist_ok=True)
+
+    cache_path = os.path.join(cache_dir, f"{MINIMAL_COLLECTOR_ID}.json")
+    last_run_timestamp = int(time.time()) - 3600
+
+    cache_content = {
+        "last_started": {"timestamp": last_run_timestamp - 30},
+        "last_finished": {"timestamp": last_run_timestamp, "exit_code": 0},
+    }
+    with open(cache_path, "w") as f:
+        json.dump(cache_content, f)
+
+    yield {"path": cache_path, "last_run": last_run_timestamp}
+
+    if os.path.exists(cache_path):
+        os.remove(cache_path)
 
 
 @pytest.fixture(scope="session", autouse=True)

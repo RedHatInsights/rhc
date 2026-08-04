@@ -11,7 +11,7 @@ import pytest
 from utils.varlink import run_varlinkctl
 from utils.systemctl import (
     is_service_active,
-    is_socket_enabled,
+    is_unit_enabled,
     stop_service,
     enable_and_start_socket,
     disable_and_stop_socket,
@@ -27,7 +27,7 @@ def fd3_socket_setup():
     socket_name = "rhc-server.socket"
     service_name = "rhc-server.service"
 
-    socket_was_enabled = is_socket_enabled(socket_name)
+    socket_was_enabled = is_unit_enabled(socket_name)
 
     if not socket_was_enabled:
         enable_and_start_socket(socket_name)
