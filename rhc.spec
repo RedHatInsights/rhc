@@ -159,7 +159,9 @@ fi
 %if 0%{?with_rhcd_compat}
 # rhcd_t is the SELinux type used by the old rhcd daemon. Add it to the
 # permissive list so existing policies do not block yggdrasil on upgrade.
-/usr/sbin/semanage permissive --add rhcd_t || true
+if command -v selinuxenabled >/dev/null && selinuxenabled && [ -d /var/lib/selinux ]; then
+	/usr/sbin/semanage permissive --add rhcd_t || true
+fi
 
 # Complete the config migration started in %pre: transform the backed-up
 # /etc/rhc/config.toml into a valid /etc/yggdrasil/config.toml.
@@ -183,7 +185,9 @@ fi
 %if 0%{?with_rhcd_compat}
 # Remove rhcd_t from the SELinux permissive list on full package removal.
 if [ $1 -eq 0 ]; then
-    /usr/sbin/semanage permissive --delete rhcd_t || true
+	if command -v selinuxenabled >/dev/null && selinuxenabled && [ -d /var/lib/selinux ]; then
+		/usr/sbin/semanage permissive --delete rhcd_t || true
+	fi
 fi
 %endif
 
