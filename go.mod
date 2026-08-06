@@ -10,7 +10,7 @@ require (
 	github.com/godbus/dbus/v5 v5.2.2
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
-	github.com/jirihnidek/rhsm2 v0.0.0-20260806054428-629538e7441d
+	github.com/jirihnidek/rhsm2 v0.0.0-20260806125901-cf03098a4d1c
 	github.com/pelletier/go-toml v1.9.5
 	github.com/urfave/cli-altsrc/v3 v3.1.0
 	github.com/urfave/cli-docs/v3 v3.1.0
