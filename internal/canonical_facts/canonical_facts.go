@@ -111,14 +111,11 @@ func CanonicalFactsFromMap(m map[string]interface{}) (*CanonicalFacts, error) {
 // data from the localhost.
 func GetCanonicalFacts() (*CanonicalFacts, error) {
 	var facts CanonicalFacts
-	var err error
 
-	if _, err := os.Stat("/etc/insights-client/machine-id"); !os.IsNotExist(err) {
-		insightsID, err := readFile("/etc/insights-client/machine-id")
-		if err != nil {
-			return nil, err
-		}
-		facts.InsightsID = insightsID
+	var err error
+	facts.InsightsID, err = readFile("/etc/insights-client/machine-id")
+	if err != nil && !os.IsNotExist(err) {
+		return nil, err
 	}
 
 	machineID, err := readFile("/etc/machine-id")
@@ -130,12 +127,9 @@ func GetCanonicalFacts() (*CanonicalFacts, error) {
 		return nil, err
 	}
 
-	if _, err := os.Stat("/sys/devices/virtual/dmi/id/product_uuid"); !os.IsNotExist(err) {
-		BIOSUUID, err := readFile("/sys/devices/virtual/dmi/id/product_uuid")
-		if err != nil {
-			return nil, err
-		}
-		facts.BIOSUUID = BIOSUUID
+	facts.BIOSUUID, err = readFile("/sys/devices/virtual/dmi/id/product_uuid")
+	if err != nil && !os.IsNotExist(err) {
+		return nil, err
 	}
 
 	facts.SubscriptionManagerID, err = readCert("/etc/pki/consumer/cert.pem")
