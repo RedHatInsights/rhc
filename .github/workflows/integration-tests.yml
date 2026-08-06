@@ -56,7 +56,7 @@ jobs:
       - name: "Install test dependencies"
         run: |
           dnf --setopt install_weak_deps=False install -y \
-            subscription-manager rhc python3-behave openssl curl \
+            subscription-manager python3-behave openssl curl \
             python3-jsonschema dbus-daemon
 
       - name: "Install built RPMs"
