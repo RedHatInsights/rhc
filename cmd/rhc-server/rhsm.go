@@ -87,6 +87,10 @@ func UploadContentOverrides(ipcSender *string, locale *string, correlationID *st
 		return &ServerError{Message: fmt.Sprintf("failed to read local DNF5 repo overrides: %s", err)}
 	}
 
+	if len(overrides) == 0 {
+		return nil
+	}
+
 	clientInfo := rhsm2.RequestMetadata{IPCSender: ipcSender, Locale: locale, CorrelationId: correlationID}
 	if err := rhsmClient.SendContentOverrides(overrides, &clientInfo); err != nil {
 		return &ServerError{Message: err.Error()}
