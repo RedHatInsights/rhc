@@ -4,6 +4,7 @@
 VERSION := $(shell rpmspec rhc.spec --query --srpm --queryformat '%{version}')
 LDFLAGS := -ldflags "-X github.com/redhatinsights/rhc/pkg/version.Version=$(VERSION)"
 GO_BUILD := go build $(LDFLAGS)
+RPMBUILD_CHECK_OPTION := $(if $(filter 1,$(NOCHECK)),--without check)
 
 # The 'build' target is not used during downstream packaging; it is present for upstream development purposes.
 .PHONY: build
@@ -36,7 +37,7 @@ srpm: archive archive-deps
 
 .PHONY: rpm
 rpm: srpm
-	rpmbuild --define "_sourcedir $$(pwd)" -bb rhc.spec
+	rpmbuild $(RPMBUILD_CHECK_OPTION) --define "_sourcedir $$(pwd)" -bb rhc.spec
 
 # The 'clean' target removes build artifacts.
 .PHONY: clean
