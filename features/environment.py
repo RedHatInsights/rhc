@@ -2,11 +2,14 @@
 This module contains environment setup and teardown functions for the test suite.
 """
 
+import os
+
 ENTITLEMENT_CERT_DIR = "/etc/pki/entitlement/"
 ENTITLEMENT_BACKUP_DIR_PREFIX = "entitlement-backup-"
 RELEASEVER_FILE = "/etc/dnf/vars/releasever"
 RHSM_HOST_CONFIG_DIR = "/etc/rhsm-host"
 ENTITLEMENT_HOST_CERT_DIR = "/etc/pki/entitlement-host"
+RHC_SERVER_LOG_FILE = "/var/log/rhc/rhc-server.log"
 
 
 def before_scenario(context, scenario) -> None:
@@ -16,7 +19,14 @@ def before_scenario(context, scenario) -> None:
     :param scenario: Scenario object
     :return: None
     """
-    pass
+
+    context.log_lines_before = 0
+    if os.path.exists(RHC_SERVER_LOG_FILE):
+        with open(RHC_SERVER_LOG_FILE, 'r') as f:
+            counter = 0
+            for _ in f:
+                counter += 1
+            context.log_lines_before = counter
 
 
 def after_scenario(context, scenario) -> None:
@@ -55,5 +65,14 @@ def after_step(context, step) -> None:
             print(f"context stdout: {context.cmd_stdout}")
         if hasattr(context, "cmd_stderr") and context.cmd_stderr:
             print(f"context stderr: {context.cmd_stderr}")
-        # TODO: Print logs of rhc-server since the scenario was started, which
-        #       could be useful for debugging
+        # Print logs of rhc-server since the scenario was started
+        if os.path.exists(RHC_SERVER_LOG_FILE):
+            with open(RHC_SERVER_LOG_FILE, 'r') as f:
+                counter = 0
+                print("rhc-server log lines since scenario start:")
+                for line in f:
+                    counter += 1
+                    if counter > context.log_lines_before:
+                        print(line, end='')
+        else:
+            print(f"rhc-server log file not found: {RHC_SERVER_LOG_FILE}")
