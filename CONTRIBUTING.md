@@ -37,6 +37,8 @@ $ # Prepare source RPM
 $ make srpm
 $ # Build binary RPMs
 $ make rpm
+$ # Build binary RPMs without running unit tests
+$ make rpm NOCHECK=1
 ```
 
 You can create an RPM package using [packit](https://packit.dev/docs/cli) CLI too:
