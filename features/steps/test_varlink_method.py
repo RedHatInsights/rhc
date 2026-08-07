@@ -2,11 +2,13 @@ from behave import given, when, then, step
 import behave.runner
 
 import json
+import time
 import jsonschema
 from pathlib import Path
 
 from common import run_in_context
 from constants import VARLINK_SOCKET
+
 
 @given("system is registered against candlepin server")
 def step_impl(context: behave.runner.Context):
@@ -55,7 +57,8 @@ def step_impl(context: behave.runner.Context):
         cmd = "rhc disconnect"
         run_in_context(context, cmd, can_fail=False)
 
-@when("varlink method is called")
+
+@step("varlink method is called")
 def step_impl(context: behave.runner.Context):
     """
     Call a varlink method on a specified interface.
@@ -80,6 +83,31 @@ def step_impl(context: behave.runner.Context):
     run_in_context(context, cmd, can_fail=False)
 
 
+@when("varlink method is called and error is expected")
+def step_impl(context: behave.runner.Context):
+    """
+    Call a varlink method on a specified interface, when it is expected that error is returned.
+    Example of a Gherkin table containing the name of the method, Varlink interface, and argument:
+      | method | interface               | arguments          |
+      | Ping   | com.redhat.rhsm.testing | '{"metadata": {}}' |
+    :param context: behave context
+    :return: None
+    """
+    varlink_interface = None
+    varlink_method = None
+    varlink_args = None
+    counter = 0
+    for row in context.table:
+        varlink_interface = row["interface"]
+        varlink_method = row["method"]
+        varlink_args = row["arguments"]
+        counter += 1
+    assert counter == 1, f"Expected exactly one row in table for 'varlink method called' ({counter} provided)"
+
+    cmd = f"varlinkctl call --no-pager --json=short {VARLINK_SOCKET} {varlink_interface}.{varlink_method} {varlink_args}"
+    run_in_context(context, cmd, can_fail=True)
+
+
 @then("varlink method returns")
 def step_impl(context: behave.runner.Context):
     """
@@ -88,7 +116,10 @@ def step_impl(context: behave.runner.Context):
     :return: None
     """
     json_object = context.text
-    result = json.loads(context.cmd_stdout)
+    try:
+        result = json.loads(context.cmd_stdout)
+    except json.decoder.JSONDecodeError as e:
+        raise AssertionError(f"Failed to decode JSON {context.cmd_stdout}: {e}")
     assert result == json.loads(json_object), f"Expected {json_object}, got {result}"
 
 @step("method returned JSON compliant with '{json_schema_doc}' schema")
@@ -117,3 +148,27 @@ def step_impl(context: behave.runner.Context):
     :return: None
     """
     assert context.cmd_exitcode == 0, f"Method call failed with exit code {context.cmd_exitcode}"
+
+
+@then("varlink error is raised")
+def step_impl(context: behave.runner.Context):
+    """
+    Verify that given Varlink error was raised
+    :param context: behave context
+    :return: None
+    """
+    assert context.cmd_exitcode != 0, f"Method call did not fail with non-zer exit code"
+    expected_error = context.text
+    std_err = context.cmd_stderr
+    assert expected_error in std_err
+
+
+@step("wait '{number}' seconds")
+def step_impl(context: behave.runner.Context, number: str):
+    """
+    Wait a given number of seconds. Could be a float value.
+    :param context: behave context
+    :param number: number of seconds to wait
+    :return: None
+    """
+    time.sleep(float(number))

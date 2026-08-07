@@ -56,7 +56,7 @@ jobs:
       - name: "Install test dependencies"
         run: |
           dnf --setopt install_weak_deps=False install -y \
-            subscription-manager rhc python3-behave openssl curl \
+            subscription-manager python3-behave openssl curl \
             python3-jsonschema dbus-daemon
 
       - name: "Install built RPMs"
@@ -117,7 +117,9 @@ jobs:
 
       - name: "Start RHC Varlink service"
         run: |
-          /usr/libexec/rhc/rhc-server &
+          SUBMAN_DEBUG_PRINT_REQUEST=1 \
+          SUBMAN_DEBUG_PRINT_RESPONSE=1 \
+          NO_COLOR=1 /usr/libexec/rhc/rhc-server > /var/log/rhc/rhc-server.log 2>&1 &
           sleep 2
           varlinkctl info /run/rhc/com.redhat.rhc
 
