@@ -3,6 +3,7 @@ Feature: The Varlink interface com.redhat.rhsm.content.release
   methods that allows to manage release version (releasever) of
   RHEL system
 
+
   # Scenarios for unregistered systems first
 
   Scenario: Download() method raises error on unregistered system
@@ -15,6 +16,7 @@ Feature: The Varlink interface com.redhat.rhsm.content.release
       com.redhat.rhsm.testing.content.release.SystemNotRegistered
       """
 
+
   Scenario: GetAvailableReleases() method raises error on unregistered system
     Given system is not registered
     When varlink method is called and error is expected
@@ -24,6 +26,7 @@ Feature: The Varlink interface com.redhat.rhsm.content.release
       """
       com.redhat.rhsm.testing.content.release.SystemNotRegistered
       """
+
 
   Scenario: GetCurrentRelease() method returns empty object on unregistered system (releasever file is empty)
     Given system is not registered
@@ -36,6 +39,7 @@ Feature: The Varlink interface com.redhat.rhsm.content.release
       {}
       """
 
+
   Scenario: GetCurrentRelease() method returns empty object on unregistered system (releasever does not exist)
     Given system is not registered
     Given releasever file is deleted
@@ -46,6 +50,7 @@ Feature: The Varlink interface com.redhat.rhsm.content.release
       """
       {}
       """
+
 
   Scenario: GetCurrentRelease() method returns content of releasever file
     Given system is not registered
@@ -60,6 +65,7 @@ Feature: The Varlink interface com.redhat.rhsm.content.release
       """
       {"release":"44"}
       """
+
 
   Scenario: SetRelease() method set release on unregistered system
     Given system is not registered
@@ -79,6 +85,7 @@ Feature: The Varlink interface com.redhat.rhsm.content.release
       | method       | interface                               | arguments |
       | UnsetRelease | com.redhat.rhsm.testing.content.release | '{}'      |
 
+
   Scenario: SetRelease({"Release": ""}) method unset release on unregistered systems
     Given system is not registered
     Given releasever file contains
@@ -93,6 +100,7 @@ Feature: The Varlink interface com.redhat.rhsm.content.release
       {"success":true}
       """
     And releasever file does not exists
+
 
   Scenario: UnsetRelease() method unset release on unregistered systems
     Given system is not registered
@@ -109,6 +117,7 @@ Feature: The Varlink interface com.redhat.rhsm.content.release
       """
     And releasever file does not exists
 
+
   # Scenarios for registered systems. Given organization does not contain any product with release
 
   Scenario: Download() method returns empty release
@@ -121,7 +130,23 @@ Feature: The Varlink interface com.redhat.rhsm.content.release
       {"release":""}
       """
 
-  Scenario: GetAvailableReleases() method returns empty list on registered system
+
+  @fixture.no_default_product_cert_installed
+  @fixture.no_product_cert_installed
+  Scenario: GetAvailableReleases() method raises error on system without any product certificate
+    Given system is registered against candlepin server
+    Given system has no default product certificate installed
+    Given system has no product certificate installed
+    When varlink method is called and error is expected
+      | method               | interface                               | arguments |
+      | GetAvailableReleases | com.redhat.rhsm.testing.content.release | '{}'      |
+    Then varlink error is raised
+      """
+      com.redhat.rhsm.testing.content.release.NoProductCertificateInstalled
+      """
+
+  @fixture.default_product_cert_is_installed
+  Scenario: GetAvailableReleases() method returns empty list on system without any product certificate
     Given system is registered against candlepin server
     When varlink method is called
       | method               | interface                               | arguments |
@@ -131,9 +156,9 @@ Feature: The Varlink interface com.redhat.rhsm.content.release
       {"releases":[]}
       """
 
+
   Scenario: SetRelease() method set release and UnsetRelease() unset the release on registered system
     Given system is registered against candlepin server
-    Given releasever file is deleted
     When varlink method is called
       | method     | interface                               | arguments                |
       | SetRelease | com.redhat.rhsm.testing.content.release | '{"Release": "44"}'      |
