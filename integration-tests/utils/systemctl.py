@@ -5,6 +5,7 @@ This module provides helper functions for managing systemd services, sockets,
 and units using systemctl commands.
 """
 
+import json
 import subprocess
 
 
@@ -35,18 +36,19 @@ def stop_service(service_name: str) -> None:
     )
 
 
-def is_socket_enabled(socket_name: str) -> bool:
+def is_unit_enabled(unit_name: str) -> bool:
     """
-    Check if a systemd socket is enabled.
+    Check if a systemd unit (timer, socket, service, etc.) is enabled.
 
-    :param socket_name: Name of the systemd socket
-    :return: True if the socket is enabled, False otherwise
+    :param unit_name: Name of the systemd unit
+    :return: True if the unit is enabled, False otherwise
     """
     result = subprocess.run(
-        ["systemctl", "is-enabled", socket_name],
+        ["systemctl", "is-enabled", unit_name],
         capture_output=True,
+        text=True,
     )
-    return result.returncode == 0
+    return result.stdout.strip() == "enabled"
 
 
 def enable_and_start_socket(socket_name: str) -> None:
@@ -72,3 +74,26 @@ def disable_and_stop_socket(socket_name: str) -> None:
         ["systemctl", "disable", "--now", socket_name],
         capture_output=True,
     )
+
+
+def get_timer_next_trigger(timer_unit: str):
+    """
+    Return the next trigger time for *timer_unit* as a Unix timestamp (int),
+    or None if the timer is not scheduled.
+
+    :param timer_unit: Name of the systemd timer unit
+    :return: Unix timestamp (seconds) or None
+    """
+    result = subprocess.run(
+        ["systemctl", "list-timers", timer_unit, "--all", "--output=json"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    timers = json.loads(result.stdout)
+    if not timers:
+        return None
+    next_us = timers[0].get("next")
+    if next_us and next_us > 0:
+        return next_us // 1_000_000
+    return None
