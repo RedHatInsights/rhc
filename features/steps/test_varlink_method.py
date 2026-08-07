@@ -117,3 +117,72 @@ def step_impl(context: behave.runner.Context):
     :return: None
     """
     assert context.cmd_exitcode == 0, f"Method call failed with exit code {context.cmd_exitcode}"
+
+
+@when("varlink method is called and error is expected")
+def step_impl(context: behave.runner.Context):
+    """
+    Call a varlink method on a specified interface, when it is expected that error is returned.
+    Example of a Gherkin table containing the name of the method, Varlink interface, and argument:
+      | method | interface               | arguments          |
+      | Ping   | com.redhat.rhsm.testing | '{"metadata": {}}' |
+    :param context: behave context
+    :return: None
+    """
+    varlink_interface = None
+    varlink_method = None
+    varlink_args = None
+    counter = 0
+    for row in context.table:
+        varlink_interface = row["interface"]
+        varlink_method = row["method"]
+        varlink_args = row["arguments"]
+        counter += 1
+    assert counter == 1, f"Expected exactly one row in table for 'varlink method called' ({counter} provided)"
+
+    cmd = f"varlinkctl call --no-pager --json=short {VARLINK_SOCKET} {varlink_interface}.{varlink_method} {varlink_args}"
+    run_in_context(context, cmd, can_fail=True)
+
+
+@then("varlink error is raised")
+def step_impl(context: behave.runner.Context):
+    """
+    Verify that given Varlink error was raised
+    :param context: behave context
+    :return: None
+    """
+    assert context.cmd_exitcode != 0, f"Method call did not fail with non-zero exit code"
+    expected_error = context.text
+    std_err = context.cmd_stderr
+    assert expected_error in std_err
+
+
+@step("method result is saved as '{name}'")
+def step_impl(context: behave.runner.Context, name: str):
+    """
+    Save the current method result (stdout) under a named key for later comparison.
+    :param context: behave context
+    :param name: key under which the current method result is saved
+    :return: None
+    """
+    if not hasattr(context, "_saved_results"):
+        context._saved_results = {}
+    context._saved_results[name] = context.cmd_stdout
+
+
+@step("method result matches saved '{name}'")
+def step_impl(context: behave.runner.Context, name: str):
+    """
+    Compare current method result JSON with a previously saved result.
+    :param context: behave context
+    :param name: key of the previously saved method result to compare against
+    :return: None
+    """
+    assert hasattr(context, "_saved_results") and name in context._saved_results, (
+        f"No saved result named '{name}'"
+    )
+    saved = json.loads(context._saved_results[name])
+    current = json.loads(context.cmd_stdout)
+    assert saved == current, (
+        f"Results differ.\nSaved: {saved}\nCurrent: {current}"
+    )
