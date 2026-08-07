@@ -7,13 +7,15 @@ import urllib.parse
 import urllib.request
 from contextlib import suppress
 
+from utils.constants import OAUTH_DEFAULT_SCOPE, YGGDRASIL_SERVICE_NAME
+
 
 def yggdrasil_service_is_active():
     """Method to verify if yggdrasil is in active/inactive state
     :return: True if yggdrasil in active state else False
     """
     try:
-        stdout = sh.systemctl("is-active yggdrasil".split()).strip()
+        stdout = sh.systemctl("is-active", YGGDRASIL_SERVICE_NAME).strip()
         return stdout == "active"
     except sh.ErrorReturnCode_3:
         return False
@@ -101,7 +103,7 @@ def configure_proxy_rhsm(subman, test_config, auth_proxy=False):
     5. Reload systemd daemon
     """
     try:
-        service_name = "yggdrasil"
+        service_name = YGGDRASIL_SERVICE_NAME
 
         # Get proxy configuration from settings.toml
         if auth_proxy:
@@ -161,7 +163,7 @@ def get_access_token_client_credentials(
     client_id,
     client_secret,
     *,
-    scope="openid api.iam.service_accounts",
+    scope=OAUTH_DEFAULT_SCOPE,
     proxies=None,
 ):
     """

@@ -11,6 +11,7 @@ import json
 import subprocess
 from pytest_client_tools import util
 from utils import yggdrasil_service_is_active
+from utils.constants import RHSM_SERVICE_UNIT, YGGDRASIL_SERVICE_UNIT
 
 
 @pytest.mark.tier1
@@ -184,7 +185,7 @@ def unmask_rhsm_service():
     pytest fixture to unmask rhsm.service
     """
     yield
-    subprocess.run(["systemctl", "unmask", "rhsm.service"])
+    subprocess.run(["systemctl", "unmask", RHSM_SERVICE_UNIT])
 
 
 @pytest.mark.tier1
@@ -223,8 +224,8 @@ def test_status_connected_rhsm_masked(external_candlepin, rhc, test_config):
     )
 
     # stop and mask rhsm.service
-    subprocess.run(["systemctl", "stop", "rhsm.service"])
-    subprocess.run(["systemctl", "mask", "rhsm.service"])
+    subprocess.run(["systemctl", "stop", RHSM_SERVICE_UNIT])
+    subprocess.run(["systemctl", "mask", RHSM_SERVICE_UNIT])
 
     # Run "rhc status" and check the result
     status_result = rhc.run("status", check=False)
@@ -270,8 +271,8 @@ def test_status_disconnected_rhsm_masked(rhc):
     # 'rhc disconnect' to ensure the system is already disconnected
     rhc.run("disconnect", check=False)
     # stop and mask rhsm.service
-    subprocess.run(["systemctl", "stop", "rhsm.service"])
-    subprocess.run(["systemctl", "mask", "rhsm.service"])
+    subprocess.run(["systemctl", "stop", RHSM_SERVICE_UNIT])
+    subprocess.run(["systemctl", "mask", RHSM_SERVICE_UNIT])
     status_result = rhc.run("status", check=False)
     assert status_result.returncode != 0
     assert "Could not activate remote peer" in status_result.stdout
@@ -314,8 +315,8 @@ def test_status_disconnected_rhsm_masked_format_json(rhc):
     # 'rhc disconnect' to ensure the system is already disconnected
     rhc.run("disconnect", check=False)
     # stop and mask rhsm.service
-    subprocess.run(["systemctl", "stop", "rhsm.service"])
-    subprocess.run(["systemctl", "mask", "rhsm.service"])
+    subprocess.run(["systemctl", "stop", RHSM_SERVICE_UNIT])
+    subprocess.run(["systemctl", "mask", RHSM_SERVICE_UNIT])
 
     # Run "rhc status --format json" and check the result
     status_result = rhc.run("status", "--format", "json", check=False)
@@ -357,7 +358,7 @@ def unmask_yggdrasil_service():
     pytest fixture to unmask rhsm.service
     """
     yield
-    subprocess.run(["systemctl", "unmask", "yggdrasil.service"])
+    subprocess.run(["systemctl", "unmask", YGGDRASIL_SERVICE_UNIT])
 
 
 @pytest.mark.tier1
@@ -396,8 +397,8 @@ def test_status_connected_yggdrasil_masked(external_candlepin, rhc, test_config)
     )
 
     # stop and mask yggdrasil.service
-    subprocess.run(["systemctl", "stop", "yggdrasil.service"])
-    subprocess.run(["systemctl", "mask", "yggdrasil.service"])
+    subprocess.run(["systemctl", "stop", YGGDRASIL_SERVICE_UNIT])
+    subprocess.run(["systemctl", "mask", YGGDRASIL_SERVICE_UNIT])
 
     # Run "rhc status" and check the result
     status_result = rhc.run("status", check=False)
@@ -450,8 +451,8 @@ def test_status_connected_yggdrasil_masked_format_json(external_candlepin, rhc, 
         org=test_config.get("candlepin.org"),
     )
     # stop and mask yggdrasil.service
-    subprocess.run(["systemctl", "stop", "yggdrasil.service"])
-    subprocess.run(["systemctl", "mask", "yggdrasil.service"])
+    subprocess.run(["systemctl", "stop", YGGDRASIL_SERVICE_UNIT])
+    subprocess.run(["systemctl", "mask", YGGDRASIL_SERVICE_UNIT])
     # Run "rhc status --format json" and check the result
     status_result = rhc.run("status", "--format", "json", check=False)
     assert status_result.returncode != 0

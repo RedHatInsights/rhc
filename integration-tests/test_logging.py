@@ -14,9 +14,11 @@ import subprocess
 import pytest
 
 from utils import prepare_args_for_connect
-
-LOG_FILE_PATH = "/var/log/rhc/rhc.log"
-LOGROTATE_CONFIG_PATH = "/etc/logrotate.d/rhc"
+from utils.constants import (
+    INVALID_CREDENTIAL,
+    LOG_FILE_PATH,
+    LOGROTATE_CONFIG_PATH,
+)
 
 
 class LogMonitor:
@@ -434,7 +436,7 @@ def test_log_error_message_references_log_file(
 
     credentials = {
         "organization": "candlepin.org",
-        "activation-key": "xpto123",
+        "activation-key": INVALID_CREDENTIAL,
     }
     command_args = prepare_args_for_connect(test_config, credentials=credentials)
     command = ["connect"] + command_args
@@ -578,7 +580,7 @@ def test_log_connect_error_logged(
 
     credentials = {
         "organization": "candlepin.org",
-        "activation-key": "xpto123",
+        "activation-key": INVALID_CREDENTIAL,
     }
     command_args = prepare_args_for_connect(test_config, credentials=credentials)
     command = ["connect"] + command_args

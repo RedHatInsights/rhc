@@ -12,7 +12,7 @@ import subprocess
 
 import pytest
 
-COMPLETION_SCRIPT = "/usr/share/bash-completion/completions/rhc"
+from utils.constants import COMPLETION_SCRIPT, MINIMAL_COLLECTOR_ID
 
 _COMPLETION_HARNESS = """\
 set -euo pipefail
@@ -134,7 +134,7 @@ def _get_completions(words, tmp_path):
         ),
         pytest.param(
             ["collector", "enable", "com.redhat.m"],
-            ["com.redhat.minimal"],
+            [MINIMAL_COLLECTOR_ID],
             id="collector-id-prefix",
         ),
     ],

@@ -9,6 +9,8 @@
 import subprocess
 import pytest
 
+from utils.constants import ALL_FEATURES_CLI
+
 
 def test_man_page_synopsis():
     """
@@ -102,14 +104,7 @@ def test_man_page_connect_options(options):
     for option in options:
         assert option in command_op
 
-@pytest.mark.parametrize(
-    "feature_id",
-    [
-        "content",
-        "analytics",
-        "remote-management",
-    ]
-)
+@pytest.mark.parametrize("feature_id", ALL_FEATURES_CLI)
 def test_man_page_feature_ids(feature_id):
     """
     :id: 9f8a4022-4a61-4439-b0ff-88a3a488f129

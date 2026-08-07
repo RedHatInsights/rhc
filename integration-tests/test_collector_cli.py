@@ -13,14 +13,15 @@ import time
 
 import pytest
 
-from conftest import (
-    RHC_COLLECTOR,
-    TIMER_CACHE_DIR,
+from utils.constants import (
     MINIMAL_COLLECTOR_ID,
     MINIMAL_COLLECTOR_NAME,
     MINIMAL_COLLECTOR_CONFIG_PATH,
     MINIMAL_SERVICE_UNIT,
     MINIMAL_TIMER_UNIT,
+    RHC_COLLECTOR,
+    RHC_TMP_DIR,
+    TIMER_CACHE_DIR,
 )
 from utils.systemctl import is_unit_enabled
 
@@ -48,7 +49,7 @@ def test_rhc_collector_writes_timer_cache(collector_config):
     collector_id = collector_config["id"]
     cache_path = os.path.join(TIMER_CACHE_DIR, f"{collector_id}.json")
 
-    os.makedirs("/var/tmp/rhc", exist_ok=True)
+    os.makedirs(RHC_TMP_DIR, exist_ok=True)
     os.makedirs(TIMER_CACHE_DIR, exist_ok=True)
     if os.path.exists(cache_path):
         os.remove(cache_path)
