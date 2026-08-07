@@ -250,7 +250,22 @@ func (c ComRedhatRhsmContentReleaseBackend) GetAvailableReleases(in *releaseapi.
 	}
 
 	if err != nil {
-		return nil, err
+		var noProductCertInstalledError *rhsm2.NoProductCertInstalledError
+		var noEntitlementCertInstalledError *rhsm2.NoEntitlementCertInstalledError
+		var noInstalledProductCertMatchesOsReleaseError *rhsm2.NoInstalledProductCertMatchesOsReleaseError
+		switch {
+		case errors.As(err, &noProductCertInstalledError):
+			return nil, &releaseapi.NoProductCertificateInstalledError{}
+		case errors.As(err, &noEntitlementCertInstalledError):
+			return nil, &releaseapi.NoEntitlementCertificateInstalledError{}
+		case errors.As(err, &noInstalledProductCertMatchesOsReleaseError):
+			return nil, &releaseapi.NoInstalledProductCertificateMatchesOsReleaseError{
+				OsRelease:       noInstalledProductCertMatchesOsReleaseError.OsReleaseTag,
+				NotMatchingTags: noInstalledProductCertMatchesOsReleaseError.NotMatchingTags,
+			}
+		default:
+			return nil, err
+		}
 	}
 
 	// Convert map of structure (workaround for absence of set in Go) to array of strings

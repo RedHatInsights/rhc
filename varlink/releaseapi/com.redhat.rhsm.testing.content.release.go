@@ -13,6 +13,27 @@ type Metadata struct {
 	UserAgent     *string `json:"user_agent,omitempty"`
 }
 
+type NoEntitlementCertificateInstalledError struct{}
+
+func (err *NoEntitlementCertificateInstalledError) Error() string {
+	return "varlink call failed: com.redhat.rhsm.testing.content.release.NoEntitlementCertificateInstalled"
+}
+
+type NoInstalledProductCertificateMatchesOsReleaseError struct {
+	NotMatchingTags []string `json:"not_matching_tags"`
+	OsRelease       string   `json:"os_release"`
+}
+
+func (err *NoInstalledProductCertificateMatchesOsReleaseError) Error() string {
+	return "varlink call failed: com.redhat.rhsm.testing.content.release.NoInstalledProductCertificateMatchesOsRelease"
+}
+
+type NoProductCertificateInstalledError struct{}
+
+func (err *NoProductCertificateInstalledError) Error() string {
+	return "varlink call failed: com.redhat.rhsm.testing.content.release.NoProductCertificateInstalled"
+}
+
 type SystemNotRegisteredError struct{}
 
 func (err *SystemNotRegisteredError) Error() string {
@@ -64,6 +85,12 @@ func unmarshalError(err error) error {
 	}
 	var v error
 	switch verr.Name {
+	case "com.redhat.rhsm.testing.content.release.NoEntitlementCertificateInstalled":
+		v = new(NoEntitlementCertificateInstalledError)
+	case "com.redhat.rhsm.testing.content.release.NoInstalledProductCertificateMatchesOsRelease":
+		v = new(NoInstalledProductCertificateMatchesOsReleaseError)
+	case "com.redhat.rhsm.testing.content.release.NoProductCertificateInstalled":
+		v = new(NoProductCertificateInstalledError)
 	case "com.redhat.rhsm.testing.content.release.SystemNotRegistered":
 		v = new(SystemNotRegisteredError)
 	default:
@@ -130,6 +157,12 @@ type Handler struct {
 func marshalError(err error) error {
 	var name string
 	switch err.(type) {
+	case *NoEntitlementCertificateInstalledError:
+		name = "com.redhat.rhsm.testing.content.release.NoEntitlementCertificateInstalled"
+	case *NoInstalledProductCertificateMatchesOsReleaseError:
+		name = "com.redhat.rhsm.testing.content.release.NoInstalledProductCertificateMatchesOsRelease"
+	case *NoProductCertificateInstalledError:
+		name = "com.redhat.rhsm.testing.content.release.NoProductCertificateInstalled"
 	case *SystemNotRegisteredError:
 		name = "com.redhat.rhsm.testing.content.release.SystemNotRegistered"
 	default:
@@ -190,7 +223,7 @@ func (h Handler) HandleVarlink(call *govarlink.ServerCall, req *govarlink.Server
 
 func (h Handler) Register(reg *govarlink.Registry) {
 	reg.Add(&govarlink.RegistryInterface{
-		Definition: "interface com.redhat.rhsm.testing.content.release\n\ntype Metadata (\n    # The user agent string (e.g. \"rhc/5.4.3\")\n    user_agent: ?string,\n    # The correlation id\n    correlation_id: ?string,\n    # The locale string (e.g. en_US.UTF-8)\n    locale: ?string\n)\n\n# Many methods in this interface can be used only in the situation, when the system is registered\nerror SystemNotRegistered()\n\n# Get release from the candlepin server. This method does not have any side effects.\n# It only returns the release. If application wants to set the release to releasever file,\n# then it should use SetRelease method. When system is not registered, then error SystemNotRegistered\n# is returned.\nmethod Download(\n    metadata: ?Metadata\n) -> (\n    release: string\n)\n\n# Return current release, when it is set. Otherwise, return null\nmethod GetCurrentRelease() -> (\n    release: ?string\n)\n\n# Return the list of available releases. When system is not registered, then error SystemNotRegistered\n# is returned.\nmethod GetAvailableReleases(\n    metadata: ?Metadata\n) -> (\n    releases: []string\n)\n\n# Try to set release locally and when the system is registered,\n# then send the release to candlepin server\nmethod SetRelease(\n   release: string,\n   metadata: ?Metadata\n) -> (\n    success: bool\n)\n\n# Try to unset release locally and when the system is registered,\n# then send empty release to candlepin server\nmethod UnsetRelease(\n   metadata: ?Metadata\n) -> (\n    success: bool\n)\n",
+		Definition: "interface com.redhat.rhsm.testing.content.release\n\ntype Metadata (\n    # The user agent string (e.g. \"rhc/5.4.3\")\n    user_agent: ?string,\n    # The correlation id\n    correlation_id: ?string,\n    # The locale string (e.g. en_US.UTF-8)\n    locale: ?string\n)\n\n# Many methods in this interface can be used only in the situation, when the system is registered\nerror SystemNotRegistered()\n\n# When there is no product certificates installed, then it is not possible to get\n# the list of available releases from RPM repositories\nerror NoProductCertificateInstalled()\n\n# When there is no entitlement certificate installed, then it is not possible to get\n# the list of available releases from RPM repositories\nerror NoEntitlementCertificateInstalled()\n\n# When there is no installed product certificate with tags matching the os release,\n# then it is also not possible to get the list of available releases RPM repository\nerror NoInstalledProductCertificateMatchesOsRelease(\n    # The os release string (e.g. \"rhel-10\")\n    os_release: string,\n    # The list of tags from all installed product certificates that are not matching\n    # the os release (e.g. [\"rhel-11\", \"rhal-11_x86_64\"])\n    not_matching_tags: []string\n)\n\n# Get release from the candlepin server. This method does not have any side effects.\n# It only returns the release. If application wants to set the release to releasever file,\n# then it should use SetRelease method. When system is not registered, then error SystemNotRegistered\n# is returned.\nmethod Download(\n    metadata: ?Metadata\n) -> (\n    release: string\n)\n\n# Return current release, when it is set. Otherwise, return null\nmethod GetCurrentRelease() -> (\n    release: ?string\n)\n\n# Return the list of available releases. When system is not registered, then error SystemNotRegistered\n# is returned.\nmethod GetAvailableReleases(\n    metadata: ?Metadata\n) -> (\n    releases: []string\n)\n\n# Try to set release locally and when the system is registered,\n# then send the release to candlepin server\nmethod SetRelease(\n   release: string,\n   metadata: ?Metadata\n) -> (\n    success: bool\n)\n\n# Try to unset release locally and when the system is registered,\n# then send empty release to candlepin server\nmethod UnsetRelease(\n   metadata: ?Metadata\n) -> (\n    success: bool\n)\n",
 		Name:       "com.redhat.rhsm.testing.content.release",
 	}, h)
 }

@@ -3,7 +3,7 @@ import os
 from behave import given, step
 import behave.runner
 
-from features.environment import RELEASEVER_FILE
+from features.environment import RELEASEVER_FILE, DEFAULT_PRODUCT_CERT_DIR, PRODUCT_CERT_DIR
 
 @given("releasever file is empty")
 def step_impl(context: behave.runner.Context):
@@ -48,6 +48,7 @@ def step_impl(context: behave.runner.Context):
     with open(RELEASEVER_FILE, "r") as release_file:
         assert context.text in release_file.read()
 
+
 @step("releasever file does not exists")
 def step_impl(context: behave.runner.Context):
     """
@@ -56,3 +57,25 @@ def step_impl(context: behave.runner.Context):
     :return: None
     """
     assert not os.path.exists(RELEASEVER_FILE)
+
+
+@step("system has no default product certificate installed")
+def step_impl(context: behave.runner.Context):
+    """
+    Verify that no product certificate is installed
+    :param context: behave context
+    :return: None
+    """
+    assert os.path.exists(DEFAULT_PRODUCT_CERT_DIR), f"Directory {DEFAULT_PRODUCT_CERT_DIR} does not exist"
+    assert len(os.listdir(DEFAULT_PRODUCT_CERT_DIR)) == 0, f"Directory {DEFAULT_PRODUCT_CERT_DIR} is not empty"
+
+
+@step("system has no product certificate installed")
+def step_impl(context: behave.runner.Context):
+    """
+    Verify that no product certificate is installed
+    :param context: behave context
+    :return: None
+    """
+    assert os.path.exists(PRODUCT_CERT_DIR), f"Directory {PRODUCT_CERT_DIR} does not exist"
+    assert len(os.listdir(PRODUCT_CERT_DIR)) == 0, f"Directory {PRODUCT_CERT_DIR} is not empty"
