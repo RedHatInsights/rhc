@@ -2,11 +2,30 @@
 This module contains environment setup and teardown functions for the test suite.
 """
 
+import os
+
+from behave.fixture import use_fixture_by_tag
+from fixtures import fixture_registry
+
 ENTITLEMENT_CERT_DIR = "/etc/pki/entitlement/"
 ENTITLEMENT_BACKUP_DIR_PREFIX = "entitlement-backup-"
 RELEASEVER_FILE = "/etc/dnf/vars/releasever"
 RHSM_HOST_CONFIG_DIR = "/etc/rhsm-host"
 ENTITLEMENT_HOST_CERT_DIR = "/etc/pki/entitlement-host"
+DNF5_REPOS_OVERRIDE_DIR = "/etc/dnf/repos.override.d"
+DNF5_REDHAT_REPOS_OVERRIDE_FILE = os.path.join(DNF5_REPOS_OVERRIDE_DIR, "98-redhat.repo")
+
+
+def before_tag(context, tag) -> None:
+    """
+    This function is executed before each tag in the test suite.
+    It is used to activate fixtures based on tags.
+    :param context: Context object
+    :param tag: Tag string
+    :return: None
+    """
+    if tag.startswith("fixture."):
+        return use_fixture_by_tag(tag, context, fixture_registry)
 
 
 def before_scenario(context, scenario) -> None:

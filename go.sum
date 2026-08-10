@@ -25,8 +25,8 @@ github.com/henvic/httpretty v0.2.0 h1:U4pKgF9SV4uRrE/7PF85TVnCJxXA91zKFpYU0iFwFO
 github.com/henvic/httpretty v0.2.0/go.mod h1:4LSlqxtJoYd+gt1lsqh9omUUziIVwoVsxdW15hZHTcI=
 github.com/jeandeaual/go-locale v0.0.0-20250612000132-0ef82f21eade h1:FmusiCI1wHw+XQbvL9M+1r/C3SPqKrmBaIOYwVfQoDE=
 github.com/jeandeaual/go-locale v0.0.0-20250612000132-0ef82f21eade/go.mod h1:ZDXo8KHryOWSIqnsb/CiDq7hQUYryCgdVnxbj8tDG7o=
-github.com/jirihnidek/rhsm2 v0.0.0-20260729132541-bd687fccd469 h1:3/3RmAOqNXc8V9m/+EGiG0k8m3xpX05WXgZS8GfclJk=
-github.com/jirihnidek/rhsm2 v0.0.0-20260729132541-bd687fccd469/go.mod h1:OhFF2Ju6ZLtmvh1uFiGUIsO9+4vXdXYIp08ZxjpFp3g=
+github.com/jirihnidek/rhsm2 v0.0.0-20260806125901-cf03098a4d1c h1:aUpj2aebLrKSazyOZvo+DP0GKNzfznijypZxDJGO4jg=
+github.com/jirihnidek/rhsm2 v0.0.0-20260806125901-cf03098a4d1c/go.mod h1:OhFF2Ju6ZLtmvh1uFiGUIsO9+4vXdXYIp08ZxjpFp3g=
 github.com/mattn/go-colorable v0.1.14 h1:9A9LHSqF/7dyVVX6g0U9cwm9pG3kP9gSzcuIPHPsaIE=
 github.com/mattn/go-colorable v0.1.14/go.mod h1:6LmQG8QLFO4G5z1gPvYEzlUgJ2wF+stgPZH1UqBm1s8=
 github.com/mattn/go-isatty v0.0.22 h1:j8l17JJ9i6VGPUFUYoTUKPSgKe/83EYU2zBC7YNKMw4=
