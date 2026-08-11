@@ -95,8 +95,6 @@ install -m 0755 -vp _build/bin/rhc-collector %{buildroot}%{_libexecdir}/%{name}/
 # Bash completion
 install -m 0755 -vd                     %{buildroot}%{bash_completions_dir}/
 install -m 0644 -vp data/completion/rhc.bash  %{buildroot}%{bash_completions_dir}/%{name}
-# Logs
-install -m 0755 -vd                     %{buildroot}%{_localstatedir}/log/%{name}/
 # Collector directories
 install -m 0755 -vd                     %{buildroot}%{_prefix}/lib/%{name}/collectors/
 install -m 0755 -vd                     %{buildroot}%{_libexecdir}/%{name}/collectors/
@@ -119,6 +117,9 @@ install -m 0755 -vd                     %{buildroot}%{_sysconfdir}/%{name}/
 # Minimal collector
 install -m 0755 -vp _build/bin/com.redhat.minimal %{buildroot}%{_libexecdir}/%{name}/collectors/com.redhat.minimal
 install -m 0644 -vp data/collectors/com.redhat.minimal.toml %{buildroot}%{_prefix}/lib/%{name}/collectors/
+# tmpfiles.d
+install -m 0755 -vd                     %{buildroot}%{_tmpfilesdir}
+install -m 0644 -vp data/tmpfiles.d/rhc.conf %{buildroot}%{_tmpfilesdir}/rhc.conf
 
 %if 0%{?with_rhcd_compat}
 # Yggdrasil used to be called rhcd, and was part of rhc. For historical reasons, rhc
@@ -155,6 +156,7 @@ fi
 %systemd_post rhc-canonical-facts.timer
 %systemd_post rhc-server.socket
 %systemd_post rhc-collector-com.redhat.minimal.timer
+%tmpfiles_create rhc.conf
 
 %if 0%{?with_rhcd_compat}
 # rhcd_t is the SELinux type used by the old rhcd daemon. Add it to the
@@ -222,9 +224,14 @@ fi
 %{_libexecdir}/%{name}/collectors/com.redhat.minimal
 %{_prefix}/lib/%{name}/collectors/com.redhat.minimal.toml
 # Logs
-%dir %{_localstatedir}/log/%{name}/
+%ghost %attr(0755,root,root) %dir %{_localstatedir}/log/%{name}/
 # Logrotate
 %config(noreplace) %{_sysconfdir}/logrotate.d/rhc
+# Runtime directories
+%ghost %attr(0755,root,root) %dir /run/%{name}
+%ghost %attr(0700,root,root) %dir %{_localstatedir}/tmp/%{name}
+# Systemd-tmpfiles configuration file
+%{_tmpfilesdir}/rhc.conf
 
 %if 0%{?with_rhcd_compat}
 # Yggdrasil rhcd compatibility drop-in
