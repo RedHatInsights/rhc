@@ -3,7 +3,8 @@ import os
 from behave import given, step
 import behave.runner
 
-from features.environment import RELEASEVER_FILE, DEFAULT_PRODUCT_CERT_DIR, PRODUCT_CERT_DIR
+from constants import RELEASEVER_FILE, DEFAULT_PRODUCT_CERT_DIR, PRODUCT_CERT_DIR
+
 
 @given("releasever file is empty")
 def step_impl(context: behave.runner.Context):

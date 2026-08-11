@@ -2,7 +2,6 @@ from behave import given, when, then, step
 import behave.runner
 
 import json
-import time
 import jsonschema
 from pathlib import Path
 

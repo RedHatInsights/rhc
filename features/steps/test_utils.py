@@ -1,8 +1,10 @@
 import pathlib
 import shutil
+import time
 
 from behave import step
 import behave.runner
+
 
 @step("file '{src_file}' is installed in '{target_dir}'")
 def step_impl(context: behave.runner.Context, src_file, target_dir):
@@ -27,3 +29,14 @@ def step_impl(context: behave.runner.Context, src_file):
     :return: None
     """
     pathlib.Path(src_file).unlink()
+
+
+@step("wait '{number}' seconds")
+def step_impl(context: behave.runner.Context, number: str):
+    """
+    Wait a given number of seconds. Could be a float value.
+    :param context: behave context
+    :param number: number of seconds to wait
+    :return: None
+    """
+    time.sleep(float(number))
