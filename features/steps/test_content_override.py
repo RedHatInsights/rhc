@@ -3,7 +3,7 @@ import behave.runner
 
 import json
 
-from environment import DNF5_REDHAT_REPOS_OVERRIDE_FILE
+from constants import DNF5_REDHAT_REPOS_OVERRIDE_FILE
 
 
 @given("local DNF5 repo override file exists with content")

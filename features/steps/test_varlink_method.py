@@ -8,6 +8,7 @@ from pathlib import Path
 from common import run_in_context
 from constants import VARLINK_SOCKET
 
+
 @given("system is registered against candlepin server")
 def step_impl(context: behave.runner.Context):
     """
@@ -55,7 +56,8 @@ def step_impl(context: behave.runner.Context):
         cmd = "rhc disconnect"
         run_in_context(context, cmd, can_fail=False)
 
-@when("varlink method is called")
+
+@step("varlink method is called")
 def step_impl(context: behave.runner.Context):
     """
     Call a varlink method on a specified interface.
@@ -88,7 +90,10 @@ def step_impl(context: behave.runner.Context):
     :return: None
     """
     json_object = context.text
-    result = json.loads(context.cmd_stdout)
+    try:
+        result = json.loads(context.cmd_stdout)
+    except json.decoder.JSONDecodeError as e:
+        raise AssertionError(f"Failed to decode JSON {context.cmd_stdout}: {e}")
     assert result == json.loads(json_object), f"Expected {json_object}, got {result}"
 
 @step("method returned JSON compliant with '{json_schema_doc}' schema")
