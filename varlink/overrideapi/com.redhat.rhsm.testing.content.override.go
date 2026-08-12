@@ -26,6 +26,14 @@ func (err *ContentNotManagedError) Error() string {
 	return "varlink call failed: com.redhat.rhsm.testing.content.override.ContentNotManaged"
 }
 
+type IOFailedError struct {
+	Message string `json:"message"`
+}
+
+func (err *IOFailedError) Error() string {
+	return "varlink call failed: com.redhat.rhsm.testing.content.override.IOFailed"
+}
+
 type SystemNotRegisteredError struct{}
 
 func (err *SystemNotRegisteredError) Error() string {
@@ -46,6 +54,13 @@ type UploadOut struct {
 	Success bool `json:"success"`
 }
 
+type WriteContentOverridesIn struct {
+	ContentOverrides []ContentOverride `json:"content_overrides"`
+}
+type WriteContentOverridesOut struct {
+	Success bool `json:"success"`
+}
+
 type Client struct {
 	*govarlink.Client
 }
@@ -59,6 +74,8 @@ func unmarshalError(err error) error {
 	switch verr.Name {
 	case "com.redhat.rhsm.testing.content.override.ContentNotManaged":
 		v = new(ContentNotManagedError)
+	case "com.redhat.rhsm.testing.content.override.IOFailed":
+		v = new(IOFailedError)
 	case "com.redhat.rhsm.testing.content.override.SystemNotRegistered":
 		v = new(SystemNotRegisteredError)
 	default:
@@ -85,10 +102,19 @@ func (c Client) Upload(in *UploadIn) (*UploadOut, error) {
 	err := c.Client.Do("com.redhat.rhsm.testing.content.override.Upload", in, out)
 	return out, unmarshalError(err)
 }
+func (c Client) WriteContentOverrides(in *WriteContentOverridesIn) (*WriteContentOverridesOut, error) {
+	if in == nil {
+		in = new(WriteContentOverridesIn)
+	}
+	out := new(WriteContentOverridesOut)
+	err := c.Client.Do("com.redhat.rhsm.testing.content.override.WriteContentOverrides", in, out)
+	return out, unmarshalError(err)
+}
 
 type Backend interface {
 	Download(*DownloadIn) (*DownloadOut, error)
 	Upload(*UploadIn) (*UploadOut, error)
+	WriteContentOverrides(*WriteContentOverridesIn) (*WriteContentOverridesOut, error)
 }
 
 type Handler struct {
@@ -100,6 +126,8 @@ func marshalError(err error) error {
 	switch err.(type) {
 	case *ContentNotManagedError:
 		name = "com.redhat.rhsm.testing.content.override.ContentNotManaged"
+	case *IOFailedError:
+		name = "com.redhat.rhsm.testing.content.override.IOFailed"
 	case *SystemNotRegisteredError:
 		name = "com.redhat.rhsm.testing.content.override.SystemNotRegistered"
 	default:
@@ -128,6 +156,12 @@ func (h Handler) HandleVarlink(call *govarlink.ServerCall, req *govarlink.Server
 			return err
 		}
 		out, err = h.Backend.Upload(in)
+	case "com.redhat.rhsm.testing.content.override.WriteContentOverrides":
+		in := new(WriteContentOverridesIn)
+		if err := json.Unmarshal(req.Parameters, in); err != nil {
+			return err
+		}
+		out, err = h.Backend.WriteContentOverrides(in)
 	default:
 		err = &govarlink.ServerError{
 			Name:       "org.varlink.service.MethodNotFound",
@@ -142,7 +176,7 @@ func (h Handler) HandleVarlink(call *govarlink.ServerCall, req *govarlink.Server
 
 func (h Handler) Register(reg *govarlink.Registry) {
 	reg.Add(&govarlink.RegistryInterface{
-		Definition: "interface com.redhat.rhsm.testing.content.override\n\ntype Metadata (\n    # The user agent string (e.g. \"rhc/5.4.3\")\n    user_agent: ?string,\n    # The correlation id\n    correlation_id: ?string,\n    # The locale string (e.g. en_US.UTF-8)\n    locale: ?string\n)\n\n# Content override representing repo override\ntype ContentOverride (\n    created: ?string,\n    updated: ?string,\n    content_label: string,\n    name: string,\n    value: string\n)\n\n# Many methods in this interface can be used only in the situation, when the system is registered\nerror SystemNotRegistered()\n\n# This error is used, when rhsm is configured to not manage content\nerror ContentNotManaged()\n\n# Get content overrides from the candlepin server\n# When system is not registered, then return error SystemNotRegistered\nmethod Download(\n    metadata: ?Metadata\n) -> (\n    content_overrides: []ContentOverride\n)\n\n# Read current repo-overrides in /etc/dnf/repo.override.d/ and convert it to\n# content overrides and send this document to candlepin server\nmethod Upload(\n    metadata: ?Metadata\n) -> (\n    success: bool\n)\n",
+		Definition: "interface com.redhat.rhsm.testing.content.override\n\ntype Metadata (\n    # The user agent string (e.g. \"rhc/5.4.3\")\n    user_agent: ?string,\n    # The correlation id\n    correlation_id: ?string,\n    # The locale string (e.g. en_US.UTF-8)\n    locale: ?string\n)\n\n# Content override representing repo override\ntype ContentOverride (\n    created: ?string,\n    updated: ?string,\n    content_label: string,\n    name: string,\n    value: string\n)\n\n# Many methods in this interface can be used only in the situation, when the system is registered\nerror SystemNotRegistered()\n\n# This error is used, when rhsm is configured to not manage content\nerror ContentNotManaged()\n\n# This error is returned when a local file system operation fails\nerror IOFailed(message: string)\n\n# Get content overrides from the candlepin server\n# When system is not registered, then return error SystemNotRegistered\nmethod Download(\n    metadata: ?Metadata\n) -> (\n    content_overrides: []ContentOverride\n)\n\n# Read current repo-overrides in /etc/dnf/repo.override.d/ and convert it to\n# content overrides and send this document to candlepin server\nmethod Upload(\n    metadata: ?Metadata\n) -> (\n    success: bool\n)\n\n# Write content overrides to drop-in dnf5 repo override file in /etc/dnf/repo.override.d/\n# Note: created/updated fields on ContentOverride are ignored for this method;\n# they are candlepin-side metadata with no meaning for local repo files.\nmethod WriteContentOverrides(\n    content_overrides: []ContentOverride\n) -> (\n    success: bool\n)\n",
 		Name:       "com.redhat.rhsm.testing.content.override",
 	}, h)
 }

@@ -1,5 +1,6 @@
 from behave import given, then
 import behave.runner
+import configparser
 
 import json
 
@@ -46,4 +47,56 @@ def step_impl(context: behave.runner.Context, label: str):
     assert label in labels, (
         f"Expected label '{label}' not found in content overrides. "
         f"Available labels: {labels}"
+    )
+
+
+@then("local DNF5 repo override file contains section '{section}'")
+def step_impl(context: behave.runner.Context, section: str):
+    """
+    Verify the local DNF5 repo override file contains an INI section with the given name.
+    :param context: behave context
+    :param section: INI section name expected in the override file
+    :return: None
+    """
+    config = configparser.ConfigParser()
+    config.read(DNF5_REDHAT_REPOS_OVERRIDE_FILE)
+    assert section in config.sections(), (
+        f"Expected section '{section}' not found in override file. "
+        f"Sections found: {config.sections()}"
+    )
+
+
+@then("local DNF5 repo override file has '{key}' set to '{value}' in section '{section}'")
+def step_impl(context: behave.runner.Context, key: str, value: str, section: str):
+    """
+    Verify a specific key-value pair exists in the given section of the override file.
+    :param context: behave context
+    :param key: INI key to check
+    :param value: expected value for the key
+    :param section: INI section name containing the key
+    :return: None
+    """
+    config = configparser.ConfigParser()
+    config.read(DNF5_REDHAT_REPOS_OVERRIDE_FILE)
+    assert section in config.sections(), (
+        f"Section '{section}' not found in override file. "
+        f"Sections found: {config.sections()}"
+    )
+    actual = config.get(section, key, fallback=None)
+    assert actual == value, (
+        f"Expected [{section}] {key} = {value}, got {actual}"
+    )
+
+
+@then("local DNF5 repo override file is empty")
+def step_impl(context: behave.runner.Context):
+    """
+    Verify the local DNF5 repo override file is empty or contains no INI sections.
+    :param context: behave context
+    :return: None
+    """
+    config = configparser.ConfigParser()
+    config.read(DNF5_REDHAT_REPOS_OVERRIDE_FILE)
+    assert len(config.sections()) == 0, (
+        f"Expected no sections in override file, found: {config.sections()}"
     )
