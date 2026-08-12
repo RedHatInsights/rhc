@@ -16,22 +16,14 @@ import os
 import pytest
 
 from utils import poll_until, prepare_args_for_connect
-
-# CLI feature name -> key in ``rhc connect --format json`` features object
-FEATURE_CLI_TO_CONNECT_JSON = {
-    "content": "content",
-    "analytics": "analytics",
-    "remote-management": "remote_management",
-}
-
-CONNECT_FEATURES_PREFS_PATH = "/var/lib/rhc/rhc-connect-features-prefs.json"
-
-# RHSM-managed repository file when ``rhsm.manage_repos`` / content feature is on.
-REDHAT_REPO_FILE = "/etc/yum.repos.d/redhat.repo"
-
-_CONFIGURE_FEATURES_STATUS_JSON_KEYS = frozenset({"connected", "features"})
-_CONFIGURE_FEATURES_JSON_FEATURE_KEYS = frozenset(
-    {"content", "analytics", "remote_management"}
+from utils.constants import (
+    CONFIGURE_FEATURES_JSON_FEATURE_KEYS,
+    CONFIGURE_FEATURES_STATUS_JSON_KEYS,
+    CONNECT_FEATURES_PREFS_PATH,
+    EXIT_CODE_DATA_FORMAT,
+    EXIT_CODE_USAGE,
+    FEATURE_MAPPING,
+    REDHAT_REPO_FILE,
 )
 
 
@@ -47,11 +39,11 @@ def _cleanup_connect_features_prefs():
 
 def _assert_configure_features_status_json_shape(data: dict):
     assert isinstance(data, dict)
-    assert _CONFIGURE_FEATURES_STATUS_JSON_KEYS == set(data.keys())
+    assert CONFIGURE_FEATURES_STATUS_JSON_KEYS == set(data.keys())
     assert isinstance(data["connected"], bool)
     feats = data["features"]
     assert isinstance(feats, dict)
-    assert _CONFIGURE_FEATURES_JSON_FEATURE_KEYS == set(feats.keys())
+    assert CONFIGURE_FEATURES_JSON_FEATURE_KEYS == set(feats.keys())
     if data["connected"]:
         for _k, v in feats.items():
             assert set(v.keys()) == {"enabled", "description"}
@@ -123,7 +115,7 @@ def test_configure_features_status_not_connected_default_prefs(rhc, status_forma
         data = json.loads(res.stdout)
         _assert_configure_features_status_json_shape(data)
         assert data["connected"] is False
-        for k in _CONFIGURE_FEATURES_JSON_FEATURE_KEYS:
+        for k in CONFIGURE_FEATURES_JSON_FEATURE_KEYS:
             assert data["features"][k]["preference"] == "enable"
 
 
@@ -234,22 +226,22 @@ def test_configure_features_enable_remote_management_pulls_prerequisites(rhc):
         ),
         (
             ("configure", "features", "enable", "not-a-real-feature"),
-            65,
+            EXIT_CODE_DATA_FORMAT,
             "not found",
         ),
         (
             ("configure", "features", "disable", "not-a-real-feature"),
-            65,
+            EXIT_CODE_DATA_FORMAT,
             "not found",
         ),
         (
             ("configure", "features", "enable"),
-            64,
+            EXIT_CODE_USAGE,
             "this command requires 1 to 3 FEATURE arguments",
         ),
         (
             ("configure", "features", "disable", "content", "analytics", "remote-management", "extra-arg"),
-            64,
+            EXIT_CODE_USAGE,
             "this command requires 1 to 3 FEATURE arguments",
         ),
     ],
@@ -320,11 +312,11 @@ def test_connect_honors_configure_features_preferences(
 
     data = json.loads(result.stdout)
     features = data["features"]
-    assert features[FEATURE_CLI_TO_CONNECT_JSON["analytics"]]["enabled"] is False
+    assert features[FEATURE_MAPPING["analytics"]]["enabled"] is False
     assert (
-        features[FEATURE_CLI_TO_CONNECT_JSON["remote-management"]]["enabled"] is False
+        features[FEATURE_MAPPING["remote-management"]]["enabled"] is False
     )
-    assert features[FEATURE_CLI_TO_CONNECT_JSON["content"]]["enabled"] is True
+    assert features[FEATURE_MAPPING["content"]]["enabled"] is True
 
 
 @pytest.mark.tier1
@@ -494,7 +486,7 @@ def test_configure_features_status_json_when_connected(
     data = json.loads(res.stdout)
     _assert_configure_features_status_json_shape(data)
     assert data["connected"] is True
-    for k in _CONFIGURE_FEATURES_JSON_FEATURE_KEYS:
+    for k in CONFIGURE_FEATURES_JSON_FEATURE_KEYS:
         assert data["features"][k]["enabled"] is True
 
 

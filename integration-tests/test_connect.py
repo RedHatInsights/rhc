@@ -21,37 +21,17 @@ from utils import (
     configure_proxy_rhsm,
     get_access_token_client_credentials,
 )
+from utils.constants import (
+    ALL_FEATURES_CLI,
+    ALL_FEATURES_JSON,
+    EXIT_CODE_USAGE,
+    FEATURE_DEPENDENCIES,
+    FEATURE_MAPPING,
+    INVALID_CREDENTIAL,
+    OAUTH_DEFAULT_SCOPE,
+)
 
 logger = logging.getLogger(__name__)
-
-# ============================================================================
-# Centralized Feature Definitions
-# ============================================================================
-# To add a new feature:
-# 1. Add mapping entry in FEATURE_MAPPING (CLI name -> JSON name)
-#    (the order must be the same as in the --help message)
-# 2. If the feature has dependencies, add them to FEATURE_DEPENDENCIES
-# 3. The tests will automatically include the new feature in parameterized tests
-# ============================================================================
-
-# Map CLI feature names to JSON feature names
-FEATURE_MAPPING = {
-    "content": "content",
-    "analytics": "analytics",
-    "remote-management": "remote_management",
-}
-
-# List of all valid features (CLI names)
-ALL_FEATURES_CLI = list(FEATURE_MAPPING.keys())
-
-# List of all valid features (JSON names)
-ALL_FEATURES_JSON = list(FEATURE_MAPPING.values())
-
-# Feature dependencies: feature -> list of required features (CLI names)
-# Example: remote-management requires both content and analytics to be enabled
-FEATURE_DEPENDENCIES = {
-    "remote-management": ["content", "analytics"],
-}
 
 
 def get_dependent_features(feature):
@@ -212,7 +192,7 @@ def test_connect(external_candlepin, rhc, test_config, auth, output_format):
         (  # username: valid, password: invalid
             {
                 "username": "candlepin.username",
-                "password": "xpto123"
+                "password": INVALID_CREDENTIAL
             },
             None,
         ),
@@ -226,7 +206,7 @@ def test_connect(external_candlepin, rhc, test_config, auth, output_format):
         (  # organization: valid, activation-key: invalid
             {
                 "organization": "candlepin.org",
-                "activation-key": "xpto123"
+                "activation-key": INVALID_CREDENTIAL
             },
             None,
         ),
@@ -235,20 +215,20 @@ def test_connect(external_candlepin, rhc, test_config, auth, output_format):
                 "username": "candlepin.username",
                 "activation-key": "candlepin.activation_keys",
             },
-            64,
+            EXIT_CODE_USAGE,
         ),
         (  # invalid combination of parameters (password & activation-key)
             {
                 "activation-key": "candlepin.activation_keys",
                 "password": "candlepin.password",
             },
-            64,
+            EXIT_CODE_USAGE,
         ),
         (  # invalid combination of parameters (activation-key without organization)
             {
                 "activation-key": "candlepin.activation_keys",
             },
-            64,
+            EXIT_CODE_USAGE,
         ),
     ],
 )
@@ -327,7 +307,7 @@ def test_connect_failure_does_not_print_success_message(
     # Valid organization with invalid activation key (same pattern as test_connect_wrong_parameters)
     credentials = {
         "organization": "candlepin.org",
-        "activation-key": "xpto123",
+        "activation-key": INVALID_CREDENTIAL,
     }
     command_args = prepare_args_for_connect(test_config, credentials=credentials)
     command = ["connect"] + command_args
@@ -474,7 +454,7 @@ def test_connect_with_content_template(external_candlepin, rhc, test_config, aut
         sso_token_url,
         client_id,
         client_secret,
-        scope="openid api.iam.service_accounts",
+        scope=OAUTH_DEFAULT_SCOPE,
         proxies=proxies,
     )
 
@@ -575,7 +555,7 @@ def get_template_repos_by_name(
     client_id,
     client_secret,
     *,
-    scope="openid api.iam.service_accounts",
+    scope=OAUTH_DEFAULT_SCOPE,
     proxies=None,
 ):
     """
@@ -796,9 +776,8 @@ def test_connect_with_feature_enabled_disabled_combinations(
         # Special cases that should fail: e.g. remote-management enabled when content or analytics feature disabled
         result = rhc.run(*command, check=False)
 
-        # Verify command failed with return code 64
-        assert result.returncode == 64, (
-            f"Expected return code 64 for invalid feature combination, "
+        assert result.returncode == EXIT_CODE_USAGE, (
+            f"Expected return code {EXIT_CODE_USAGE} for invalid feature combination, "
             f"but got {result.returncode}"
         )
 

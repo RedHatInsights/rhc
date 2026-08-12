@@ -10,12 +10,14 @@ import pytest
 import subprocess
 import time
 
-from conftest import (
+from utils.constants import (
+    MINIMAL_COLLECTOR_CONFIG_PATH,
     MINIMAL_COLLECTOR_ID,
     MINIMAL_COLLECTOR_NAME,
-    MINIMAL_COLLECTOR_CONFIG_PATH,
     MINIMAL_SERVICE_UNIT,
     MINIMAL_TIMER_UNIT,
+    VARLINK_METHOD_COLLECTOR_INFO,
+    VARLINK_METHOD_COLLECTOR_LIST,
 )
 from utils.varlink import run_varlinkctl
 from utils.systemctl import get_timer_next_trigger
@@ -42,7 +44,7 @@ def test_collector_info_method():
         3. Collector details match the shipped configuration
     """
     response = run_varlinkctl(
-        "com.redhat.rhc.collector.Info", {"id": MINIMAL_COLLECTOR_ID}
+        VARLINK_METHOD_COLLECTOR_INFO, {"id": MINIMAL_COLLECTOR_ID}
     )
 
     assert "info" in response
@@ -77,7 +79,7 @@ def test_collector_info_with_timer_cache(minimal_collector_timer_cache):
     expected_last_run = minimal_collector_timer_cache["last_run"]
 
     response = run_varlinkctl(
-        "com.redhat.rhc.collector.Info", {"id": MINIMAL_COLLECTOR_ID}
+        VARLINK_METHOD_COLLECTOR_INFO, {"id": MINIMAL_COLLECTOR_ID}
     )
 
     info = response["info"]
@@ -105,7 +107,7 @@ def test_collector_info_nonexistent_id():
     nonexistent_id = "nonexistent.collector.id"
 
     result = run_varlinkctl(
-        "com.redhat.rhc.collector.Info", {"id": nonexistent_id}, check=False
+        VARLINK_METHOD_COLLECTOR_INFO, {"id": nonexistent_id}, check=False
     )
 
     assert result.returncode != 0
@@ -141,7 +143,7 @@ def test_collector_info_malformed_id():
 
     for malformed_id in malformed_ids:
         result = run_varlinkctl(
-            "com.redhat.rhc.collector.Info", {"id": malformed_id}, check=False
+            VARLINK_METHOD_COLLECTOR_INFO, {"id": malformed_id}, check=False
         )
 
         assert result.returncode != 0, f"Expected failure for ID: {malformed_id}"
@@ -173,7 +175,7 @@ def test_collector_info_with_systemd_timer(minimal_collector_with_timing):
     collector_info = minimal_collector_with_timing
 
     response = run_varlinkctl(
-        "com.redhat.rhc.collector.Info", {"id": collector_info["id"]}
+        VARLINK_METHOD_COLLECTOR_INFO, {"id": collector_info["id"]}
     )
 
     assert "info" in response
@@ -213,7 +215,7 @@ def test_collector_info_without_cache_or_timer(collector_minimal):
     collector_info = collector_minimal
 
     response = run_varlinkctl(
-        "com.redhat.rhc.collector.Info", {"id": collector_info["id"]}
+        VARLINK_METHOD_COLLECTOR_INFO, {"id": collector_info["id"]}
     )
 
     assert "info" in response
@@ -253,7 +255,7 @@ def test_collector_info_multiple_calls_consistency(minimal_collector_with_timing
     responses = []
     for _ in range(3):
         response = run_varlinkctl(
-            "com.redhat.rhc.collector.Info", {"id": collector_info["id"]}
+            VARLINK_METHOD_COLLECTOR_INFO, {"id": collector_info["id"]}
         )
         responses.append(response["info"])
 
@@ -293,7 +295,7 @@ def test_collector_list_method():
         3. Collectors array contains CollectorInfo objects
         4. Each collector has id, name, config_path, service_name, timer_name
     """
-    response = run_varlinkctl("com.redhat.rhc.collector.List")
+    response = run_varlinkctl(VARLINK_METHOD_COLLECTOR_LIST)
 
     assert "collectors" in response
     assert isinstance(response["collectors"], list)
@@ -340,7 +342,7 @@ def test_collector_list_includes_minimal_collector():
         2. Shipped collector is in the returned list
         3. Details match the shipped configuration
     """
-    response = run_varlinkctl("com.redhat.rhc.collector.List")
+    response = run_varlinkctl(VARLINK_METHOD_COLLECTOR_LIST)
 
     collectors = response["collectors"]
 
@@ -389,7 +391,7 @@ def test_collector_list_with_multiple_collectors(
     collector1_info = minimal_collector_with_timing
     collector2_info = collector_minimal
 
-    response = run_varlinkctl("com.redhat.rhc.collector.List")
+    response = run_varlinkctl(VARLINK_METHOD_COLLECTOR_LIST)
 
     assert "collectors" in response
     collectors = response["collectors"]
@@ -465,7 +467,7 @@ def test_collector_next_run_matches_systemctl(minimal_collector_timer_disabled):
     time.sleep(1)
 
     response = run_varlinkctl(
-        "com.redhat.rhc.collector.Info", {"id": MINIMAL_COLLECTOR_ID}
+        VARLINK_METHOD_COLLECTOR_INFO, {"id": MINIMAL_COLLECTOR_ID}
     )
     info = response["info"]
     assert "next_run" in info, "Info response should contain next_run"

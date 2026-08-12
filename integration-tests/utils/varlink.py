@@ -9,6 +9,8 @@ import subprocess
 import json
 from typing import Optional, Union
 
+from utils.constants import VARLINK_SOCKET_ADDRESS
+
 
 def run_varlinkctl(
     method: str,
@@ -23,7 +25,7 @@ def run_varlinkctl(
     :param check: If True, raise exception on non-zero exit code (default: True)
     :return: Parsed JSON response if check=True, otherwise CompletedProcess object
     """
-    cmd = ["varlinkctl", "call", "unix:/run/rhc/com.redhat.rhc", method]
+    cmd = ["varlinkctl", "call", VARLINK_SOCKET_ADDRESS, method]
 
     if params:
         cmd.append(json.dumps(params))

@@ -7,17 +7,19 @@ import time
 import textwrap
 
 from utils.systemctl import is_service_active
+from utils.constants import (
+    COLLECTOR_BIN_DIR,
+    COLLECTOR_CONFIG_DIR,
+    MINIMAL_COLLECTOR_CONFIG_PATH,
+    MINIMAL_COLLECTOR_ID,
+    MINIMAL_COLLECTOR_NAME,
+    MINIMAL_TIMER_UNIT,
+    RHC_SERVER_SOCKET,
+    TIMER_CACHE_DIR,
+    YGGDRASIL_SERVICE_NAME,
+)
 
 logger = logging.getLogger(__name__)
-
-RHC_COLLECTOR = "/usr/libexec/rhc/rhc-collector"
-TIMER_CACHE_DIR = "/var/cache/rhc/collectors"
-
-MINIMAL_COLLECTOR_ID = "com.redhat.minimal"
-MINIMAL_COLLECTOR_NAME = "Minimal Host Inventory Collector"
-MINIMAL_COLLECTOR_CONFIG_PATH = "/usr/lib/rhc/collectors/com.redhat.minimal.toml"
-MINIMAL_TIMER_UNIT = f"rhc-collector-{MINIMAL_COLLECTOR_ID}.timer"
-MINIMAL_SERVICE_UNIT = f"rhc-collector-{MINIMAL_COLLECTOR_ID}.service"
 
 
 @pytest.fixture(scope="module")
@@ -26,13 +28,11 @@ def rhc_server_socket():
     Fixture to ensure rhc-server.socket is enabled and running before collector tests.
     This is required for varlinkctl to communicate with the rhc-server.
     """
-    socket_name = "rhc-server.socket"
-
-    was_active = is_service_active(socket_name)
+    was_active = is_service_active(RHC_SERVER_SOCKET)
 
     if not was_active:
         subprocess.run(
-            ["systemctl", "enable", "--now", socket_name],
+            ["systemctl", "enable", "--now", RHC_SERVER_SOCKET],
             check=True,
             capture_output=True,
         )
@@ -41,7 +41,7 @@ def rhc_server_socket():
 
     if not was_active:
         subprocess.run(
-            ["systemctl", "disable", "--now", socket_name],
+            ["systemctl", "disable", "--now", RHC_SERVER_SOCKET],
             check=False,
             capture_output=True,
         )
@@ -55,11 +55,9 @@ def collector_config():
     Used by tests that need a collector without systemd units
     (e.g. testing the 'missing timer' error path).
     """
-    collector_config_dir = "/usr/lib/rhc/collectors"
-    collector_bin_dir = "/usr/libexec/rhc/collectors"
     collector_id = "test.integration.collector"
-    collector_config_path = os.path.join(collector_config_dir, f"{collector_id}.toml")
-    collector_bin_path = os.path.join(collector_bin_dir, collector_id)
+    collector_config_path = os.path.join(COLLECTOR_CONFIG_DIR, f"{collector_id}.toml")
+    collector_bin_path = os.path.join(COLLECTOR_BIN_DIR, collector_id)
 
     config_content = textwrap.dedent("""
         [meta]
@@ -84,11 +82,11 @@ def collector_config():
         fi
     """).strip()
 
-    os.makedirs(collector_config_dir, exist_ok=True)
+    os.makedirs(COLLECTOR_CONFIG_DIR, exist_ok=True)
     with open(collector_config_path, "w") as f:
         f.write(config_content)
 
-    os.makedirs(collector_bin_dir, exist_ok=True)
+    os.makedirs(COLLECTOR_BIN_DIR, exist_ok=True)
     with open(collector_bin_path, "w") as f:
         f.write(collector_script)
     os.chmod(collector_bin_path, 0o755)
@@ -112,13 +110,12 @@ def collector_minimal():
     Fixture to create a minimal collector with only a config file.
     No binary, no cache, no systemd units.
     """
-    collector_dir = "/usr/lib/rhc/collectors"
-    os.makedirs(collector_dir, exist_ok=True)
+    os.makedirs(COLLECTOR_CONFIG_DIR, exist_ok=True)
 
     collector_id = "test.collector1"
     collector_name = "Test Minimal Collector"
 
-    config_path = os.path.join(collector_dir, f"{collector_id}.toml")
+    config_path = os.path.join(COLLECTOR_CONFIG_DIR, f"{collector_id}.toml")
     config_content = textwrap.dedent("""
         [meta]
         name = "Test Minimal Collector"
@@ -271,8 +268,7 @@ def yggdrasil_proxy_config():
     Fixture to manage yggdrasil service proxy configuration.
     Automatically cleans up proxy configuration after test completion.
     """
-    service_name = "yggdrasil"
-    override_dir = f"/etc/systemd/system/{service_name}.service.d"
+    override_dir = f"/etc/systemd/system/{YGGDRASIL_SERVICE_NAME}.service.d"
     override_file = f"{override_dir}/proxy.conf"
 
     def _configure_proxy(proxy_url):
@@ -288,7 +284,7 @@ Environment=HTTP_PROXY={proxy_url}
                 f.write(override_content)
 
             subprocess.run(["systemctl", "daemon-reload"], check=True)
-            logger.info(f"Yggdrasil service configured with proxy: {proxy_url}")
+            logger.info(f"{YGGDRASIL_SERVICE_NAME} service configured with proxy: {proxy_url}")
             return True
 
         except Exception as e:
