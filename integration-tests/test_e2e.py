@@ -15,9 +15,8 @@ from utils import (
 )
 
 
-@pytest.mark.skip("Test cannot be run due to unresolved issues CCT-862 and CCT-696")
 @pytest.mark.parametrize("auth", ["activation-key", "basic"])
-def test_rhc_client_connect_e2e(rhc, test_config, auth, external_inventory, subman):
+def test_rhc_client_connect_e2e(external_candlepin, rhc, test_config, auth, external_inventory, subman):
     """
     :id: bbac96bd-a551-423c-b00b-1e62a743d4ed
     :title: Test RHC client connect end-to-end with basic auth and activation key
@@ -51,6 +50,7 @@ def test_rhc_client_connect_e2e(rhc, test_config, auth, external_inventory, subm
     command = ["connect"] + command_args
     rhc.run(*command)
     assert rhc.is_registered
+    assert loop_until(lambda: insights_client.is_registered)
     assert yggdrasil_service_is_active()
     timeout = 60.0
     start = time.time()
@@ -62,4 +62,3 @@ def test_rhc_client_connect_e2e(rhc, test_config, auth, external_inventory, subm
         current = time.time()
         if current - start > timeout:
             raise ValueError("timeout")
-        time.sleep(10)
