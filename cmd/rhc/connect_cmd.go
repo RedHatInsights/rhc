@@ -139,7 +139,7 @@ func (connectResult *ConnectResult) TryRegisterRHSM(cmd *cli.Command, enableCont
 	}
 
 	var s *spinner.Spinner
-	if ui.IsOutputRich() {
+	if ui.AreAnimationsEnabled() {
 		s = spinner.New(spinner.CharSets[9], 100*time.Millisecond)
 		s.Prefix = ui.Indent.Small + "["
 		s.Suffix = "] Connecting to Red Hat Subscription Management..."
@@ -164,7 +164,7 @@ func (connectResult *ConnectResult) TryRegisterRHSM(cmd *cli.Command, enableCont
 				return
 			}
 			// Stop spinner to display the organization list and prompt the user
-			if ui.IsOutputRich() {
+			if ui.AreAnimationsEnabled() {
 				s.Stop()
 			}
 
@@ -189,7 +189,7 @@ func (connectResult *ConnectResult) TryRegisterRHSM(cmd *cli.Command, enableCont
 			organization = strings.TrimSpace(scanner.Text())
 			fmt.Printf("\n")
 
-			if ui.IsOutputRich() {
+			if ui.AreAnimationsEnabled() {
 				s.Start()
 			}
 

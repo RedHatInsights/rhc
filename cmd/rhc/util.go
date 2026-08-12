@@ -7,13 +7,19 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/urfave/cli/v3"
-	"golang.org/x/sys/unix"
 
 	"github.com/redhatinsights/rhc/pkg/exitcode"
 )
+
+// isEnvironmentVariableEnabled returns true for Boolean true values.
+func isEnvironmentVariableEnabled(name string) bool {
+	enabled, err := strconv.ParseBool(os.Getenv(name))
+	return err == nil && enabled
+}
 
 // isShellCompletion returns true when the process was invoked for shell completion.
 func isShellCompletion() bool {
@@ -23,12 +29,6 @@ func isShellCompletion() bool {
 		}
 	}
 	return false
-}
-
-// isTerminal returns true if the file descriptor is terminal.
-func isTerminal(fd uintptr) bool {
-	_, err := unix.IoctlGetTermios(int(fd), unix.TCGETS)
-	return err == nil
 }
 
 // BashCompleteCommand prints all visible flag options for the given command,
