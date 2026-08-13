@@ -1,0 +1,35 @@
+name: "Verify RPM excludes runtime paths"
+description: "Check that the rhc RPM does not own runtime-generated paths"
+
+inputs:
+  manifest:
+    description: "Path to the pre-generated RPM manifest file (output of rpm -qlp)"
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: "Verify runtime paths are excluded"
+      shell: bash
+      run: |
+        FAIL=0
+
+        CACHE_ENTRIES=$(grep '^/var/cache/rhc' "${{ inputs.manifest }}" || true)
+        if [ -n "${CACHE_ENTRIES}" ]; then
+          echo "FAIL  RPM must not own runtime cache paths under /var/cache/rhc/:"
+          echo "${CACHE_ENTRIES}"
+          FAIL=1
+        else
+          echo "  OK  /var/cache/rhc/ entries correctly absent"
+        fi
+
+        RUN_ENTRIES=$(grep '^/run/rhc/.' "${{ inputs.manifest }}" || true)
+        if [ -n "${RUN_ENTRIES}" ]; then
+          echo "FAIL  RPM must not own files under /run/rhc/:"
+          echo "${RUN_ENTRIES}"
+          FAIL=1
+        else
+          echo "  OK  /run/rhc/ entries correctly absent"
+        fi
+
+        exit "${FAIL}"
