@@ -375,6 +375,88 @@ def test_collector_cli_info_nonexistent_id(rhc):
 
     assert result.returncode != 0
     assert "failed to get collector info" in result.stderr
+    assert "varlink call failed: com.redhat.rhc.collector.NoSuchCollector" in result.stderr
+
+
+@pytest.mark.tier2
+def test_collector_cli_info_invalid_id(rhc):
+    """
+    :id: b2c3d4e5-f607-1829-3456-789012345678
+    :title: Verify rhc collector info fails with invalid collector ID
+    :description:
+        Test that ``rhc collector info`` with an invalid collector ID fails.
+    :tags: Tier 2
+    :steps:
+        1. Run ``rhc collector info`` with an invalid collector ID
+        2. Verify the command fails
+    :expectedresults:
+        1. Command fails with non-zero exit code
+        2. Error indicates the collector info lookup failed with an actionable error message
+    """
+    result = rhc.run("collector", "info", "invalid-collector-id", check=False)
+    assert result.returncode != 0
+    assert "failed to get collector info" in result.stderr
+    assert "varlink call failed: com.redhat.rhc.collector.InvalidParameter" in result.stderr
+
+
+@pytest.mark.tier2
+def test_collector_cli_enable_missing_id(rhc):
+    """
+    :id: c2d3e4f5-g617-2839-4567-890123456789
+    :title: Verify rhc collector enable fails for a missing collector ID
+    :description:
+        Test that ``rhc collector enable`` with a missing collector ID fails.
+    :tags: Tier 2
+    :steps:
+        1. Run ``rhc collector enable`` with a missing collector ID
+        2. Verify the command fails
+    :expectedresults:
+        1. Command fails with non-zero exit code
+        2. Error indicates the collector enable failed with an actionable error message
+    """
+    result = rhc.run("collector", "enable", check=False)
+    assert result.returncode != 0
+    assert "rhc collector enable requires a collector ID" in result.stderr
+
+
+@pytest.mark.tier2
+def test_collector_cli_enable_nonexistent_id(rhc):
+    """
+    :id: e2f3g4h5-i637-4859-5678-901234567890
+    :title: Verify rhc collector enable fails for a non-existent collector
+    :description:
+        Test that ``rhc collector enable`` with a non-existent collector ID fails.
+    :tags: Tier 2
+    :steps:
+        1. Run ``rhc collector enable`` with a non-existent collector ID
+        2. Verify the command fails
+    :expectedresults:
+        1. Command fails with non-zero exit code
+        2. Error indicates the collector enable failed with an actionable error message
+    """
+    result = rhc.run("collector", "enable", "nonexistent.collector.id", check=False)
+    assert result.returncode != 0
+    assert "collector nonexistent.collector.id not found" in result.stderr
+
+
+@pytest.mark.tier2
+def test_collector_cli_enable_invalid_id(rhc):
+    """
+    :id: d2e3f4g5-h627-3849-4567-890123456789
+    :title: Verify rhc collector enable fails with invalid collector ID
+    :description:
+        Test that ``rhc collector enable`` with an invalid collector ID fails.
+    :tags: Tier 2
+    :steps:
+        1. Run ``rhc collector enable`` with an invalid collector ID
+        2. Verify the command fails
+    :expectedresults:
+        1. Command fails with non-zero exit code
+        2. Error indicates the collector enable failed with an actionable error message
+    """
+    result = rhc.run("collector", "enable", "invalid-collector-id", check=False)
+    assert result.returncode != 0
+    assert "collector invalid-collector-id not found" in result.stderr
 
 
 @pytest.mark.tier2
@@ -445,3 +527,35 @@ def test_collector_cli_timers_format_json(rhc, minimal_collector_with_timing):
     assert collector["next_run"] > 0
     assert collector["id"] == MINIMAL_COLLECTOR_ID
     assert collector["last_run"] == minimal_collector_with_timing["last_run"]
+
+
+@pytest.mark.tier2
+def test_collector_cli_help(rhc):
+    """
+    :id: d4e5f6g7-h829-3045-6789-012345678901
+    :title: Verify rhc collector help shows usage information
+    :description:
+        Test that ``rhc collector help`` shows usage information for the collector CLI.
+    :tags: Tier 2
+    :steps:
+        1. Run ``rhc collector help``
+        2. Verify the command succeeds and shows usage information
+    :expectedresults:
+        1. Command succeeds with exit code 0
+        2. Output shows usage information for the collector CLI
+    """
+    result = rhc.run("collector", "help", check=False)
+    assert result.returncode == 0
+    out = result.stdout
+    assert "NAME:" in out
+    assert "rhc collector - Collect data for analysis" in out
+    assert "USAGE:" in out
+    assert "rhc collector COMMAND [command options]" in out
+    assert "COMMANDS:" in out
+    assert "info" in out and "Display collector information" in out
+    assert "list" in out and "List available collectors" in out
+    assert "timers" in out and "List collector timers" in out
+    assert "enable" in out and "Enable timer-based collection" in out
+    assert "disable" in out and "Disable timer-based collection" in out
+    assert "OPTIONS:" in out
+    assert "--help, -h" in out
