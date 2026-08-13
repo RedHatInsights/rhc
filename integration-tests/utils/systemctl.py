@@ -9,15 +9,15 @@ import json
 import subprocess
 
 
-def is_service_active(service_name: str) -> bool:
+def is_unit_active(unit_name: str) -> bool:
     """
-    Check if a systemd service is active.
+    Check if a systemd unit (service, socket, timer, etc.) is active.
 
-    :param service_name: Name of the systemd service
-    :return: True if the service is active, False otherwise
+    :param unit_name: Name of the systemd unit
+    :return: True if the unit is active, False otherwise
     """
     result = subprocess.run(
-        ["systemctl", "is-active", service_name],
+        ["systemctl", "is-active", unit_name],
         capture_output=True,
     )
     return result.returncode == 0
@@ -31,6 +31,19 @@ def stop_service(service_name: str) -> None:
     """
     subprocess.run(
         ["systemctl", "stop", service_name],
+        check=True,
+        capture_output=True,
+    )
+
+
+def start_service(service_name: str) -> None:
+    """
+    Start a systemd service.
+
+    :param service_name: Name of the systemd service to start
+    """
+    subprocess.run(
+        ["systemctl", "start", service_name],
         check=True,
         capture_output=True,
     )
