@@ -116,6 +116,7 @@ def no_product_cert_installed(context: behave.runner.Context):
 PRODUCT_CERTS_TABLE = {
     "fedora-44": "644",
     "fedora-45": "645",
+    "fedora-46": "646",
 }
 
 
