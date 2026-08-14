@@ -76,6 +76,7 @@ OAUTH_DEFAULT_SCOPE = "openid api.iam.service_accounts"
 # ---------------------------------------------------------------------------
 EXIT_CODE_USAGE = 64
 EXIT_CODE_DATA_FORMAT = 65
+EXIT_CODE_UNAVAILABLE = 69
 
 # ---------------------------------------------------------------------------
 # Test data

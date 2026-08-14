@@ -6,7 +6,7 @@ import json
 import time
 import textwrap
 
-from utils.systemctl import is_service_active
+from utils.systemctl import is_unit_active
 from utils.constants import (
     COLLECTOR_BIN_DIR,
     COLLECTOR_CONFIG_DIR,
@@ -28,7 +28,7 @@ def rhc_server_socket():
     Fixture to ensure rhc-server.socket is enabled and running before collector tests.
     This is required for varlinkctl to communicate with the rhc-server.
     """
-    was_active = is_service_active(RHC_SERVER_SOCKET)
+    was_active = is_unit_active(RHC_SERVER_SOCKET)
 
     if not was_active:
         subprocess.run(
