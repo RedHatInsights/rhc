@@ -23,7 +23,8 @@ from utils.constants import (
     RHC_TMP_DIR,
     TIMER_CACHE_DIR,
 )
-from utils.systemctl import is_unit_enabled
+from utils import poll_until
+from utils.systemctl import is_unit_active, is_unit_enabled
 
 pytestmark = pytest.mark.usefixtures("rhc_server_socket")
 
@@ -108,6 +109,202 @@ def test_collector_enable_disable_via_cli(rhc, minimal_collector_timer_disabled)
     assert result.returncode == 0, f"disable failed: {result.stderr}"
     assert not is_unit_enabled(MINIMAL_TIMER_UNIT), (
         "Timer should be disabled after 'rhc collector disable'"
+    )
+
+
+@pytest.mark.tier2
+def test_collector_enable_now_triggers_immediate_run(
+    rhc, minimal_collector_timer_disabled
+):
+    """
+    :id: 1a1575b3-aa12-4e71-a84a-4af97741b9d0
+    :title: Verify 'rhc collector enable --now' enables timer and triggers immediate run
+    :description:
+        Test that ``rhc collector enable --now`` both enables the systemd
+        timer and immediately triggers a collection run of the
+        com.redhat.minimal collector, evidenced by a freshly written timer
+        cache file. The run itself may still fail at the upload stage in
+        environments without Red Hat registration/network access; that
+        failure is orthogonal to what this test verifies, since the timer
+        cache is written before the upload is attempted.
+    :tags: Tier 2
+    :steps:
+        1. Ensure the minimal collector timer starts disabled and remove any
+           stale timer cache
+        2. Run ``rhc collector enable --now com.redhat.minimal``
+        3. Verify the timer is enabled via systemctl
+        4. Verify a fresh timer cache file appears, proving an immediate run
+           was triggered
+        5. If the command exited non-zero, verify it was only because the
+           triggered run itself failed (e.g. upload)
+    :expectedresults:
+        1. Timer is disabled and no stale cache exists
+        2. ``rhc collector enable --now`` runs
+        3. ``systemctl is-enabled`` reports the timer as enabled
+        4. Timer cache file is created with a last_started timestamp at or
+           after the command was issued
+        5. Any non-zero exit code is explained by a known, allow-listed
+           failure message
+    """
+    cache_path = os.path.join(TIMER_CACHE_DIR, f"{MINIMAL_COLLECTOR_ID}.json")
+    if os.path.exists(cache_path):
+        os.remove(cache_path)
+
+    before = time.time()
+    try:
+        result = rhc.run(
+            "collector", "enable", "--now", MINIMAL_COLLECTOR_ID, check=False
+        )
+
+        assert is_unit_enabled(MINIMAL_TIMER_UNIT), (
+            "Timer should be enabled after 'rhc collector enable --now'"
+        )
+
+        assert poll_until(lambda: os.path.exists(cache_path), timeout_s=15), (
+            "Expected an immediate collection run to write a timer cache file"
+        )
+
+        with open(cache_path) as f:
+            cache = json.load(f)
+        assert cache["last_started"]["timestamp"] >= before - 1, (
+            "Timer cache should reflect a run triggered by 'enable --now', "
+            f"got: {cache}"
+        )
+
+        if result.returncode != 0:
+            # The timer was enabled and the run was triggered (both verified
+            # above), so a non-zero exit here is only acceptable if it came
+            # from the triggered run itself failing (e.g. no
+            # registration/network for the upload step).
+            combined_output = (result.stdout + result.stderr).lower()
+            assert any(
+                phrase in combined_output for phrase in ["failed to start service"]
+            ), f"enable --now failed unexpectedly: {result.stderr}"
+    finally:
+        if os.path.exists(cache_path):
+            os.remove(cache_path)
+
+
+@pytest.mark.tier2
+def test_collector_enable_without_now_does_not_trigger_run(
+    rhc, minimal_collector_timer_disabled
+):
+    """
+    :id: f802d8bc-bcc7-4d4c-b27b-2f05af0f5fe5
+    :title: Verify 'rhc collector enable' without --now does not trigger a run
+    :description:
+        Test that ``rhc collector enable`` (without ``--now``) only enables
+        the systemd timer and does not immediately trigger a collection run.
+    :tags: Tier 2
+    :steps:
+        1. Ensure the minimal collector timer starts disabled and remove any
+           stale timer cache
+        2. Run ``rhc collector enable com.redhat.minimal``
+        3. Verify the timer is enabled via systemctl
+        4. Verify no timer cache file appears (no immediate run)
+    :expectedresults:
+        1. Timer is disabled and no stale cache exists
+        2. ``rhc collector enable`` succeeds
+        3. ``systemctl is-enabled`` reports the timer as enabled
+        4. No timer cache file is created
+    """
+    cache_path = os.path.join(TIMER_CACHE_DIR, f"{MINIMAL_COLLECTOR_ID}.json")
+    if os.path.exists(cache_path):
+        os.remove(cache_path)
+
+    result = rhc.run("collector", "enable", MINIMAL_COLLECTOR_ID, check=False)
+    assert result.returncode == 0, f"enable failed: {result.stderr}"
+
+    assert is_unit_enabled(MINIMAL_TIMER_UNIT), (
+        "Timer should be enabled after 'rhc collector enable'"
+    )
+
+    assert not poll_until(lambda: os.path.exists(cache_path), timeout_s=3), (
+        "'rhc collector enable' without --now should not trigger an immediate run"
+    )
+
+
+@pytest.mark.tier2
+def test_collector_disable_now_stops_inflight_service(
+    rhc, minimal_collector_slow_service
+):
+    """
+    :id: ea40584f-c4a3-4489-ba6e-7a9c7f76166f
+    :title: Verify 'rhc collector disable --now' stops an in-flight collector run
+    :description:
+        Test that when the com.redhat.minimal collector service is actively
+        running (simulated via a long-running service override),
+        ``rhc collector disable --now`` disables the timer and stops the
+        in-flight service rather than letting it run to completion.
+    :tags: Tier 2
+    :steps:
+        1. Override the collector service to run a long-lived command and
+           start it directly to simulate an in-flight run
+        2. Verify the service is active before disabling
+        3. Run ``rhc collector disable --now com.redhat.minimal``
+        4. Verify the timer is disabled and the service is no longer active
+    :expectedresults:
+        1. Service starts and is running
+        2. Service is active
+        3. ``rhc collector disable --now`` succeeds
+        4. ``systemctl is-enabled`` reports disabled and the in-flight
+           service is stopped promptly
+    """
+    subprocess.run(["systemctl", "start", MINIMAL_SERVICE_UNIT], check=True)
+    assert poll_until(lambda: is_unit_active(MINIMAL_SERVICE_UNIT), timeout_s=10), (
+        "Service should be active/in-flight before calling 'disable --now'"
+    )
+
+    result = rhc.run("collector", "disable", "--now", MINIMAL_COLLECTOR_ID, check=False)
+    assert result.returncode == 0, f"disable --now failed: {result.stderr}"
+
+    assert not is_unit_enabled(MINIMAL_TIMER_UNIT), (
+        "Timer should be disabled after 'rhc collector disable --now'"
+    )
+    assert poll_until(lambda: not is_unit_active(MINIMAL_SERVICE_UNIT), timeout_s=10), (
+        "In-flight service should be stopped by 'rhc collector disable --now'"
+    )
+
+
+@pytest.mark.tier2
+def test_collector_disable_without_now_leaves_inflight_service_running(
+    rhc, minimal_collector_slow_service
+):
+    """
+    :id: 34f0495b-f5a6-4b40-96c6-eb963ef786ac
+    :title: Verify 'rhc collector disable' without --now leaves an in-flight run alone
+    :description:
+        Test that when the com.redhat.minimal collector service is actively
+        running (simulated via a long-running service override),
+        ``rhc collector disable`` (without ``--now``) only disables the
+        timer and leaves the in-flight service running.
+    :tags: Tier 2
+    :steps:
+        1. Override the collector service to run a long-lived command and
+           start it directly to simulate an in-flight run
+        2. Verify the service is active before disabling
+        3. Run ``rhc collector disable com.redhat.minimal``
+        4. Verify the timer is disabled but the service is still active
+    :expectedresults:
+        1. Service starts and is running
+        2. Service is active
+        3. ``rhc collector disable`` succeeds
+        4. ``systemctl is-enabled`` reports disabled and the in-flight
+           service remains active
+    """
+    subprocess.run(["systemctl", "start", MINIMAL_SERVICE_UNIT], check=True)
+    assert poll_until(lambda: is_unit_active(MINIMAL_SERVICE_UNIT), timeout_s=10), (
+        "Service should be active/in-flight before calling 'disable'"
+    )
+
+    result = rhc.run("collector", "disable", MINIMAL_COLLECTOR_ID, check=False)
+    assert result.returncode == 0, f"disable failed: {result.stderr}"
+
+    assert not is_unit_enabled(MINIMAL_TIMER_UNIT), (
+        "Timer should be disabled after 'rhc collector disable'"
+    )
+    assert poll_until(lambda: is_unit_active(MINIMAL_SERVICE_UNIT), timeout_s=3), (
+        "'rhc collector disable' without --now should not stop an in-flight service"
     )
 
 
