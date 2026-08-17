@@ -52,7 +52,7 @@ def test_man_page_global_options():
     assert "--version, -v" in command_op
 
 
-@pytest.mark.parametrize("command", ["connect", "disconnect", "status", "help"])
+@pytest.mark.parametrize("command", ["connect", "disconnect", "status", "help", "collector"])
 def test_man_page_commands(command):
     """
     :id: 7ca5732c-9e08-42b5-bf33-169774c914a7
@@ -60,13 +60,13 @@ def test_man_page_commands(command):
     :parametrized: yes
     :description:
         This test checks that the `rhc` man page lists common commands
-        like 'connect', 'disconnect', 'status', and 'help'.
+        like 'connect', 'disconnect', 'status', 'help', and 'collector'.
     :tags:
     :steps:
         1.  Display the `rhc` man page content.
     :expectedresults:
         1.  The man page content includes the tested command strings
-            ('connect', 'disconnect', 'status', 'help').
+            ('connect', 'disconnect', 'status', 'help', 'collector').
     """
 
     command_op = subprocess.check_output(["man", "rhc"]).decode("utf-8")
@@ -85,6 +85,8 @@ def test_man_page_commands(command):
         ["--content-template", "-c"],
     ],
 )
+
+
 def test_man_page_connect_options(options):
     """
     :id: 762c075e-2e76-4111-b138-1d5b41e08b53
@@ -103,6 +105,7 @@ def test_man_page_connect_options(options):
     command_op = subprocess.check_output(["man", "rhc"]).decode("utf-8")
     for option in options:
         assert option in command_op
+
 
 @pytest.mark.parametrize("feature_id", ALL_FEATURES_CLI)
 def test_man_page_feature_ids(feature_id):
@@ -123,3 +126,26 @@ def test_man_page_feature_ids(feature_id):
 
     command_op = subprocess.check_output(["man", "rhc"]).decode("utf-8")
     assert feature_id in command_op
+
+
+def test_man_page_collector_subcommands():
+    """
+    :id: e4f5g6h7-i829-3045-6789-012345678901
+    :title: Verify rhc man page documents collector subcommands
+    :tags:
+    :steps:
+        1.  Display the `rhc` man page content.
+    :expectedresults:
+        1.  The man page content includes the collector subcommands
+            ('info', 'list', 'timers', 'enable', 'disable').
+    """
+    out = subprocess.check_output(["man", "rhc"]).decode("utf-8")
+    assert "Collect data for analysis" in out
+    assert "rhc collector COMMAND [command options]" in out
+    assert "rhc collector info COLLECTOR" in out
+    assert "rhc collector list" in out
+    assert "rhc collector timers" in out
+    assert "rhc collector enable COLLECTOR" in out
+    assert "rhc collector disable COLLECTOR" in out
+    assert "--format, -f" in out
+    assert "--now" in out
