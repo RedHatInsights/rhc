@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 
@@ -23,10 +24,11 @@ import (
 )
 
 const (
-	cliLogLevel  = "log-level"
-	cliCertFile  = "cert-file"
-	cliKeyFile   = "key-file"
-	cliAPIServer = "base-url"
+	cliLogLevel   = "log-level"
+	cliCertFile   = "cert-file"
+	cliKeyFile    = "key-file"
+	envForceColor = "FORCE_COLOR"
+	envNoColor    = "NO_COLOR"
 )
 
 // mainAction is triggered in the case, when no sub-command is specified
@@ -51,23 +53,47 @@ func mainAction(ctx context.Context, cmd *cli.Command) error {
 // configureUI sets up the global UI state by calling ui.ConfigureOutput
 // with appropriate parameters.
 func configureUI(cmd *cli.Command) {
+	// Machine-readable output is enabled when a format is requested.
+	machineReadable := cmd.String("format") != ""
+	forceColor := isForceColorEnabled()
+	noColor := isNoColorEnabled(cmd)
+	// Animations require human-readable output to an interactive terminal.
+	animationsEnabled := ui.IsInteractive() && !machineReadable
+	// Colors are enabled for human terminal output or with FORCE_COLOR,
+	// unless NO_COLOR or --no-color disables them.
+	colorsEnabled := !noColor && (forceColor || animationsEnabled)
+
 	ui.ConfigureOutput(
-		// Rich output (animations) is only enabled when all are true:
-		// - we're printing in human-friendly format,
-		// - stdout is an interactive console.
-		!cmd.IsSet("format") && ui.IsInteractive(),
-		// Colors are only enabled when all are true:
-		// output is rich,
-		// --no-color/$NO_COLOR are not set.
-		!cmd.IsSet("no-color"),
-		// Machine-readable output is enabled when all are true:
-		// - we're printing in JSON or other parseable format.
-		cmd.IsSet("format"),
+		animationsEnabled,
+		colorsEnabled,
+		machineReadable,
 	)
+}
+
+func isNoColorEnabled(cmd *cli.Command) bool {
+	return cmd.Bool("no-color") || isEnvironmentVariableEnabled(envNoColor)
+}
+
+// isForceColorEnabled returns true for Boolean true values or positive integers.
+func isForceColorEnabled() bool {
+	if isEnvironmentVariableEnabled(envForceColor) {
+		return true
+	}
+
+	colorLevel, err := strconv.Atoi(os.Getenv(envForceColor))
+	return err == nil && colorLevel >= 1
 }
 
 // beforeAction is triggered before other actions are triggered
 func beforeAction(ctx context.Context, cmd *cli.Command) (context.Context, error) {
+	forceColor := isForceColorEnabled()
+	if forceColor && isNoColorEnabled(cmd) {
+		return ctx, cli.Exit(
+			"FORCE_COLOR cannot be used together with NO_COLOR or --no-color",
+			exitcode.Usage,
+		)
+	}
+
 	// check if --log-level was set via command line
 	var logLevelSrc string
 	if cmd.IsSet(cliLogLevel) {
@@ -101,18 +127,6 @@ func beforeAction(ctx context.Context, cmd *cli.Command) (context.Context, error
 	if !cmd.Bool("generate-man-page") && !cmd.Bool("generate-markdown") {
 		configureFileLogging(conf.Config.LogLevel)
 		slog.Info(cmd.Root().Name+" started", "version", version.Version, "pid", os.Getpid())
-	}
-
-	// When environment variable NO_COLOR or --no-color CLI option is set, then do not display colors
-	// and animations too. The NO_COLOR environment variable have to have value "1" or "true",
-	// "True", "TRUE" to take effect
-	// When no-color is not set, then try to detect if the output goes to some file. In this case
-	// colors nor animations will not be printed to file.
-	if !isTerminal(os.Stdout.Fd()) {
-		err := cmd.Set("no-color", "true")
-		if err != nil {
-			slog.Debug("Unable to set no-color flag to \"true\"")
-		}
 	}
 
 	// Set up standard output preference: colors, icons, etc.
@@ -175,7 +189,7 @@ func main() {
 			Name:    "no-color",
 			Hidden:  false,
 			Value:   false,
-			Sources: cli.EnvVars("NO_COLOR"),
+			Sources: cli.EnvVars(envNoColor),
 		},
 		&cli.StringFlag{
 			Name:        "config",

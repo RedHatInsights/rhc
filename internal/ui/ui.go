@@ -37,7 +37,7 @@ type icons struct {
 }
 
 var Icons icons
-var isOutputRich bool
+var areAnimationsEnabled bool
 var isOutputMachineReadable bool
 
 func init() {
@@ -57,17 +57,12 @@ func isTerminal(fd uintptr) bool {
 }
 
 // ConfigureOutput sets up a global state for communicating information to the user.
-// 'rich' represents the output's ability to display animations or colors,
-// 'colored' represents the user's preference to display colors, and requires 'rich' to be true,
-// 'machine' is true when the output is formatted as JSON or similar machine-readable format.
-func ConfigureOutput(rich bool, colored bool, machine bool) {
-	if machine {
-		isOutputMachineReadable = true
-		isOutputRich = false
-	}
-	if rich {
-		isOutputRich = true
-	}
+// 'animated' enables transient animations such as spinners,
+// 'colored' enables ANSI colors,
+// 'machineReadable' is true for JSON or similar machine-readable formats.
+func ConfigureOutput(animated bool, colored bool, machineReadable bool) {
+	areAnimationsEnabled = animated
+	isOutputMachineReadable = machineReadable
 
 	Icons = icons{
 		Ok:      "✓",
@@ -75,7 +70,7 @@ func ConfigureOutput(rich bool, colored bool, machine bool) {
 		Warning: "!",
 		Error:   "𐄂",
 	}
-	if rich && colored {
+	if colored {
 		Icons.Ok = colorGreen + Icons.Ok + colorReset
 		Icons.Info = colorYellow + Icons.Info + colorReset
 		Icons.Error = colorRed + Icons.Error + colorReset
@@ -89,10 +84,9 @@ func IsOutputMachineReadable() bool {
 	return isOutputMachineReadable
 }
 
-// IsOutputRich returns true when the output should be displayed in a terminal
-// supporting animations and colors.
-func IsOutputRich() bool {
-	return isOutputRich
+// AreAnimationsEnabled returns true when transient output animations are enabled.
+func AreAnimationsEnabled() bool {
+	return areAnimationsEnabled
 }
 
 // Printf acts as a no-op if the output is machine-readable.
@@ -108,14 +102,14 @@ func Printf(
 }
 
 // Spinner calls a function and displays a spinner with an explanatory message.
-// The spinner is not displayed if the output isn't a rich terminal.
+// The spinner is not displayed when animations are disabled.
 func Spinner(
 	function func() error,
 	prefix string,
 	message string,
 ) error {
 	var s *spinner.Spinner
-	if IsOutputRich() {
+	if AreAnimationsEnabled() {
 		s = spinner.New(spinner.CharSets[9], 100*time.Millisecond)
 		s.Prefix = prefix + "["
 		s.Suffix = "]" + " " + message
