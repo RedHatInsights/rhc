@@ -5,14 +5,16 @@ import os
 import json
 import time
 import textwrap
+from contextlib import suppress
 
-from utils.systemctl import is_unit_active
+from utils.systemctl import is_unit_active, is_unit_enabled
 from utils.constants import (
     COLLECTOR_BIN_DIR,
     COLLECTOR_CONFIG_DIR,
     MINIMAL_COLLECTOR_CONFIG_PATH,
     MINIMAL_COLLECTOR_ID,
     MINIMAL_COLLECTOR_NAME,
+    MINIMAL_SERVICE_UNIT,
     MINIMAL_TIMER_UNIT,
     RHC_SERVER_SOCKET,
     TIMER_CACHE_DIR,
@@ -162,6 +164,58 @@ def minimal_collector_timer_disabled():
         capture_output=True,
     )
     subprocess.run(["systemctl", "daemon-reload"], check=True)
+
+
+@pytest.fixture
+def minimal_collector_slow_service():
+    """
+    Override the shipped com.redhat.minimal collector service to run a
+    long-lived command instead of the real collection command, so tests can
+    reliably catch it "in-flight" (actively running) and verify that
+    ``rhc collector disable --now`` stops it rather than letting it run to
+    completion.
+
+    Restores the original service unit and the timer's prior enabled state
+    afterwards.
+    """
+    override_dir = f"/etc/systemd/system/{MINIMAL_SERVICE_UNIT}.d"
+    override_file = os.path.join(override_dir, "99-test-slow-run.conf")
+
+    timer_was_enabled = is_unit_enabled(MINIMAL_TIMER_UNIT)
+
+    os.makedirs(override_dir, exist_ok=True)
+    with open(override_file, "w") as f:
+        # The shipped unit is Type=oneshot, whose ActiveState only ever
+        # reports "activating" (never "active") while the command runs, and
+        # whose start job blocks until the command exits. Override to
+        # Type=simple so the unit is considered "active" as soon as it
+        # starts, letting tests reliably observe and stop it mid-flight.
+        f.write("[Service]\nType=simple\nExecStart=\nExecStart=/bin/sleep 60\n")
+    subprocess.run(["systemctl", "daemon-reload"], check=True)
+
+    yield
+
+    subprocess.run(
+        ["systemctl", "stop", MINIMAL_SERVICE_UNIT],
+        check=False,
+        capture_output=True,
+    )
+
+    if os.path.exists(override_file):
+        os.remove(override_file)
+    with suppress(OSError):
+        os.rmdir(override_dir)
+    subprocess.run(["systemctl", "daemon-reload"], check=True)
+
+    subprocess.run(
+        [
+            "systemctl",
+            "enable" if timer_was_enabled else "disable",
+            MINIMAL_TIMER_UNIT,
+        ],
+        check=False,
+        capture_output=True,
+    )
 
 
 @pytest.fixture
