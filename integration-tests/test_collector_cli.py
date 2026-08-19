@@ -6,6 +6,7 @@
 :upstream: Yes
 """
 
+import contextlib
 import json
 import os
 import subprocess
@@ -13,6 +14,8 @@ import time
 
 import pytest
 
+from utils import prepare_args_for_connect, poll_until
+from utils.systemctl import is_unit_active, is_unit_enabled
 from utils.constants import (
     MINIMAL_COLLECTOR_ID,
     MINIMAL_COLLECTOR_NAME,
@@ -22,9 +25,8 @@ from utils.constants import (
     RHC_COLLECTOR,
     RHC_TMP_DIR,
     TIMER_CACHE_DIR,
+    EXIT_CODE_MOCK_MINIMAL_COLLECTOR_EXECUTABLE,
 )
-from utils import poll_until
-from utils.systemctl import is_unit_active, is_unit_enabled
 
 pytestmark = pytest.mark.usefixtures("rhc_server_socket")
 
@@ -756,3 +758,202 @@ def test_collector_cli_help(rhc):
     assert "disable" in out and "Disable timer-based collection" in out
     assert "OPTIONS:" in out
     assert "--help, -h" in out
+
+
+@pytest.mark.tier1
+def test_minimal_collector_upload_production(external_candlepin, rhc, test_config):
+    """
+    :id: 7c1e4a2b-9d3f-4e80-b1a6-0f2c8d9e5a11
+    :title: Run com.redhat.minimal end-to-end against production Ingress
+    :description:
+        Register with production RHSM from the [prod] settings.toml section,
+        run rhc-collector for the minimal collector and verify collection and
+        the tarball archive upload both succeed. The tarball archive is uploaded
+        to the production ingress url: https://cert.console.redhat.com/api/ingress/v1/upload.
+    :tags: Tier 1
+    :steps:
+        1. Run rhc-collector run com.redhat.minimal
+        2. Verify rhc-collector exits with exit code 0
+        3. Verify a log for a successful archive upload
+        4. Verify timer cache last_finished.exit_code is 0
+    :expectedresults:
+        1. Minimal collector collect succeeds with exit code 0
+        2. rhc-collector exits with exit code 0
+        3. Archive upload is successful
+        4. Timer cache last_finished.exit_code is 0, indicating successful collection
+    """
+    if test_config.environment != "prod":
+        pytest.skip("requires ENV_FOR_DYNACONF=prod (production RHSM and Ingress)")
+
+    with contextlib.suppress(Exception):
+        rhc.disconnect()
+
+    command_args = prepare_args_for_connect(test_config, auth="activation-key")
+    rhc.run("connect", *command_args)
+
+    assert rhc.is_registered
+    assert os.path.exists("/etc/pki/consumer/cert.pem")
+
+    cache_path = os.path.join(TIMER_CACHE_DIR, f"{MINIMAL_COLLECTOR_ID}.json")
+    if os.path.exists(cache_path):
+        os.remove(cache_path)
+
+    try:
+        result = subprocess.run(
+            [RHC_COLLECTOR, "run", MINIMAL_COLLECTOR_ID],
+            capture_output=True,
+            text=True,
+        )
+
+        combined_output = result.stdout + result.stderr
+        assert result.returncode == 0, combined_output
+        assert "collector has ran successfully" in combined_output
+        assert "Successfully uploaded archive" in combined_output
+        assert "status code" not in combined_output
+        assert os.path.exists(cache_path)
+        with open(cache_path) as cache_file:
+            cache = json.load(cache_file)
+        assert cache["last_finished"]["exit_code"] == 0
+    finally:
+        if os.path.exists(cache_path):
+            os.remove(cache_path)
+
+
+@pytest.mark.tier1
+def test_minimal_collector_unregistered(rhc):
+    """
+    :id: 3901cf49-6fc1-478f-9dba-803eeb0e7857
+    :title: Unregistered host, com.redhat.minimal fails with exit code non zero
+    :description:
+        Host is unregistered, com.redhat.minimal collect fails due to the missing
+        consumer certificate at /etc/pki/consumer/cert.pem, rhc-collector writes the
+        timer cache with last_finished.exit_code being non zero.
+    :tags: Tier 1
+    :steps:
+        1. Unregister the host
+        2. Run rhc-collector run com.redhat.minimal
+        3. Verify minimal collector collect fails with exit code non zero
+        4. Verify no archive upload is attempted
+        5. Verify timer cache last_finished.exit_code is non zero, indicating failed collection
+    :expectedresults:
+        1. Host is unregistered with consumer certificate removed
+        2. rhc-collector exits with exit code non zero
+        3. Minimal collector collect fails with exit code non zero
+        4. Archive upload is not successful
+        5. Timer cache last_finished.exit_code is non zero, indicating failed collection
+    """
+    with contextlib.suppress(Exception):
+        rhc.disconnect()
+    assert not rhc.is_registered
+    assert not os.path.exists("/etc/pki/consumer/cert.pem")
+
+    cache_path = os.path.join(TIMER_CACHE_DIR, f"{MINIMAL_COLLECTOR_ID}.json")
+    if os.path.exists(cache_path):
+        os.remove(cache_path)
+
+    try:
+        result = subprocess.run(
+            [RHC_COLLECTOR, "run", MINIMAL_COLLECTOR_ID],
+            capture_output=True,
+            text=True,
+        )
+
+        combined_output = result.stdout + result.stderr
+        assert result.returncode == 1, combined_output
+        assert "failed to execute collector" in combined_output
+        assert "Successfully uploaded archive" not in combined_output
+        assert os.path.exists(cache_path)
+        with open(cache_path) as cache_file:
+            cache = json.load(cache_file)
+        assert cache["last_finished"]["exit_code"] != 0
+    finally:
+        if os.path.exists(cache_path):
+            os.remove(cache_path)
+
+
+@pytest.mark.tier1
+def test_minimal_collector_executable_failure(failing_minimal_collector_executable):
+    """
+    :id: 9d2f5b3c-0e41-5f91-c2b7-1a3d9e6f6b22
+    :title: com.redhat.minimal collect fails with non-zero exit_code
+    :description:
+        com.redhat.minimal collect fails due to the executable returning a non-zero
+        exit code. rhc-collector writes the timer cache, and last_finished.exit_code
+        with expected exit code.
+    :tags: Tier 1
+    :steps:
+        1. Run rhc-collector run com.redhat.minimal
+        2. Verify minimal collector collect fails with exit code non zero
+        3. Verify no archive upload is attempted
+        4. Verify timer cache last_finished.exit_code equals the expected exit code
+    :expectedresults:
+        1. rhc-collector exits non-zero
+        2. Minimal collector collect fails with expected exit code
+        3. Archive upload is not successful
+        4. Timer cache last_finished.exit_code equals the expected exit code
+    """
+    cache_path = os.path.join(TIMER_CACHE_DIR, f"{MINIMAL_COLLECTOR_ID}.json")
+    if os.path.exists(cache_path):
+        os.remove(cache_path)
+
+    try:
+        result = subprocess.run(
+            [RHC_COLLECTOR, "run", MINIMAL_COLLECTOR_ID],
+            capture_output=True,
+            text=True,
+        )
+
+        combined_output = result.stdout + result.stderr
+        assert result.returncode == 1, combined_output
+        assert "failed to execute collector" in combined_output
+        assert "Successfully uploaded archive" not in combined_output
+        assert os.path.exists(cache_path)
+        with open(cache_path) as cache_file:
+            cache = json.load(cache_file)
+        assert cache["last_finished"]["exit_code"] == EXIT_CODE_MOCK_MINIMAL_COLLECTOR_EXECUTABLE
+    finally:
+        if os.path.exists(cache_path):
+            os.remove(cache_path)
+
+
+@pytest.mark.tier1
+def test_minimal_collector_missing_executable(missing_minimal_collector_executable):
+    """
+    :id: 8d2f5b3c-0e41-5f91-c2b7-1a3d9e6f6b22
+    :title: com.redhat.minimal executable missing and collect fails with non-zero exit code
+    :description:
+        com.redhat.minimal executable is missing, so collect fails.
+        rhc-collector writes the timer cache, and last_finished.exit_code
+        is non zero.
+    :tags: Tier 1
+    :steps:
+        1. Run rhc-collector run com.redhat.minimal
+        2. Verify no archive upload is attempted
+        3. Verify timer cache last_finished.exit_code is non zero, indicating failed collection
+    :expectedresults:
+        1. rhc-collector exits with exit code non zero
+        2. Archive upload is not successful
+        3. Timer cache last_finished.exit_code is non zero, indicating failed collection
+    """
+    cache_path = os.path.join(TIMER_CACHE_DIR, f"{MINIMAL_COLLECTOR_ID}.json")
+    if os.path.exists(cache_path):
+        os.remove(cache_path)
+
+    try:
+        result = subprocess.run(
+            [RHC_COLLECTOR, "run", MINIMAL_COLLECTOR_ID],
+            capture_output=True,
+            text=True,
+        )
+
+        combined_output = result.stdout + result.stderr
+        assert result.returncode == 1, combined_output
+        assert "failed to execute collector" in combined_output
+        assert "Successfully uploaded archive" not in combined_output
+        assert os.path.exists(cache_path)
+        with open(cache_path) as cache_file:
+            cache = json.load(cache_file)
+        assert cache["last_finished"]["exit_code"] != 0
+    finally:
+        if os.path.exists(cache_path):
+            os.remove(cache_path)

@@ -19,6 +19,7 @@ from utils.constants import (
     RHC_SERVER_SOCKET,
     TIMER_CACHE_DIR,
     YGGDRASIL_SERVICE_NAME,
+    EXIT_CODE_MOCK_MINIMAL_COLLECTOR_EXECUTABLE,
 )
 
 logger = logging.getLogger(__name__)
@@ -356,3 +357,58 @@ Environment=HTTP_PROXY={proxy_url}
 
     except Exception as e:
         logger.error(f"Error during yggdrasil proxy cleanup: {e}")
+
+
+@pytest.fixture
+def failing_minimal_collector_executable():
+    """Replace com.redhat.minimal executable that exits non-zero on collect."""
+    bin_path = os.path.join(COLLECTOR_BIN_DIR, MINIMAL_COLLECTOR_ID)
+    backup_path = bin_path + ".bak"
+    script = textwrap.dedent(f"""\
+        #!/bin/bash
+        if [ "$1" = "collect" ]; then
+            echo "forced collect failure" >&2
+            exit {EXIT_CODE_MOCK_MINIMAL_COLLECTOR_EXECUTABLE}
+        fi
+        echo "usage: $0 collect" >&2
+        exit 64
+    """)
+
+    if os.path.exists(backup_path):
+        if os.path.exists(bin_path):
+            os.remove(bin_path)
+        os.rename(backup_path, bin_path)
+
+    os.rename(bin_path, backup_path)
+    try:
+        with open(bin_path, "w") as f:
+            f.write(script)
+        os.chmod(bin_path, 0o755)
+        yield
+    finally:
+        if os.path.exists(backup_path):
+            if os.path.exists(bin_path):
+                os.remove(bin_path)
+            os.rename(backup_path, bin_path)
+
+
+@pytest.fixture
+def missing_minimal_collector_executable():
+    """Remove the com.redhat.minimal executable."""
+    bin_path = os.path.join(COLLECTOR_BIN_DIR, MINIMAL_COLLECTOR_ID)
+    backup_path = bin_path + ".bak"
+
+    if os.path.exists(backup_path):
+        if os.path.exists(bin_path):
+            os.remove(bin_path)
+        os.rename(backup_path, bin_path)
+
+    try:
+        if os.path.exists(bin_path):
+            os.rename(bin_path, backup_path)
+        yield
+    finally:
+        if os.path.exists(backup_path):
+            if os.path.exists(bin_path):
+                os.remove(bin_path)
+            os.rename(backup_path, bin_path)
