@@ -1,0 +1,164 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# Bone NI <bounkirdni@gmail.com>, 2026.
+msgid ""
+msgstr ""
+"Project-Id-Version: rhc\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-02-16 16:35+0100\n"
+"PO-Revision-Date: 2026-05-13 09:59+0000\n"
+"Last-Translator: Bone NI <bounkirdni@gmail.com>\n"
+"Language-Team: Lao <https://translate.fedoraproject.org/projects/rhc/rhc/lo/>"
+"\n"
+"Language: lo\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"X-Generator: Weblate 5.17.1\n"
+
+#: cmd/rhc/connect_cmd.go:83
+#, c-format
+msgid "cannot connect to Red Hat Subscription Management: %s"
+msgstr "ບໍ່ສາມາດເຊື່ອມຕໍ່ກັບການຈັດການການສະໝັກໃຊ້ Red Hat: %s"
+
+#: cmd/rhc/connect_cmd.go:87
+msgid "%s[%v] Cannot connect to Red Hat Subscription Management\n"
+msgstr "%s[%v] ບໍ່ສາມາດເຊື່ອມຕໍ່ກັບການຈັດການການສະໝັກໃຊ້ Red Hat\n"
+
+#: cmd/rhc/connect_cmd.go:93
+msgid "%s[%v] Skipping generation of Red Hat repository file\n"
+msgstr "%s[%v] ຂ້າມການສ້າງໄຟລ໌ຄັງເກັບຂອງ Red Hat\n"
+
+#: cmd/rhc/connect_cmd.go:100
+msgid "%s[%v] %s\n"
+msgstr "%s[%v] %s\n"
+
+#: cmd/rhc/connect_cmd.go:104
+msgid "%s[%v] Content ... Red Hat repository file generated\n"
+msgstr "%s[%v] ເນື້ອໃນ ... ສ້າງໄຟລ໌ຄັງເກັບຂອງ Red Hat ສຳເລັດແລ້ວ\n"
+
+#: cmd/rhc/connect_cmd.go:108
+#, c-format
+msgid "%s[ ] Content ... Red Hat repository file not generated\n"
+msgstr "%s[ ] ເນື້ອໃນ ... ບໍ່ໄດ້ສ້າງໄຟລ໌ຄັງເກັບຂອງ Red Hat\n"
+
+#: cmd/rhc/connect_cmd.go:120
+#, c-format
+msgid ""
+"%s[ ] Analytics ... Connecting to Red Hat Lightspeed (formerly Insights) "
+"disabled\n"
+msgstr ""
+"%s[ ] ການວິເຄາະ ... ປິດການເຊື່ອມຕໍ່ກັບ Red Hat Lightspeed (ກ່ອນໜ້ານີ້ແມ່ນ Insights)\n"
+
+#: cmd/rhc/connect_cmd.go:127
+msgid "%s[%v] Skipping connection to Red Hat Lightspeed (formerly Insights)\n"
+msgstr ""
+"%s[%v] ຂ້າມການເຊື່ອມຕໍ່ກັບ Red Hat Lightspeed (ກ່ອນໜ້ານີ້ແມ່ນ Insights)\n"
+
+#: cmd/rhc/connect_cmd.go:138
+msgid "cannot connect to Red Hat Lightspeed (formerly Insights): %v"
+msgstr "ບໍ່ສາມາດເຊື່ອມຕໍ່ກັບ Red Hat Lightspeed (ກ່ອນໜ້ານີ້ແມ່ນ Insights): %v"
+
+#: cmd/rhc/connect_cmd.go:139
+msgid "cannot connect to Red Hat Lightspeed: %v"
+msgstr "ບໍ່ສາມາດເຊື່ອມຕໍ່ກັບ Red Hat Lightspeed: %v"
+
+#: cmd/rhc/connect_cmd.go:141
+msgid ""
+"%s[%v] Analytics ... Cannot connect to Red Hat Lightspeed (formerly "
+"Insights)\n"
+msgstr ""
+"%s[%v] ການວິເຄາະ ... ບໍ່ສາມາດເຊື່ອມຕໍ່ກັບ Red Hat Lightspeed (ກ່ອນໜ້ານີ້ແມ່ນ Insights)\n"
+
+#: cmd/rhc/connect_cmd.go:150
+msgid ""
+"%s[%v] Analytics ... Connected to Red Hat Lightspeed (formerly Insights)\n"
+msgstr ""
+"%s[%v] ການວິເຄາະ ... ເຊື່ອມຕໍ່ກັບ Red Hat Lightspeed (ກ່ອນໜ້ານີ້ແມ່ນ Insights) ແລ້ວ\n"
+
+#: cmd/rhc/connect_cmd.go:160
+#, c-format
+msgid "Starting yggdrasil service disabled (%s)"
+msgstr "ການເລີ່ມບໍລິການ yggdrasil ຖືກປິດໃຊ້ງານ (%s)"
+
+#: cmd/rhc/connect_cmd.go:162 cmd/rhc/connect_cmd.go:166
+#, c-format
+msgid "%s[ ] Management .... %s\n"
+msgstr "%s[ ] ການຈັດການ .... %s\n"
+
+#: cmd/rhc/connect_cmd.go:178
+msgid "%s[%v] Skipping activation of yggdrasil service\n"
+msgstr "%s[%v] ຂ້າມການເປີດໃຊ້ງານບໍລິການ yggdrasil\n"
+
+#: cmd/rhc/connect_cmd.go:189
+msgid "cannot activate the yggdrasil service: %v"
+msgstr "ບໍ່ສາມາດເປີດໃຊ້ງານບໍລິການ yggdrasil: %v"
+
+#: cmd/rhc/connect_cmd.go:192
+msgid "%s[%v] Remote Management ... Cannot activate the yggdrasil service\n"
+msgstr "%s[%v] ການຈັດການຈາກທາງໄກ ... ບໍ່ສາມາດເປີດໃຊ້ງານບໍລິການ yggdrasil\n"
+
+#: cmd/rhc/connect_cmd.go:202
+msgid "%s[%v] Remote Management ... %s\n"
+msgstr "%s[%v] ການຈັດການຈາກທາງໄກ ... %s\n"
+
+#: cmd/rhc/connect_cmd.go:224
+#, c-format
+msgid "unable to get consumer UUID: %s"
+msgstr "ບໍ່ສາມາດດຶງເອົາ UUID ຂອງຜູ້ບໍລິໂພກ: %s"
+
+#: cmd/rhc/connect_cmd.go:318
+#, c-format
+msgid "error: %s"
+msgstr "ຂໍ້ຜິດພາດ: %s"
+
+#: cmd/rhc/connect_cmd.go:328
+msgid "Error retrieving system hostname: %v"
+msgstr "ຂໍ້ຜິດພາດໃນການດຶງຂໍ້ມູນຊື່ໂຮສຂອງລະບົບ: %v"
+
+#: cmd/rhc/connect_cmd.go:337
+msgid ""
+"Connecting %v to Red Hat.\n"
+"This might take a few seconds.\n"
+"\n"
+msgstr ""
+"ກຳລັງເຊື່ອມຕໍ່ %v ເຂົ້າກັບ Red Hat.\n"
+"ຂັ້ນຕອນນີ້ອາດຈະໃຊ້ເວລາຄາວໜຶ່ງ.\n"
+"\n"
+
+#: cmd/rhc/connect_cmd.go:353
+#, c-format
+msgid "Feature '%s' marked enabled"
+msgstr "ຄຸນສົມບັດ '%s' ຖືກໝາຍວ່າເປີດໃຊ້ງານແລ້ວ"
+
+#: cmd/rhc/connect_cmd.go:366
+#, c-format
+msgid "Feature '%s' marked disabled"
+msgstr "ຄຸນສົມບັດ '%s' ຖືກໝາຍວ່າປິດໃຊ້ງານແລ້ວ"
+
+#: cmd/rhc/connect_cmd.go:370
+#, c-format
+msgid ""
+"Features preferences: %s\n"
+"\n"
+msgstr ""
+"ການຕັ້ງຄ່າຄຸນສົມບັດ: %s\n"
+"\n"
+
+#: cmd/rhc/connect_cmd.go:390
+msgid ""
+"\n"
+"Successfully connected to Red Hat!\n"
+msgstr ""
+"\n"
+"ເຊື່ອມຕໍ່ກັບ Red Hat ສຳເລັດແລ້ວ!\n"
+
+#: cmd/rhc/connect_cmd.go:394
+msgid ""
+"\n"
+"Manage your connected systems: https://red.ht/connector\n"
+msgstr ""
+"\n"
+"ຈັດການລະບົບທີ່ເຊື່ອມຕໍ່ຂອງທ່ານໄດ້ທີ່: https://red.ht/connector\n"
