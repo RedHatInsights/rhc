@@ -172,6 +172,27 @@ func (b *ContentOverrideBackend) Download(in *overrideapi.DownloadIn) (*override
 	return &overrideapi.DownloadOut{ContentOverrides: result}, nil
 }
 
+// WriteContentOverrides writes the given content overrides to the local DNF5 repo override file.
+func (b *ContentOverrideBackend) WriteContentOverrides(in *overrideapi.WriteContentOverridesIn) (*overrideapi.WriteContentOverridesOut, error) {
+	overrides := make([]rhsm2.ContentOverride, 0, len(in.ContentOverrides))
+	for _, co := range in.ContentOverrides {
+		overrides = append(overrides,
+			rhsm2.ContentOverride{
+				ContentLabel: co.ContentLabel,
+				Name:         co.Name,
+				Value:        co.Value,
+			},
+		)
+	}
+
+	if err := WriteLocalContentOverrides(overrides); err != nil {
+		slog.Error("Failed to write content overrides to local DNF5 repo override file", "error", err)
+		return nil, err
+	}
+
+	return &overrideapi.WriteContentOverridesOut{Success: true}, nil
+}
+
 // Upload reads local DNF5 repo overrides and sends them to the candlepin server.
 func (b *ContentOverrideBackend) Upload(in *overrideapi.UploadIn) (*overrideapi.UploadOut, error) {
 	registered, err := IsSystemRegistered()

@@ -2,8 +2,11 @@ package main
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/jirihnidek/rhsm2"
+	"github.com/redhatinsights/rhc/varlink/overrideapi"
 )
 
 type ClientError struct {
@@ -95,6 +98,18 @@ func UploadContentOverrides(ipcSender *string, locale *string, correlationID *st
 	return nil
 }
 
+// WriteLocalContentOverrides writes content overrides to the local DNF5 repo override file.
+func WriteLocalContentOverrides(overrides []rhsm2.ContentOverride) error {
+	dir := filepath.Dir(rhsm2.Dnf5RedHatReposOverrideFilePath)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return &overrideapi.IOFailedError{Message: fmt.Sprintf("failed to create override directory %s: %s", dir, err)}
+	}
+	if err := rhsm2.WriteDnf5RepoOverrides(overrides, rhsm2.Dnf5RedHatReposOverrideFilePath); err != nil {
+		return &overrideapi.IOFailedError{Message: fmt.Sprintf("failed to write content overrides to local file: %s", err)}
+	}
+	return nil
+}
+
 // DownloadRelease downloads the current release information from the server. The release can be set
 // on the candlepin server for the given system. The client has to have chance to get this information
 // from the server.
@@ -135,4 +150,3 @@ func SetRelease(release string, ipcSender *string, locale *string, correlationID
 	clientInfo := rhsm2.RequestMetadata{IPCSender: ipcSender, Locale: locale, CorrelationId: correlationID}
 	return rhsmClient.SetRelease(release, &clientInfo)
 }
-

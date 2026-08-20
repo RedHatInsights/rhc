@@ -1,7 +1,8 @@
 Feature: The Varlink interface com.redhat.rhsm.testing.content.override
   The Varlink interface com.redhat.rhsm.testing.content.override provides
-  methods for downloading content overrides from the candlepin server and
-  uploading local DNF5 repo overrides to the server.
+  methods for downloading content overrides from the candlepin server,
+  uploading local DNF5 repo overrides to the server, and writing content
+  overrides to the local DNF5 repo override file.
 
 
   Scenario: Download() method raises error on unregistered system
@@ -92,6 +93,69 @@ Feature: The Varlink interface com.redhat.rhsm.testing.content.override
       """
       {"success":true}
       """
+
+
+  @fixture.no_redhat_dnf5_override_installed
+  Scenario: WriteContentOverrides() writes overrides to local file
+    When varlink method is called
+      | method                | interface                                | arguments                                                                                        |
+      | WriteContentOverrides | com.redhat.rhsm.testing.content.override | '{"content_overrides": [{"content_label": "test-write-repo", "name": "enabled", "value": "1"}]}' |
+    Then varlink method returns
+      """
+      {"success":true}
+      """
+    And local DNF5 repo override file contains section 'test-write-repo'
+    And local DNF5 repo override file has 'enabled' set to '1' in section 'test-write-repo'
+
+
+  @fixture.no_redhat_dnf5_override_installed
+  Scenario: WriteContentOverrides() with empty array clears existing content
+    Given local DNF5 repo override file exists with content
+      """
+      [pre-existing-repo]
+      enabled = 1
+      """
+    When varlink method is called
+      | method                | interface                                | arguments                   |
+      | WriteContentOverrides | com.redhat.rhsm.testing.content.override | '{"content_overrides": []}' |
+    Then varlink method returns
+      """
+      {"success":true}
+      """
+    And local DNF5 repo override file is empty
+
+
+  @fixture.no_redhat_dnf5_override_installed
+  Scenario: WriteContentOverrides() called multiple times replaces previous content
+    When varlink method is called
+      | method                | interface                                | arguments                                                                                   |
+      | WriteContentOverrides | com.redhat.rhsm.testing.content.override | '{"content_overrides": [{"content_label": "first-repo", "name": "enabled", "value": "1"}]}' |
+    Then method call was successful
+    And local DNF5 repo override file contains section 'first-repo'
+    And local DNF5 repo override file has 'enabled' set to '1' in section 'first-repo'
+    When varlink method is called
+      | method                | interface                                | arguments                                                                                     |
+      | WriteContentOverrides | com.redhat.rhsm.testing.content.override | '{"content_overrides": [{"content_label": "second-repo", "name": "gpgcheck", "value": "0"}]}' |
+    Then varlink method returns
+      """
+      {"success":true}
+      """
+    And local DNF5 repo override file contains section 'second-repo'
+    And local DNF5 repo override file has 'gpgcheck' set to '0' in section 'second-repo'
+
+
+  @fixture.no_redhat_dnf5_override_installed
+  Scenario: WriteContentOverrides() works on unregistered system
+    Given system is not registered
+    When varlink method is called
+      | method                | interface                                | arguments                                                                                         |
+      | WriteContentOverrides | com.redhat.rhsm.testing.content.override | '{"content_overrides": [{"content_label": "test-unreg-repo", "name": "gpgcheck", "value": "0"}]}' |
+    Then varlink method returns
+      """
+      {"success":true}
+      """
+    And local DNF5 repo override file contains section 'test-unreg-repo'
+    And local DNF5 repo override file has 'gpgcheck' set to '0' in section 'test-unreg-repo'
 
 
   Scenario: Download() returns consistent results across multiple calls

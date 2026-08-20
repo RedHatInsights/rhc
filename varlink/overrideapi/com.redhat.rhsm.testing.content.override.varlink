@@ -24,6 +24,9 @@ error SystemNotRegistered()
 # This error is used, when rhsm is configured to not manage content
 error ContentNotManaged()
 
+# This error is returned when a local file system operation fails
+error IOFailed(message: string)
+
 # Get content overrides from the candlepin server
 # When system is not registered, then return error SystemNotRegistered
 method Download(
@@ -36,6 +39,15 @@ method Download(
 # content overrides and send this document to candlepin server
 method Upload(
     metadata: ?Metadata
+) -> (
+    success: bool
+)
+
+# Write content overrides to drop-in dnf5 repo override file in /etc/dnf/repo.override.d/
+# Note: created/updated fields on ContentOverride are ignored for this method;
+# they are candlepin-side metadata with no meaning for local repo files.
+method WriteContentOverrides(
+    content_overrides: []ContentOverride
 ) -> (
     success: bool
 )
