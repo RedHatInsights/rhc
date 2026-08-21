@@ -1,0 +1,33 @@
+name: "Verify systemd unit naming"
+description: "Check that all rhc-collector-* units follow the rhc-collector-{id}.(service|timer) pattern"
+
+inputs:
+  manifest:
+    description: "Path to the pre-generated RPM manifest file (output of rpm -qlp)"
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: "Verify unit naming convention"
+      shell: bash
+      run: |
+        COLLECTOR_UNITS=$(grep '^/usr/lib/systemd/system/rhc-collector-' "${{ inputs.manifest }}" || true)
+        if [ -z "${COLLECTOR_UNITS}" ]; then
+          echo "FAIL  No rhc-collector-* units found in manifest"
+          exit 1
+        fi
+
+        PATTERN='^rhc-collector-[a-z0-9]+\.[a-z0-9]+(\.[a-z0-9]+)*\.(service|timer)$'
+        FAIL=0
+        for UNIT_PATH in ${COLLECTOR_UNITS}; do
+          UNIT_NAME=$(basename "${UNIT_PATH}")
+          if echo "${UNIT_NAME}" | grep -qE "${PATTERN}"; then
+            echo "  OK  ${UNIT_NAME}"
+          else
+            echo "FAIL  ${UNIT_NAME} does not match rhc-collector-{id}.(service|timer)"
+            FAIL=1
+          fi
+        done
+
+        exit "${FAIL}"

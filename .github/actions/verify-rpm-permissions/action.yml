@@ -1,0 +1,49 @@
+name: "Verify RPM file permissions"
+description: "Check that collector files in the RPM have the expected permissions and ownership"
+
+inputs:
+  rpm:
+    description: "Path to the rhc RPM file"
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: "Verify file permissions"
+      shell: bash
+      run: |
+        rpm -qp --dump "${{ inputs.rpm }}" > rpm_dump.txt
+
+        FAIL=0
+
+        check_mode() {
+          local FILE="$1" EXPECTED="$2"
+          local ACTUAL
+          ACTUAL=$(awk -v f="${FILE}" '$1 == f {print $5}' rpm_dump.txt)
+          if [ "${ACTUAL}" = "${EXPECTED}" ]; then
+            echo "  OK  ${FILE} mode ${EXPECTED}"
+          else
+            echo "FAIL  ${FILE} expected mode ${EXPECTED}, got ${ACTUAL}"
+            return 1
+          fi
+        }
+
+        check_owner() {
+          local FILE="$1" EXPECTED_USER="$2"
+          local ACTUAL
+          ACTUAL=$(awk -v f="${FILE}" '$1 == f {print $6}' rpm_dump.txt)
+          if [ "${ACTUAL}" = "${EXPECTED_USER}" ]; then
+            echo "  OK  ${FILE} owner ${EXPECTED_USER}"
+          else
+            echo "FAIL  ${FILE} expected owner ${EXPECTED_USER}, got ${ACTUAL}"
+            return 1
+          fi
+        }
+
+        check_mode "/usr/lib/rhc/collectors/com.redhat.minimal.toml" "0100644" || FAIL=1
+        check_mode "/usr/libexec/rhc/collectors/com.redhat.minimal" "0100755" || FAIL=1
+        check_owner "/usr/libexec/rhc/collectors/com.redhat.minimal" "root" || FAIL=1
+        check_mode "/usr/lib/systemd/system/rhc-collector-com.redhat.minimal.service" "0100644" || FAIL=1
+        check_mode "/usr/lib/systemd/system/rhc-collector-com.redhat.minimal.timer" "0100644" || FAIL=1
+
+        exit "${FAIL}"

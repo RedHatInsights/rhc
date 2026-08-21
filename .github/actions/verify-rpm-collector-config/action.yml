@@ -1,0 +1,33 @@
+name: "Verify collector config identity"
+description: "Extract the RPM and verify the minimal collector TOML has the expected meta.name"
+
+inputs:
+  rpm:
+    description: "Path to the rhc RPM file"
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: "Verify minimal collector config"
+      shell: bash
+      run: |
+        RPM_PATH="$(realpath "${{ inputs.rpm }}")"
+        EXTRACT_DIR=$(mktemp -d)
+        cd "${EXTRACT_DIR}"
+        rpm2cpio "${RPM_PATH}" | cpio -idm 2>/dev/null
+
+        python3 -c "
+        import sys, tomllib
+        config_path = 'usr/lib/rhc/collectors/com.redhat.minimal.toml'
+        expected_name = 'Minimal Host Inventory Collector'
+        with open(config_path, 'rb') as f:
+            config = tomllib.load(f)
+        name = config['meta']['name']
+        if name != expected_name:
+            print(f'FAIL  meta.name = \"{name}\", expected \"{expected_name}\"')
+            sys.exit(1)
+        print(f'  OK  meta.name = \"{name}\"')
+        "
+
+        rm -rf "${EXTRACT_DIR}"

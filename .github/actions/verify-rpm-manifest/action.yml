@@ -1,0 +1,34 @@
+name: "Verify RPM manifest"
+description: "Check that the rhc RPM manifest includes expected collector directories and minimal collector files"
+
+inputs:
+  manifest:
+    description: "Path to the pre-generated RPM manifest file (output of rpm -qlp)"
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: "Verify RPM manifest contents"
+      shell: bash
+      run: |
+        EXPECTED_PATHS=(
+          /usr/lib/rhc/collectors
+          /usr/libexec/rhc/collectors
+          /usr/lib/rhc/collectors/com.redhat.minimal.toml
+          /usr/libexec/rhc/collectors/com.redhat.minimal
+          /usr/lib/systemd/system/rhc-collector-com.redhat.minimal.service
+          /usr/lib/systemd/system/rhc-collector-com.redhat.minimal.timer
+        )
+
+        FAIL=0
+        for P in "${EXPECTED_PATHS[@]}"; do
+          if grep -qx "${P}" "${{ inputs.manifest }}"; then
+            echo "  OK  ${P}"
+          else
+            echo "FAIL  ${P} not found in manifest"
+            FAIL=1
+          fi
+        done
+
+        exit "${FAIL}"
