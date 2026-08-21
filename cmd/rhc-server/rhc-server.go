@@ -10,6 +10,7 @@ import (
 	"github.com/jirihnidek/rhsm2"
 	"github.com/redhatinsights/rhc/internal/collector"
 	"github.com/redhatinsights/rhc/varlink/collectorapi"
+	"github.com/redhatinsights/rhc/varlink/contentapi"
 	"github.com/redhatinsights/rhc/varlink/overrideapi"
 	"github.com/redhatinsights/rhc/varlink/releaseapi"
 	"github.com/redhatinsights/rhc/varlink/rhsmapi"
@@ -350,4 +351,35 @@ func (c ComRedhatRhsmContentReleaseBackend) UnsetRelease(in *releaseapi.UnsetRel
 	}
 
 	return &releaseapi.UnsetReleaseOut{Success: true}, nil
+}
+
+// ComRedhatRhsmContentBackend implements the interface for the com.redhat.rhsm.content.varlink
+type ComRedhatRhsmContentBackend struct{}
+
+// NewComRedhatRhsmContentBackend creates a new ComRedhatRhsmContentBackend instance.
+func NewComRedhatRhsmContentBackend() *ComRedhatRhsmContentBackend {
+	return &ComRedhatRhsmContentBackend{}
+}
+
+// Refresh implements the interface for the com.redhat.rhsm.testing.content.varlink.
+// It refreshes the installed entitlement certificate, when needed, and regenerates
+// the redhat.repo file accordingly.
+func (c ComRedhatRhsmContentBackend) Refresh(in *contentapi.RefreshIn) (*contentapi.RefreshOut, error) {
+	registered, err := IsSystemRegistered()
+	if err != nil || !registered {
+		slog.Debug("System is not registered", "error", err)
+		return nil, &contentapi.SystemNotRegisteredError{}
+	}
+
+	if in.Metadata != nil {
+		err = RefreshContent(in.Force, in.Metadata.UserAgent, in.Metadata.Locale, in.Metadata.CorrelationId)
+	} else {
+		err = RefreshContent(in.Force, nil, nil, nil)
+	}
+	if err != nil {
+		slog.Error("Failed to refresh content", "error", err)
+		return nil, err
+	}
+
+	return &contentapi.RefreshOut{Success: true}, nil
 }

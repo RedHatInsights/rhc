@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/jirihnidek/rhsm2"
+	"github.com/redhatinsights/rhc/varlink/contentapi"
 	"github.com/redhatinsights/rhc/varlink/overrideapi"
 )
 
@@ -149,4 +150,26 @@ func SetRelease(release string, ipcSender *string, locale *string, correlationID
 	// Create client information from provided parameters
 	clientInfo := rhsm2.RequestMetadata{IPCSender: ipcSender, Locale: locale, CorrelationId: correlationID}
 	return rhsmClient.SetRelease(release, &clientInfo)
+}
+
+// RefreshContent tries to refresh the installed entitlement certificate, when needed,
+// and regenerate the redhat.repo file accordingly. When force is true, the entitlement
+// certificate is force recreated.
+func RefreshContent(force bool, ipcSender *string, locale *string, correlationID *string) error {
+	rhsmClient, err := rhsm2.GetRHSMClient(nil, nil)
+	if err != nil {
+		return &ClientError{Message: err.Error()}
+	}
+
+	// Create client information from provided parameters
+	clientInfo := rhsm2.RequestMetadata{IPCSender: ipcSender, Locale: locale, CorrelationId: correlationID}
+	if err := rhsmClient.UpdateEntitlementCertificate(force, &clientInfo); err != nil {
+		return &ServerError{Message: err.Error()}
+	}
+
+	if err := rhsmClient.GenerateRepoFileFromInstalledEntitlementCerts(); err != nil {
+		return &contentapi.IOFailedError{Message: fmt.Sprintf("failed to generate redhat.repo file: %s", err)}
+	}
+
+	return nil
 }
