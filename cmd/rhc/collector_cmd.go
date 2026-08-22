@@ -106,7 +106,7 @@ func collectorListAction(ctx context.Context, cmd *cli.Command) error {
 
 	if ui.IsOutputMachineReadable() {
 		if len(response.Collectors) == 0 {
-			fmt.Println("{}")
+			fmt.Println("[]")
 			return nil
 		}
 		jsonData, err := json.Marshal(response.Collectors)
