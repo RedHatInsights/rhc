@@ -54,6 +54,53 @@ jobs:
           mkdir -p rpms
           cp ~/rpmbuild/RPMS/*/*.rpm rpms/
 
+      - name: "Identify rhc RPM"
+        id: find-rpm
+        run: |
+          shopt -s nullglob
+          MATCHES=(rpms/rhc-[0-9]*.rpm)
+          if [ "${#MATCHES[@]}" -eq 0 ]; then
+            echo "FAIL  No rhc RPM found in rpms/"
+            exit 1
+          fi
+          if [ "${#MATCHES[@]}" -gt 1 ]; then
+            echo "FAIL  Expected exactly one rhc RPM, found ${#MATCHES[@]}:"
+            printf '  %s\n' "${MATCHES[@]}"
+            exit 1
+          fi
+          echo "rpm=${MATCHES[0]}" >> "$GITHUB_OUTPUT"
+
+      - name: "Generate RPM manifest"
+        id: manifest
+        run: |
+          rpm -qlp "${{ steps.find-rpm.outputs.rpm }}" > manifest.txt
+          echo "path=manifest.txt" >> "$GITHUB_OUTPUT"
+
+      - name: "Verify RPM manifest"
+        uses: ./.github/actions/verify-rpm-manifest
+        with:
+          manifest: ${{ steps.manifest.outputs.path }}
+
+      - name: "Verify RPM excludes runtime paths"
+        uses: ./.github/actions/verify-rpm-excludes-runtime
+        with:
+          manifest: ${{ steps.manifest.outputs.path }}
+
+      - name: "Verify systemd unit naming"
+        uses: ./.github/actions/verify-rpm-unit-naming
+        with:
+          manifest: ${{ steps.manifest.outputs.path }}
+
+      - name: "Verify RPM file permissions"
+        uses: ./.github/actions/verify-rpm-permissions
+        with:
+          rpm: ${{ steps.find-rpm.outputs.rpm }}
+
+      - name: "Verify collector config identity"
+        uses: ./.github/actions/verify-rpm-collector-config
+        with:
+          rpm: ${{ steps.find-rpm.outputs.rpm }}
+
       - name: "Upload RPM artifacts"
         uses: actions/upload-artifact@v7
         with:
