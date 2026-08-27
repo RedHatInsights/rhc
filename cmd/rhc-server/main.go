@@ -18,6 +18,7 @@ import (
 	"github.com/redhatinsights/rhc/pkg/exitcode"
 	"github.com/redhatinsights/rhc/pkg/version"
 	"github.com/redhatinsights/rhc/varlink/collectorapi"
+	"github.com/redhatinsights/rhc/varlink/contentapi"
 	"github.com/redhatinsights/rhc/varlink/overrideapi"
 	"github.com/redhatinsights/rhc/varlink/releaseapi"
 	"github.com/redhatinsights/rhc/varlink/rhsmapi"
@@ -70,6 +71,7 @@ func run() error {
 	rhsmapi.Handler{Backend: NewRHSMBackend()}.Register(registry)
 	overrideapi.Handler{Backend: NewContentOverrideBackend()}.Register(registry)
 	releaseapi.Handler{Backend: NewComRedhatRhsmContentReleaseRHSMBackend()}.Register(registry)
+	contentapi.Handler{Backend: NewComRedhatRhsmContentBackend()}.Register(registry)
 
 	varlinkServer := &govarlink.Server{Handler: registry}
 
