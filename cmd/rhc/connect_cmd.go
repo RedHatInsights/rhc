@@ -199,12 +199,18 @@ func (connectResult *ConnectResult) TryRegisterRHSM(cmd *cli.Command, enableCont
 	}
 
 	if err != nil {
+		if s != nil {
+			s.Stop()
+		}
 		connectResult.rhsmFailed(fmt.Sprintf("cannot connect to Red Hat Subscription Management: %s", err))
 		return
 	}
 
 	connectResult.RHSMConnected = true
 	slog.Debug("Connected to Red Hat Subscription Management")
+	if s != nil {
+		s.Stop()
+	}
 	ui.Printf("%s[%v] %s\n", ui.Indent.Small, ui.Icons.Ok, "Connected to Red Hat Subscription Management")
 	if enableContent {
 		connectResult.Features.Content.Successful = true
