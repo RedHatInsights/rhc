@@ -9,6 +9,7 @@
 import contextlib
 import json
 import logging
+import re
 
 import pytest
 from pytest_client_tools.restclient import RestClient
@@ -30,8 +31,54 @@ from utils.constants import (
     INVALID_CREDENTIAL,
     OAUTH_DEFAULT_SCOPE,
 )
+from utils.tty import run_rhc_with_tty
 
 logger = logging.getLogger(__name__)
+
+# briandowns/spinner CharSets[9] used by TryRegisterRHSM: | / - \
+_ANSI_RE = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
+_RHSM_SPINNER_FRAME_RE = re.compile(
+    r" \[[|/\-\\]\] Connecting to Red Hat Subscription Management\.\.\."
+)
+_RHSM_CONNECTING = "Connecting to Red Hat Subscription Management..."
+_RHSM_CONNECTED = "Connected to Red Hat Subscription Management"
+_RHSM_CANNOT_CONNECT = "Cannot connect to Red Hat Subscription Management"
+
+
+def _strip_ansi(text):
+    return _ANSI_RE.sub("", text)
+
+
+def _assert_rhsm_spinner_ran_and_stopped(output, result_text):
+    """Assert TryRegisterRHSM started the spinner, painted frames, then Stop()."""
+    plain = _strip_ansi(output)
+    frames = _RHSM_SPINNER_FRAME_RE.findall(plain)
+    assert frames, (
+        "expected RHSM spinner frames (| / - \\) on a TTY; "
+        f"plain output was:\n{plain!r}"
+    )
+    assert "\x1b[?25l" in output, (
+        "spinner Start() should hide the cursor with CSI ?25l"
+    )
+
+    last_connecting = output.rfind(_RHSM_CONNECTING)
+    result_at = output.find(result_text)
+    assert last_connecting != -1, (
+        f"expected spinner suffix {_RHSM_CONNECTING!r} in PTY output:\n{output!r}"
+    )
+    assert result_at != -1, (
+        f"expected {result_text!r} in PTY output:\n{output!r}"
+    )
+    assert last_connecting < result_at, (
+        "spinner frames should appear before the RHSM result line"
+    )
+    between = output[last_connecting + len(_RHSM_CONNECTING) : result_at]
+    assert "\x1b[?25h" in between, (
+        "spinner Stop() should restore the cursor (CSI ?25h) after the last frame"
+    )
+    assert "\x1b[K" in between, (
+        "spinner Stop() should erase the spinner line (CSI K) before the result"
+    )
 
 
 def get_dependent_features(feature):
@@ -324,6 +371,91 @@ def test_connect_failure_does_not_print_success_message(
         or "activation key" in output_lower
         or "organization" in output_lower
     ), f"Expected RHSM error in output: {output!r}"
+
+
+@pytest.mark.tier1
+def test_connect_tty_spinner_stops_on_success(external_candlepin, rhc, test_config):
+    """
+    :id: 7c1a9e4b-2d6f-4a80-9c3e-1b5d8f0a2e47
+    :title: Verify RHSM connect spinner frames and Stop() on a TTY
+    :description:
+        When stdout is a terminal, TryRegisterRHSM starts a spinner while
+        registering. After a successful register, Stop() must erase the spinner
+        line before printing "Connected to Red Hat Subscription Management".
+        Piped rhc.run() never enables this UI, so the command is attached to a
+        PTY. Plain 'rhc connect' reproduces the spinner/result race; no prior
+        'rhc configure' step is needed.
+    :tags: Tier 1
+    :steps:
+        1.  Ensure the system is disconnected from RHC.
+        2.  Run 'rhc connect' on a PTY with activation-key credentials.
+        3.  Verify spinner frames were painted.
+        4.  Verify Stop() restored the cursor and erased the spinner line
+            before the success message.
+        5.  Verify the system is registered.
+    :expectedresults:
+        1.  The system is disconnected (if previously connected).
+        2.  Connect succeeds on a PTY.
+        3.  Output contains CharSets[9] frames (| / - \\) with the Connecting
+            suffix.
+        4.  CSI ?25h and CSI K appear after the last spinner frame and before
+            the Connected line.
+        5.  RHC reports the system as registered.
+    """
+    with contextlib.suppress(Exception):
+        rhc.disconnect()
+
+    command_args = prepare_args_for_connect(test_config, auth="activation-key")
+    result = run_rhc_with_tty("connect", *command_args)
+
+    assert result.returncode == 0, (
+        f"expected successful connect on a TTY, got {result.returncode}: "
+        f"{result.stdout!r}"
+    )
+    _assert_rhsm_spinner_ran_and_stopped(result.stdout, _RHSM_CONNECTED)
+    assert rhc.is_registered
+
+
+@pytest.mark.tier1
+def test_connect_tty_spinner_stops_on_failure(external_candlepin, rhc, test_config):
+    """
+    :id: 8d2b0f5c-3e70-4b91-ad4f-2c6e9a1b3f58
+    :title: Verify RHSM connect spinner Stop() when registration fails on a TTY
+    :description:
+        The failure path in TryRegisterRHSM must Stop() the spinner before
+        printing "Cannot connect to Red Hat Subscription Management", so the
+        spinner line does not remain on screen. Plain 'rhc connect' with an
+        invalid activation key reproduces the race; no prior 'rhc configure'
+        step is needed.
+    :tags: Tier 1
+    :steps:
+        1.  Ensure the system is disconnected from RHC.
+        2.  Run 'rhc connect' on a PTY with an invalid activation key.
+        3.  Verify spinner frames were painted.
+        4.  Verify Stop() restored the cursor and erased the spinner line
+            before the error message.
+        5.  Verify the system is not registered.
+    :expectedresults:
+        1.  The system is disconnected (if previously connected).
+        2.  Connect fails.
+        3.  Output contains spinner frames with the Connecting suffix.
+        4.  CSI ?25h and CSI K appear after the last spinner frame and before
+            the Cannot connect line.
+        5.  The system remains unregistered.
+    """
+    with contextlib.suppress(Exception):
+        rhc.disconnect()
+
+    credentials = {
+        "organization": "candlepin.org",
+        "activation-key": INVALID_CREDENTIAL,
+    }
+    command_args = prepare_args_for_connect(test_config, credentials=credentials)
+    result = run_rhc_with_tty("connect", *command_args)
+
+    assert result.returncode != 0
+    _assert_rhsm_spinner_ran_and_stopped(result.stdout, _RHSM_CANNOT_CONNECT)
+    assert not rhc.is_registered
 
 
 @pytest.mark.parametrize("auth_proxy", [False, True])
