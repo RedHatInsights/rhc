@@ -8,7 +8,7 @@
 %endif
 
 %global goipath         github.com/redhatinsights/rhc
-Version:                0.3.12
+Version:                0.3.13
 
 %gometa
 
