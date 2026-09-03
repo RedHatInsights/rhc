@@ -12,3 +12,4 @@ ENTITLEMENT_HOST_CERT_DIR = "/etc/pki/entitlement-host/"
 RHC_SERVER_LOG_FILE = "/var/log/rhc/rhc-server.log"
 DNF5_REPOS_OVERRIDE_DIR = "/etc/dnf/repos.override.d"
 DNF5_REDHAT_REPOS_OVERRIDE_FILE = os.path.join(DNF5_REPOS_OVERRIDE_DIR, "98-redhat.repo")
+RHSM_CONFIG_FILE = "/etc/rhsm/rhsm.conf"
