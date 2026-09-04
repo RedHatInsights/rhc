@@ -43,7 +43,7 @@ func formatRelativeTime(d time.Duration) string {
 // printMachineReadable marshals data to JSON and prints it to stdout.
 func printMachineReadable(data interface{}) {
 	if slice, ok := data.([]*collectorapi.CollectorInfo); ok && len(slice) == 0 {
-		fmt.Println("{}")
+		fmt.Println("[]")
 		return
 	}
 	jsonData, err := json.Marshal(data)
