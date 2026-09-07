@@ -51,7 +51,6 @@ jobs:
     trigger: pull_request
     identifier: "integration-tests/centos-stream"
     targets:
-      - centos-stream-10-aarch64
       - centos-stream-10-x86_64
     labels:
       - unit
@@ -60,7 +59,6 @@ jobs:
     trigger: pull_request
     identifier: "integration-tests/fedora"
     targets:
-      - fedora-development-aarch64
       - fedora-development-x86_64
     labels:
       - unit
@@ -69,8 +67,6 @@ jobs:
     trigger: pull_request
     identifier: "integration-tests/rhel"
     targets:
-      rhel-10-aarch64:
-        distros: [RHEL-10-Nightly]
       rhel-10-x86_64:
         distros: [RHEL-10-Nightly]
     labels:
