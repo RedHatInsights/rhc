@@ -10,6 +10,7 @@ import pytest
 import subprocess
 import time
 
+from conftest import is_bootc_system
 from utils.constants import (
     MINIMAL_COLLECTOR_CONFIG_PATH,
     MINIMAL_COLLECTOR_ID,
@@ -362,6 +363,7 @@ def test_collector_list_includes_minimal_collector():
 
 
 @pytest.mark.tier2
+@pytest.mark.skipif(is_bootc_system(), reason="/usr is not writable on bootc systems")
 def test_collector_list_with_multiple_collectors(
     minimal_collector_with_timing, collector_minimal
 ):
