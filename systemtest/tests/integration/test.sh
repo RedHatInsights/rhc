@@ -1,8 +1,10 @@
 #!/bin/bash
 set -ux
 
-# get to project root
-cd ../../../
+# Resolve repo root from this script so it works both when tmt runs it from
+# systemtest/tests/integration/ and when invoked from the repository root.
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+cd "${SCRIPT_DIR}/../../.." || exit 1
 
 # Read information about release from standard release file
 if [[ -f "/etc/os-release" ]]; then
@@ -54,6 +56,62 @@ is_bootc() {
   ! bootc status --format=humanreadable | grep -q 'System is not deployed via bootc'
 }
 
+# Compose/CTC/RC sets PIN_TESTS_TO_RPM=1. Restore integration-tests/ from the
+# git tag matching the installed rhc Version (v0.3.12, or unprefixed 0.2.x).
+# Only the tests tree is restored so this test.sh (which is not on old tags)
+# keeps running. PR and gating leave the flag unset.
+pin_tests_to_installed_rhc() {
+  if [[ "${PIN_TESTS_TO_RPM:-}" != "1" ]]; then
+    echo "PIN_TESTS_TO_RPM is not set; using integration-tests from the current checkout"
+    return 0
+  fi
+  if [[ -n "${TEST_RPMS:-}" ]]; then
+    echo "TEST_RPMS is set (gating); not pinning tests to a release tag"
+    return 0
+  fi
+  if ! command -v git >/dev/null; then
+    echo "ERROR: git is required to pin tests to the installed rhc tag" >&2
+    return 1
+  fi
+  if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    echo "ERROR: not a git checkout; cannot pin tests to a release tag" >&2
+    return 1
+  fi
+  if ! rpm -q rhc >/dev/null 2>&1; then
+    echo "ERROR: rhc is not installed; cannot pin tests" >&2
+    return 1
+  fi
+
+  local ver tag
+  ver=$(rpm -q --qf '%{VERSION}' rhc)
+  if [[ -z "${ver}" ]]; then
+    echo "ERROR: could not read rhc Version from RPM" >&2
+    return 1
+  fi
+
+  echo "Installed rhc Version=${ver}; resolving matching git tag"
+  git fetch --force origin "refs/tags/v${ver}:refs/tags/v${ver}" || true
+  if git rev-parse -q --verify "refs/tags/v${ver}" >/dev/null; then
+    tag="v${ver}"
+  else
+    git fetch --force origin "refs/tags/${ver}:refs/tags/${ver}" || true
+    if git rev-parse -q --verify "refs/tags/${ver}" >/dev/null; then
+      tag="${ver}"
+    else
+      echo "ERROR: no git tag v${ver} or ${ver} for installed rhc-${ver}" >&2
+      return 1
+    fi
+  fi
+
+  echo "Replacing integration-tests/ with the tree from tag ${tag}"
+  # git checkout TAG -- dir overlays files but leaves newer tests in place.
+  # Remove the directory first so pytest only sees the tagged suite.
+  rm -rf integration-tests
+  git checkout "${tag}" -- integration-tests
+  git log -1 --oneline "${tag}"
+  git status --short -- integration-tests
+}
+
 if is_bootc; then
   echo "System is deployed via bootc, skipping dnf install"
 else
@@ -79,6 +137,8 @@ else
   fi
 fi
 
+pin_tests_to_installed_rhc || exit 1
+
 python3 -m venv venv
 # shellcheck disable=SC1091
 . venv/bin/activate
@@ -98,7 +158,7 @@ fi
 pytest --junit-xml=./junit.xml -v integration-tests
 retval=$?
 
-if [ -d "$TMT_PLAN_DATA" ]; then
+if [ -d "${TMT_PLAN_DATA:-}" ]; then
   cp ./junit.xml "$TMT_PLAN_DATA/junit.xml"
   cp -r ./artifacts "$TMT_PLAN_DATA/"
 fi
