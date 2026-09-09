@@ -3,9 +3,12 @@ import subprocess
 import logging
 import os
 import json
+import shutil
+import tempfile
 import time
 import textwrap
 from contextlib import suppress
+from functools import lru_cache
 
 from utils.systemctl import is_unit_active, is_unit_enabled
 from utils.constants import (
@@ -23,6 +26,74 @@ from utils.constants import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+@lru_cache()
+def is_bootc_system():
+    """
+    Check if the system is a bootc enabled system.
+    This function duplicates the logic from pytest-client-tools' is_bootc_system fixture
+    so it can be used in pytest.skipif decorators (which run at collection time).
+    """
+    try:
+        bootc_status = subprocess.run(
+            ["bootc", "status", "--format", "humanreadable"],
+            capture_output=True,
+            text=True,
+        )
+        return (bootc_status.returncode == 0) and (
+            not bootc_status.stdout.strip().startswith("System is not deployed via bootc")
+        )
+    except FileNotFoundError:
+        return False
+
+
+@pytest.fixture
+def writable_collector_dirs():
+    """
+    Ensure COLLECTOR_CONFIG_DIR and COLLECTOR_BIN_DIR are writable.
+
+    On bootc/image-mode systems where /usr is read-only, an overlayfs is
+    mounted over each directory so test fixtures can create and remove files
+    there without touching the underlying read-only filesystem.  On ordinary
+    systems the fixture is a no-op.
+
+    Teardown unmounts the overlays in reverse order, automatically discarding
+    any files the test created.
+    """
+    if not is_bootc_system():
+        yield
+        return
+
+    mounted = []
+    tmpdirs = []
+
+    try:
+        for target in [COLLECTOR_CONFIG_DIR, COLLECTOR_BIN_DIR]:
+            tmpdir = tempfile.mkdtemp(prefix="rhc-overlay-")
+            tmpdirs.append(tmpdir)
+            upperdir = os.path.join(tmpdir, "upper")
+            workdir = os.path.join(tmpdir, "work")
+            os.makedirs(upperdir)
+            os.makedirs(workdir)
+
+            subprocess.run(
+                [
+                    "mount", "-t", "overlay", "overlay",
+                    "-o", f"lowerdir={target},upperdir={upperdir},workdir={workdir}",
+                    target,
+                ],
+                check=True,
+                capture_output=True,
+            )
+            mounted.append(target)
+    finally:
+        yield
+
+    for target in reversed(mounted):
+        subprocess.run(["umount", target], check=False, capture_output=True)
+    for tmpdir in tmpdirs:
+        shutil.rmtree(tmpdir, ignore_errors=True)
 
 
 @pytest.fixture(scope="module")
@@ -53,14 +124,37 @@ def rhc_server_socket():
 @pytest.fixture
 def collector_config():
     """
-    Fixture to create a test collector configuration and binary
-    that has NO systemd timer/service units.
-    Used by tests that need a collector without systemd units
-    (e.g. testing the 'missing timer' error path).
+    Fixture providing a runnable collector using the shipped com.redhat.minimal.
+    Clears any existing timer cache before the test and removes it afterwards.
+    No writes to /usr — compatible with image-mode systems.
+    """
+    cache_path = os.path.join(TIMER_CACHE_DIR, f"{MINIMAL_COLLECTOR_ID}.json")
+    if os.path.exists(cache_path):
+        os.remove(cache_path)
+
+    yield {
+        "id": MINIMAL_COLLECTOR_ID,
+        "name": MINIMAL_COLLECTOR_NAME,
+        "config_path": MINIMAL_COLLECTOR_CONFIG_PATH,
+        "bin_path": os.path.join(COLLECTOR_BIN_DIR, MINIMAL_COLLECTOR_ID),
+    }
+
+    if os.path.exists(cache_path):
+        os.remove(cache_path)
+
+
+@pytest.fixture
+def collector_config_no_timer(writable_collector_dirs):
+    """
+    Fixture providing a collector that has a config file but NO systemd timer/service units.
+    Used by tests that verify 'enable' fails when the timer unit is absent.
+
+    Because the collector config must live under COLLECTOR_CONFIG_DIR (/usr/lib/rhc/collectors)
+    and that path is read-only on image-mode systems, writable_collector_dirs mounts an
+    overlayfs there so the file can be created and cleaned up safely.
     """
     collector_id = "test.integration.collector"
     collector_config_path = os.path.join(COLLECTOR_CONFIG_DIR, f"{collector_id}.toml")
-    collector_bin_path = os.path.join(COLLECTOR_BIN_DIR, collector_id)
 
     config_content = textwrap.dedent("""
         [meta]
@@ -74,51 +168,33 @@ def collector_config():
         content_type = "application/vnd.redhat.test.collection"
     """).strip()
 
-    collector_script = textwrap.dedent("""
-        #!/bin/bash
-        if [ "$1" = "collect" ]; then
-            echo "test data" > "test-output.txt"
-            exit 0
-        else
-            echo "Usage: $0 collect"
-            exit 1
-        fi
-    """).strip()
-
     os.makedirs(COLLECTOR_CONFIG_DIR, exist_ok=True)
     with open(collector_config_path, "w") as f:
         f.write(config_content)
-
-    os.makedirs(COLLECTOR_BIN_DIR, exist_ok=True)
-    with open(collector_bin_path, "w") as f:
-        f.write(collector_script)
-    os.chmod(collector_bin_path, 0o755)
 
     yield {
         "id": collector_id,
         "name": "Test Integration Collector",
         "config_path": collector_config_path,
-        "bin_path": collector_bin_path,
     }
 
     if os.path.exists(collector_config_path):
         os.remove(collector_config_path)
-    if os.path.exists(collector_bin_path):
-        os.remove(collector_bin_path)
 
 
 @pytest.fixture
-def collector_minimal():
+def collector_minimal(writable_collector_dirs):
     """
-    Fixture to create a minimal collector with only a config file.
-    No binary, no cache, no systemd units.
-    """
-    os.makedirs(COLLECTOR_CONFIG_DIR, exist_ok=True)
+    Fixture creating a minimal collector with only a config file — no binary,
+    no cache, no systemd units.
 
+    Uses writable_collector_dirs to overlay COLLECTOR_CONFIG_DIR so the config
+    file can be written on bootc/image-mode systems where /usr is read-only.
+    """
     collector_id = "test.collector1"
     collector_name = "Test Minimal Collector"
-
     config_path = os.path.join(COLLECTOR_CONFIG_DIR, f"{collector_id}.toml")
+
     config_content = textwrap.dedent("""
         [meta]
         name = "Test Minimal Collector"
@@ -131,6 +207,7 @@ def collector_minimal():
         content_type = "application/vnd.redhat.advisor.collection"
     """).strip()
 
+    os.makedirs(COLLECTOR_CONFIG_DIR, exist_ok=True)
     with open(config_path, "w") as f:
         f.write(config_content)
 
@@ -360,7 +437,7 @@ Environment=HTTP_PROXY={proxy_url}
 
 
 @pytest.fixture
-def failing_minimal_collector_executable():
+def failing_minimal_collector_executable(writable_collector_dirs):
     """Replace com.redhat.minimal executable that exits non-zero on collect."""
     bin_path = os.path.join(COLLECTOR_BIN_DIR, MINIMAL_COLLECTOR_ID)
     backup_path = bin_path + ".bak"
@@ -393,7 +470,7 @@ def failing_minimal_collector_executable():
 
 
 @pytest.fixture
-def missing_minimal_collector_executable():
+def missing_minimal_collector_executable(writable_collector_dirs):
     """Remove the com.redhat.minimal executable."""
     bin_path = os.path.join(COLLECTOR_BIN_DIR, MINIMAL_COLLECTOR_ID)
     backup_path = bin_path + ".bak"
