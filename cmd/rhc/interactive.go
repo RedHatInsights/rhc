@@ -14,6 +14,8 @@ import (
 	"github.com/redhatinsights/rhc/pkg/exitcode"
 )
 
+func isInteractive() bool { return ui.IsInteractive() }
+
 // showTimeDuration shows a table with the duration of each sub-action
 func showTimeDuration(durations map[string]time.Duration) {
 	if conf.Config.LogLevel <= slog.LevelDebug {
