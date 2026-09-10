@@ -6,7 +6,6 @@ import (
 
 	"github.com/urfave/cli/v3"
 
-	"github.com/redhatinsights/rhc/internal/ui"
 	"github.com/redhatinsights/rhc/pkg/exitcode"
 	"github.com/redhatinsights/rhc/pkg/operations"
 )
@@ -35,13 +34,13 @@ func runStatusAction(cmd *cli.Command, getStatus func() *operations.StatusReport
 	logCommandStart(cmd)
 
 	var report *operations.StatusReport
-	_ = ui.Spinner(func() error {
+	_ = withSpinner(func() error {
 		report = getStatus()
 		return nil
-	}, ui.Indent.Small, "Querying status...")
+	}, indent.Small, "Querying status...")
 
-	if ui.IsOutputMachineReadable() {
-		printErr := ui.PrintJSON(report)
+	if isOutputMachineReadable() {
+		printErr := printJSON(report)
 		// A failing check takes precedence over a printing error.
 		if report.HasFailures() {
 			return cli.Exit("", exitcode.Err)
@@ -58,13 +57,13 @@ func runStatusAction(cmd *cli.Command, getStatus func() *operations.StatusReport
 		return cli.Exit(report.HostnameError, exitcode.Err)
 	}
 
-	ui.Printf("Connection status for %v:\n\n", report.Hostname)
+	printf("Connection status for %v:\n\n", report.Hostname)
 	formatRHSMStatus(*report)
 	formatContentStatus(*report)
 	formatInsightsStatus(*report)
 	formatServiceStatus(*report)
 
-	ui.Printf("\nManage your connected systems: https://red.ht/connector\n")
+	printf("\nManage your connected systems: https://red.ht/connector\n")
 
 	if report.HasFailures() {
 		return cli.Exit("", exitcode.Err)
@@ -77,16 +76,16 @@ func runStatusAction(cmd *cli.Command, getStatus func() *operations.StatusReport
 func formatRHSMStatus(report operations.StatusReport) {
 	switch {
 	case report.RHSMError != "":
-		ui.Printf(
+		printf(
 			"%s[%s] Red Hat Subscription Management ... %s\n",
-			ui.Indent.Small,
-			ui.Icons.Error,
+			indent.Small,
+			icons.Error,
 			"unable to check registration status: "+report.RHSMError,
 		)
 	case report.RHSMConnected:
-		ui.Printf("%s[%v] %v\n", ui.Indent.Small, ui.Icons.Ok, "Connected to Red Hat Subscription Management")
+		printf("%s[%v] %v\n", indent.Small, icons.Ok, "Connected to Red Hat Subscription Management")
 	default:
-		ui.Printf("%s[ ] %v\n", ui.Indent.Small, "Not connected to Red Hat Subscription Management")
+		printf("%s[ ] %v\n", indent.Small, "Not connected to Red Hat Subscription Management")
 	}
 }
 
@@ -94,16 +93,16 @@ func formatRHSMStatus(report operations.StatusReport) {
 func formatContentStatus(report operations.StatusReport) {
 	switch {
 	case report.ContentError != "":
-		ui.Printf(
+		printf(
 			"%s[%s] Content ... %s\n",
-			ui.Indent.Medium,
-			ui.Icons.Error,
+			indent.Medium,
+			icons.Error,
 			"unable to check content management: "+report.ContentError,
 		)
 	case report.ContentEnabled:
-		ui.Printf("%s[%v] Content ... %v\n", ui.Indent.Medium, ui.Icons.Ok, "System has access to content")
+		printf("%s[%v] Content ... %v\n", indent.Medium, icons.Ok, "System has access to content")
 	default:
-		ui.Printf("%s[ ] Content ... %v\n", ui.Indent.Medium, "System has no access to content")
+		printf("%s[ ] Content ... %v\n", indent.Medium, "System has no access to content")
 	}
 }
 
@@ -111,11 +110,11 @@ func formatContentStatus(report operations.StatusReport) {
 func formatInsightsStatus(report operations.StatusReport) {
 	switch {
 	case report.InsightsConnected:
-		ui.Printf("%s[%v] Analytics ... Connected to Red Hat Lightspeed (formerly Insights)\n", ui.Indent.Medium, ui.Icons.Ok)
+		printf("%s[%v] Analytics ... Connected to Red Hat Lightspeed (formerly Insights)\n", indent.Medium, icons.Ok)
 	case report.InsightsError != "":
-		ui.Printf("%s[%v] Analytics ... Cannot detect Red Hat Lightspeed (formerly Insights) status: %v\n", ui.Indent.Medium, ui.Icons.Error, report.InsightsError)
+		printf("%s[%v] Analytics ... Cannot detect Red Hat Lightspeed (formerly Insights) status: %v\n", indent.Medium, icons.Error, report.InsightsError)
 	default:
-		ui.Printf("%s[ ] Analytics ... Not connected to Red Hat Lightspeed (formerly Insights)\n", ui.Indent.Medium)
+		printf("%s[ ] Analytics ... Not connected to Red Hat Lightspeed (formerly Insights)\n", indent.Medium)
 	}
 }
 
@@ -123,10 +122,10 @@ func formatInsightsStatus(report operations.StatusReport) {
 func formatServiceStatus(report operations.StatusReport) {
 	switch {
 	case report.YggdrasilError != "":
-		ui.Printf("%s[%s] Remote Management ... %s\n", ui.Indent.Medium, ui.Icons.Error, report.YggdrasilError)
+		printf("%s[%s] Remote Management ... %s\n", indent.Medium, icons.Error, report.YggdrasilError)
 	case report.YggdrasilRunning:
-		ui.Printf("%s[%v] Remote Management ... %v\n", ui.Indent.Medium, ui.Icons.Ok, "The yggdrasil service is active")
+		printf("%s[%v] Remote Management ... %v\n", indent.Medium, icons.Ok, "The yggdrasil service is active")
 	default:
-		ui.Printf("%s[ ] Remote Management ... %v\n", ui.Indent.Medium, "The yggdrasil service is not running")
+		printf("%s[ ] Remote Management ... %v\n", indent.Medium, "The yggdrasil service is not running")
 	}
 }

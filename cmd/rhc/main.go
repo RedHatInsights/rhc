@@ -17,7 +17,6 @@ import (
 	"github.com/urfave/cli/v3"
 
 	"github.com/redhatinsights/rhc/internal/conf"
-	"github.com/redhatinsights/rhc/internal/ui"
 	"github.com/redhatinsights/rhc/pkg/exitcode"
 	"github.com/redhatinsights/rhc/pkg/operations"
 	"github.com/redhatinsights/rhc/pkg/version"
@@ -50,7 +49,7 @@ func mainAction(ctx context.Context, cmd *cli.Command) error {
 	return nil
 }
 
-// configureUI sets up the global UI state by calling ui.ConfigureOutput
+// configureUI sets up the global UI state by calling configureOutput
 // with appropriate parameters.
 func configureUI(cmd *cli.Command) {
 	// Machine-readable output is enabled when a format is requested.
@@ -58,12 +57,12 @@ func configureUI(cmd *cli.Command) {
 	forceColor := isForceColorEnabled()
 	noColor := isNoColorEnabled(cmd)
 	// Animations require human-readable output to an interactive terminal.
-	animationsEnabled := ui.IsInteractive() && !machineReadable
+	animationsEnabled := isInteractive() && !machineReadable
 	// Colors are enabled for human terminal output or with FORCE_COLOR,
 	// unless NO_COLOR or --no-color disables them.
 	colorsEnabled := !noColor && (forceColor || animationsEnabled)
 
-	ui.ConfigureOutput(
+	configureOutput(
 		animationsEnabled,
 		colorsEnabled,
 		machineReadable,

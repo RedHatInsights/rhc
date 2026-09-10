@@ -7,7 +7,6 @@ import (
 
 	"github.com/urfave/cli/v3"
 
-	"github.com/redhatinsights/rhc/internal/ui"
 	"github.com/redhatinsights/rhc/pkg/operations"
 )
 
@@ -22,10 +21,10 @@ func captureStdout(t *testing.T, fn func()) string {
 		t.Fatalf("os.Pipe() error = %v", err)
 	}
 	os.Stdout = writer
-	ui.ConfigureOutput(false, false, false)
+	configureOutput(false, false, false)
 	t.Cleanup(func() {
 		os.Stdout = originalStdout
-		ui.ConfigureOutput(true, true, false)
+		configureOutput(true, true, false)
 	})
 
 	fn()
@@ -50,8 +49,8 @@ func TestRunStatusActionJSON(t *testing.T) {
 
 	var actionErr error
 	got := captureStdout(t, func() {
-		ui.ConfigureOutput(false, false, true)
-		defer ui.ConfigureOutput(false, false, false)
+		configureOutput(false, false, true)
+		defer configureOutput(false, false, false)
 
 		actionErr = runStatusAction(&cli.Command{Name: "status"}, getStatus)
 	})
@@ -77,9 +76,9 @@ func TestRunStatusActionJSON(t *testing.T) {
 // TestFormatStatusLines pins the exact human-readable line each formatter prints
 // for its success, negative, and error states.
 func TestFormatStatusLines(t *testing.T) {
-	ui.ConfigureOutput(false, false, false)
-	okIcon := ui.Icons.Ok
-	errorIcon := ui.Icons.Error
+	configureOutput(false, false, false)
+	okIcon := icons.Ok
+	errorIcon := icons.Error
 	tests := []struct {
 		name   string
 		render func()
