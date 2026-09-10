@@ -3,274 +3,20 @@ package main
 import (
 	"bufio"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
 	"os"
 	"strings"
 	"text/tabwriter"
-	"time"
 
-	"github.com/briandowns/spinner"
-	"github.com/urfave/cli/v3"
-	"golang.org/x/term"
-
-	"github.com/redhatinsights/rhc/internal/datacollection"
-	"github.com/redhatinsights/rhc/internal/remotemanagement"
-	"github.com/redhatinsights/rhc/internal/subman"
 	"github.com/redhatinsights/rhc/internal/ui"
 	"github.com/redhatinsights/rhc/pkg/exitcode"
 	"github.com/redhatinsights/rhc/pkg/feature"
 	"github.com/redhatinsights/rhc/pkg/operations"
+	"github.com/urfave/cli/v3"
+	"golang.org/x/term"
 )
-
-type FeatureResult struct {
-	Enabled    bool   `json:"enabled"`
-	Successful bool   `json:"successful"`
-	Error      string `json:"error,omitempty"`
-	Skipped    bool   `json:"skipped,omitempty"`
-}
-
-// ConnectResult is an external DTO representing the result of 'rhc connect' user action.
-type ConnectResult struct {
-	Hostname         string `json:"hostname"`
-	HostnameError    string `json:"hostname_error,omitempty"`
-	UID              int    `json:"uid"`
-	UIDError         string `json:"uid_error,omitempty"`
-	RHSMConnected    bool   `json:"rhsm_connected"`
-	RHSMConnectError string `json:"rhsm_connect_error,omitempty"`
-	Features         struct {
-		Content          FeatureResult `json:"content"`
-		Analytics        FeatureResult `json:"analytics"`
-		RemoteManagement FeatureResult `json:"remote_management"`
-	} `json:"features"`
-	format string
-}
-
-// Error implement error interface for structure ConnectResult
-func (connectResult *ConnectResult) Error() string {
-	var result string
-	switch connectResult.format {
-	case "json":
-		data, err := json.MarshalIndent(connectResult, "", "    ")
-		if err != nil {
-			return err.Error()
-		}
-		result = string(data)
-	case "":
-		break
-	default:
-		result = "unsupported document format: " + connectResult.format
-	}
-	return result
-}
-
-func (connectResult *ConnectResult) errorMessages() map[string]string {
-	errorMessages := make(map[string]string)
-	if connectResult.RHSMConnectError != "" {
-		errorMessages["rhsm"] = connectResult.RHSMConnectError
-	}
-	if connectResult.Features.Analytics.Error != "" && !connectResult.Features.Analytics.Skipped {
-		errorMessages["insights"] = connectResult.Features.Analytics.Error
-	}
-	if connectResult.Features.RemoteManagement.Error != "" && !connectResult.Features.RemoteManagement.Skipped {
-		errorMessages["yggdrasil"] = connectResult.Features.RemoteManagement.Error
-	}
-	return errorMessages
-}
-
-// rhsmFailed records an RHSM registration failure into the result and prints
-// the appropriate error messages.
-func (connectResult *ConnectResult) rhsmFailed(msg string) {
-	connectResult.RHSMConnected = false
-	connectResult.RHSMConnectError = msg
-	connectResult.Features.Content.Successful = false
-	slog.Error(msg)
-	ui.Printf(
-		"%s[%v] Cannot connect to Red Hat Subscription Management\n",
-		ui.Indent.Small,
-		ui.Icons.Error,
-	)
-	slog.Warn("Skipping generation of redhat.repo (RHSM registration failed)")
-	ui.Printf(
-		"%s[%v] Skipping generation of Red Hat repository file\n",
-		ui.Indent.Medium,
-		ui.Icons.Error,
-	)
-}
-
-// TryRegisterRHSM will attempt to register the system with Red Hat Subscription Management.
-// If this fails, then both RHSMConnected and Features.Content.Successful will be set to false,
-// and the error message will be stored in RHSMConnectError.
-func (connectResult *ConnectResult) TryRegisterRHSM(cmd *cli.Command, enableContent bool) {
-	slog.Info("Registering the system with Red Hat Subscription Management")
-
-	client, err := subman.NewRHSMClient()
-	if err != nil {
-		connectResult.rhsmFailed(fmt.Sprintf("cannot connect to subscription-manager: %s", err))
-		return
-	}
-
-	username := cmd.String("username")
-	password := cmd.String("password")
-	organization := cmd.String("organization")
-	activationKeys := cmd.StringSlice("activation-key")
-	contentTemplates := cmd.StringSlice("content-template")
-
-	if len(activationKeys) == 0 {
-		if username == "" {
-			password = ""
-			scanner := bufio.NewScanner(os.Stdin)
-			fmt.Print("Username: ")
-			_ = scanner.Scan()
-			username = strings.TrimSpace(scanner.Text())
-		}
-		if password == "" {
-			fmt.Print("Password: ")
-			data, err := term.ReadPassword(int(os.Stdin.Fd()))
-			if err != nil {
-				connectResult.rhsmFailed(fmt.Sprintf("unable to read password: %s", err))
-				return
-			}
-			password = string(data)
-			fmt.Printf("\n\n")
-		}
-	}
-
-	var s *spinner.Spinner
-	if ui.AreAnimationsEnabled() {
-		s = spinner.New(spinner.CharSets[9], 100*time.Millisecond)
-		s.Prefix = ui.Indent.Small + "["
-		s.Suffix = "] Connecting to Red Hat Subscription Management..."
-		s.Start()
-		defer s.Stop()
-	}
-
-	opts := subman.RegisterOptions{
-		EnvironmentNames: contentTemplates,
-		EnableContent:    enableContent,
-	}
-
-	if len(activationKeys) > 0 {
-		slog.Debug("Registering system with activation keys")
-		err = client.RegisterWithActivationKeys(organization, activationKeys, opts)
-	} else {
-		slog.Debug("Registering system with username and password")
-		err = client.RegisterWithPassword(username, password, organization, opts)
-		if errors.Is(err, subman.ErrOrganizationRequired) {
-			if ui.IsOutputMachineReadable() {
-				connectResult.rhsmFailed("no organization specified")
-				return
-			}
-			// Stop spinner to display the organization list and prompt the user
-			if ui.AreAnimationsEnabled() {
-				s.Stop()
-			}
-
-			orgs, orgsErr := client.GetOrganizations(username, password)
-			if orgsErr != nil {
-				connectResult.rhsmFailed(fmt.Sprintf("cannot retrieve organizations: %s", orgsErr))
-				return
-			}
-
-			scanner := bufio.NewScanner(os.Stdin)
-			fmt.Println("Available Organizations:")
-			writer := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
-			for i, org := range orgs {
-				_, _ = fmt.Fprintf(writer, "%v\t", org)
-				if (i+1)%4 == 0 {
-					_, _ = fmt.Fprint(writer, "\n")
-				}
-			}
-			_ = writer.Flush()
-			fmt.Print("\nOrganization: ")
-			_ = scanner.Scan()
-			organization = strings.TrimSpace(scanner.Text())
-			fmt.Printf("\n")
-
-			if ui.AreAnimationsEnabled() {
-				s.Start()
-			}
-
-			slog.Debug("Re-attempting registration with username, password and organization")
-			err = client.RegisterWithPassword(username, password, organization, opts)
-		}
-	}
-
-	if err != nil {
-		if s != nil {
-			s.Stop()
-		}
-		connectResult.rhsmFailed(fmt.Sprintf("cannot connect to Red Hat Subscription Management: %s", err))
-		return
-	}
-
-	connectResult.RHSMConnected = true
-	slog.Debug("Connected to Red Hat Subscription Management")
-	if s != nil {
-		s.Stop()
-	}
-	ui.Printf("%s[%v] %s\n", ui.Indent.Small, ui.Icons.Ok, "Connected to Red Hat Subscription Management")
-	if enableContent {
-		connectResult.Features.Content.Successful = true
-		infoMsg := "System has access to content"
-		slog.Info(infoMsg)
-		ui.Printf("%s[%v] Content ... %v\n", ui.Indent.Medium, ui.Icons.Ok, infoMsg)
-	} else {
-		connectResult.Features.Content.Successful = false
-		infoMsg := "System has no access to content"
-		slog.Info(infoMsg)
-		ui.Printf("%s[ ] Content ... %v\n", ui.Indent.Medium, infoMsg)
-	}
-}
-
-// TryRegisterInsightsClient will attempt to register the system with Red Hat Lightspeed.
-// If this fails, then Features.Analytics.Successful will be set to false, and the
-// error message will be stored in Features.Analytics.Error.
-func (connectResult *ConnectResult) TryRegisterInsightsClient() {
-	slog.Info("Connecting to Red Hat Lightspeed")
-	err := ui.Spinner(datacollection.RegisterInsightsClient, ui.Indent.Medium, "Connecting to Red Hat Lightspeed (formerly Insights)...")
-	if err != nil {
-		connectResult.Features.Analytics.Successful = false
-		connectResult.Features.Analytics.Error = fmt.Sprintf("cannot connect to Red Hat Lightspeed (formerly Insights): %v", err)
-		slog.Error(fmt.Sprintf("cannot connect to Red Hat Lightspeed: %v", err))
-		ui.Printf(
-			"%s[%v] Analytics ... Cannot connect to Red Hat Lightspeed (formerly Insights)\n",
-			ui.Indent.Medium,
-			ui.Icons.Error,
-		)
-		return
-	}
-
-	connectResult.Features.Analytics.Successful = true
-	slog.Debug("Connected to Red Hat Lightspeed")
-	ui.Printf("%s[%v] Analytics ... Connected to Red Hat Lightspeed (formerly Insights)\n", ui.Indent.Medium, ui.Icons.Ok)
-}
-
-// TryEnableYggdrasil will attempt to activate the yggdrasil service.
-// If this fails, then Features.RemoteManagement.Successful will be set to false, and the
-// error message will be stored in Features.RemoteManagement.Error.
-func (connectResult *ConnectResult) TryEnableYggdrasil() {
-	slog.Info("Activating yggdrasil service")
-	err := ui.Spinner(remotemanagement.ActivateServices, ui.Indent.Medium, " Activating the yggdrasil service")
-	if err != nil {
-		connectResult.Features.RemoteManagement.Successful = false
-		connectResult.Features.RemoteManagement.Error = fmt.Sprintf("cannot activate the yggdrasil service: %v", err)
-		slog.Error(connectResult.Features.RemoteManagement.Error)
-		ui.Printf(
-			"%s[%v] Remote Management ... Cannot activate the yggdrasil service\n",
-			ui.Indent.Medium,
-			ui.Icons.Error,
-		)
-		return
-	}
-
-	connectResult.Features.RemoteManagement.Successful = true
-	infoMsg := "Activated the yggdrasil service"
-	slog.Debug(infoMsg)
-	ui.Printf("%s[%v] Remote Management ... %s\n", ui.Indent.Medium, ui.Icons.Ok, infoMsg)
-}
 
 // checkFeatureFlags validates --enable-feature and --disable-feature flag combinations.
 // Returns an error if the combination is invalid.
@@ -343,14 +89,7 @@ func beforeConnectAction(ctx context.Context, cmd *cli.Command) (context.Context
 
 	// Do not continue if the host is already registered
 	slog.Info("Checking system connection status")
-	rhsmClient, err := subman.NewRHSMClient()
-	if err != nil {
-		return ctx, cli.Exit(
-			fmt.Sprintf("unable to check connection status: %s", err),
-			exitcode.Software,
-		)
-	}
-	registered, err := rhsmClient.IsRegistered()
+	registered, err := operations.IsRegistered()
 	if err != nil {
 		return ctx, cli.Exit(
 			fmt.Sprintf("unable to check connection status: %s", err),
@@ -454,40 +193,40 @@ func beforeConnectAction(ctx context.Context, cmd *cli.Command) (context.Context
 	return ctx, nil
 }
 
-// connectAction manages 'rhc connect' steps:
-// first we register against Red Hat Subscription Management,
-// then we enable data collection for Red Hat Lightspeed services,
-// then we start remote management service yggdrasil.
+// connectAction is the CLI handler for 'rhc connect'.
+// It checks identity, collects credentials, runs operations.Connect
+// (with spinner and per-step output), handles an organization prompt
+// if RHSM requires one, and prints the human readable or JSON result.
 func connectAction(ctx context.Context, cmd *cli.Command) error {
 	logCommandStart(cmd)
 	cache := cmd.Root().Metadata[connectCacheKey].(*feature.PreferenceCache)
 
-	var connectResult ConnectResult
-	connectResult.format = cmd.String("format")
+	var report operations.ConnectReport
 
 	uid := os.Getuid()
 	if uid != 0 {
 		errMsg := "non-root user cannot connect system"
 		slog.Error(errMsg)
+		report.UID = uid
+		report.UIDError = errMsg
 		if ui.IsOutputMachineReadable() {
-			connectResult.UID = uid
-			connectResult.UIDError = errMsg
-			return cli.Exit(connectResult, exitcode.NoPerm)
+			_ = formatConnectJSON(report)
+			return cli.Exit("", exitcode.NoPerm)
 		}
 		return cli.Exit(fmt.Errorf("%s", errMsg), exitcode.NoPerm)
 	}
 
-	// Gather hostname
 	hostname, err := os.Hostname()
 	if err != nil {
 		slog.Error(fmt.Sprintf("Error retrieving system hostname: %v", err))
+		report.HostnameError = err.Error()
 		if ui.IsOutputMachineReadable() {
-			connectResult.HostnameError = err.Error()
-			return cli.Exit(connectResult, exitcode.Err)
+			_ = formatConnectJSON(report)
+			return cli.Exit("", exitcode.Err)
 		}
 		return cli.Exit(err, exitcode.Err)
 	}
-	connectResult.Hostname = hostname
+	report.Hostname = hostname
 
 	ui.Printf("Connecting %v to Red Hat.", hostname)
 	var toEnableList []string
@@ -506,86 +245,151 @@ func connectAction(ctx context.Context, cmd *cli.Command) error {
 	}
 	ui.Printf("\nThis might take some time.\n\n")
 
-	var start time.Time
-	durations := make(map[string]time.Duration)
+	opts, err := buildConnectionOptions(cmd, cache)
 
-	// Register to Red Hat Subscription Management
-	{
-		start = time.Now()
-		connectResult.TryRegisterRHSM(cmd, cache.Get(operations.Content))
-		durations["rhsm"] = time.Since(start)
+	if err != nil {
+		return cli.Exit(err, exitcode.Err)
 	}
 
-	// Enable data collection
-	if cache.Get(operations.Analytics) {
-		start = time.Now()
-		connectResult.TryRegisterInsightsClient()
-		durations["insights"] = time.Since(start)
-	} else {
-		ui.Printf("%s[%v] Analytics ... Skipped\n", ui.Indent.Medium, ui.Icons.Info)
+	opts.OnStep = func(step operations.ConnectStep, fn func() error) error {
+		prefix, message := connectStepSpinner(step)
+		return ui.Spinner(fn, prefix, message)
 	}
 
-	// Enable remote management
-	if cache.Get(operations.RemoteManagement) {
-		if !connectResult.Features.Content.Successful {
-			connectResult.Features.RemoteManagement.Skipped = true
-			connectResult.Features.RemoteManagement.Successful = false
-			connectResult.Features.RemoteManagement.Error = "skipped: dependency 'content' failed"
-			slog.Warn("Skipping remote-management (dependency 'content' failed)")
-			ui.Printf(
-				"%s[%v] Remote Management ... Skipped (dependency 'content' failed)\n",
-				ui.Indent.Medium,
-				ui.Icons.Warning,
-			)
-		} else if !connectResult.Features.Analytics.Successful {
-			connectResult.Features.RemoteManagement.Skipped = true
-			connectResult.Features.RemoteManagement.Successful = false
-			connectResult.Features.RemoteManagement.Error = "skipped: dependency 'analytics' failed"
-			slog.Warn("Skipping remote-management (dependency 'analytics' failed)")
-			ui.Printf(
-				"%s[%v] Remote Management ... Skipped (dependency 'analytics' failed)\n",
-				ui.Indent.Medium,
-				ui.Icons.Warning,
-			)
+	opts.AfterStep = func(step operations.ConnectStep, stepReport operations.ConnectReport) {
+		formatConnectStep(step, stepReport)
+	}
+
+	report, err = connectWithIdentity(opts, hostname, uid)
+
+	if errors.Is(err, operations.ErrOrganizationRequired) {
+		if ui.IsOutputMachineReadable() {
+			report.RHSMError = "no organization specified"
+			err = nil
+			formatConnectStepsReport(report)
 		} else {
-			start = time.Now()
-			connectResult.TryEnableYggdrasil()
-			durations["yggdrasil"] = time.Since(start)
+			org, orgErr := promptOrganization(opts.Username, opts.Password)
+			if orgErr != nil {
+				report.RHSMError = fmt.Sprintf("cannot retrieve organizations: %s", orgErr)
+				slog.Error(report.RHSMError)
+				err = nil
+				formatConnectStepsReport(report)
+			} else {
+				opts.Organization = org
+				report, err = connectWithIdentity(opts, hostname, uid)
+			}
 		}
-	} else {
-		ui.Printf("%s[%v] Remote Management ... Skipped\n", ui.Indent.Medium, ui.Icons.Info)
 	}
 
-	if connectResult.RHSMConnected {
-		ui.Printf("\nSuccessfully connected to Red Hat!\n")
+	if err != nil {
+		return cli.Exit(err, exitcode.Err)
 	}
+
+	formatConnectSuccess(report)
 
 	if !ui.IsOutputMachineReadable() {
-		// Display footer
 		ui.Printf("\nManage your connected systems: https://red.ht/connector\n")
-
-		// If enabled, display time statistics
-		showTimeDuration(durations)
+		showTimeDuration(report.Durations)
 	}
 
-	err = showErrorMessages("connect", connectResult.errorMessages())
-	if err != nil {
+	if err := showErrorMessages("connect", connectErrorMessages(report)); err != nil {
 		return err
 	}
 
 	if ui.IsOutputMachineReadable() {
-		connectResult.Features.Content.Enabled = operations.FeatureStatus(
-			operations.FeatureOperationOptions{Feature: operations.Content}).Enabled
-		connectResult.Features.Analytics.Enabled = operations.FeatureStatus(
-			operations.FeatureOperationOptions{Feature: operations.Analytics}).Enabled
-		connectResult.Features.RemoteManagement.Enabled = operations.FeatureStatus(
-			operations.FeatureOperationOptions{Feature: operations.RemoteManagement}).Enabled
-		fmt.Println(connectResult.Error())
+		setConnectFeatureStatus(&report)
+		if printErr := formatConnectJSON(report); printErr != nil {
+			return cli.Exit(
+				fmt.Errorf("unable to print connect result as %s document: %s", cmd.String("format"), printErr.Error()),
+				exitcode.IOErr)
+		}
 	}
 
-	err = cache.Delete()
-	if err != nil {
+	if err := cache.Delete(); err != nil {
 		slog.Debug("could not delete preferences cache", "err", err)
 	}
+
 	return nil
+}
+
+func buildConnectionOptions(cmd *cli.Command, cache *feature.PreferenceCache) (operations.ConnectOptions, error) {
+	opts := operations.ConnectOptions{
+		Username:               cmd.String("username"),
+		Password:               cmd.String("password"),
+		Organization:           cmd.String("organization"),
+		ActivationKeys:         cmd.StringSlice("activation-key"),
+		ContentTemplates:       cmd.StringSlice("content-template"),
+		EnableContent:          cache.Get(operations.Content),
+		EnableAnalytics:        cache.Get(operations.Analytics),
+		EnableRemoteManagement: cache.Get(operations.RemoteManagement),
+	}
+
+	if len(opts.ActivationKeys) > 0 {
+		return opts, nil
+	}
+
+	if opts.Username == "" {
+		opts.Password = ""
+		fmt.Print("Username: ")
+		scanner := bufio.NewScanner(os.Stdin)
+		if !scanner.Scan() {
+			if err := scanner.Err(); err != nil {
+				return opts, fmt.Errorf("unable to read username: %w", err)
+			}
+			return opts, fmt.Errorf("unable to read username: EOF")
+		}
+		opts.Username = strings.TrimSpace(scanner.Text())
+	}
+	if opts.Password == "" {
+		fmt.Print("Password: ")
+		data, err := term.ReadPassword(int(os.Stdin.Fd()))
+		if err != nil {
+			return opts, fmt.Errorf("unable to read password: %w", err)
+		}
+		opts.Password = string(data)
+		fmt.Printf("\n\n")
+	}
+	return opts, nil
+}
+
+func connectStepSpinner(step operations.ConnectStep) (prefix, message string) {
+	switch step {
+	case operations.ConnectStepRHSM:
+		return ui.Indent.Small, "Connecting to Red Hat Subscription Management..."
+	case operations.ConnectStepAnalytics:
+		return ui.Indent.Medium, "Connecting to Red Hat Lightspeed (formerly Insights)..."
+	case operations.ConnectStepYggdrasil:
+		return ui.Indent.Medium, "Activating the yggdrasil service"
+	default:
+		return ui.Indent.Small, string(step)
+	}
+}
+
+func promptOrganization(username, password string) (string, error) {
+	orgs, err := operations.GetOrganizations(username, password)
+	if err != nil {
+		return "", err
+	}
+
+	scanner := bufio.NewScanner(os.Stdin)
+	fmt.Println("Available Organizations:")
+	writer := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
+	for i, org := range orgs {
+		_, _ = fmt.Fprintf(writer, "%v\t", org)
+		if (i+1)%4 == 0 {
+			_, _ = fmt.Fprint(writer, "\n")
+		}
+	}
+	_ = writer.Flush()
+	fmt.Print("\nOrganization: ")
+	_ = scanner.Scan()
+	fmt.Printf("\n")
+	return strings.TrimSpace(scanner.Text()), nil
+}
+
+func connectWithIdentity(opts operations.ConnectOptions, hostname string, uid int) (operations.ConnectReport, error) {
+	report, err := operations.Connect(opts)
+	report.Hostname = hostname
+	report.UID = uid
+	return report, err
 }
