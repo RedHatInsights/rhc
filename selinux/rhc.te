@@ -1,0 +1,47 @@
+policy_module(rhc, 1.0.0)
+
+########################################
+#
+# Declarations
+#
+# Skeleton only: process domains and file types. Do not encode the full
+# allow set here; that is later work.
+#
+
+#
+# rhc_collector_t — systemd oneshot runner (/usr/libexec/rhc/rhc-collector)
+#
+type rhc_collector_t;
+type rhc_collector_exec_t;
+init_daemon_domain(rhc_collector_t, rhc_collector_exec_t)
+
+#
+# rhc_collector_minimal_t — com.redhat.minimal child collector
+#
+type rhc_collector_minimal_t;
+type rhc_collector_minimal_exec_t;
+application_domain(rhc_collector_minimal_t, rhc_collector_minimal_exec_t)
+role system_r types rhc_collector_minimal_t;
+
+#
+# File types
+#
+type rhc_collector_conf_t;
+files_config_file(rhc_collector_conf_t)
+
+type rhc_cache_t;
+files_type(rhc_cache_t)
+
+type rhc_tmp_t;
+files_tmp_file(rhc_tmp_t)
+
+########################################
+#
+# Domain transitions
+#
+# init_t -> rhc_collector_t is established by init_daemon_domain() above.
+# rhc_collector_domtrans() in rhc.if is the exported public API (not called here).
+# rhc_collector_t -> rhc_collector_minimal_t uses the exported interface below.
+#
+
+rhc_collector_minimal_domtrans(rhc_collector_t)

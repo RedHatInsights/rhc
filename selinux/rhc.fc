@@ -1,0 +1,14 @@
+# rhc-collector systemd oneshot binary
+/usr/libexec/rhc/rhc-collector			--	gen_context(system_u:object_r:rhc_collector_exec_t,s0)
+
+# com.redhat.minimal collector binary
+/usr/libexec/rhc/collectors/com\.redhat\.minimal	--	gen_context(system_u:object_r:rhc_collector_minimal_exec_t,s0)
+
+# Collector configuration (TOML) shipped under /usr/lib/rhc/collectors
+/usr/lib/rhc/collectors(/.*)?				gen_context(system_u:object_r:rhc_collector_conf_t,s0)
+
+# Collector timer cache
+/var/cache/rhc/collectors(/.*)?				gen_context(system_u:object_r:rhc_cache_t,s0)
+
+# Collector working directory
+/var/tmp/rhc(/.*)?					gen_context(system_u:object_r:rhc_tmp_t,s0)

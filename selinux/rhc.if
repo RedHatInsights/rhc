@@ -1,0 +1,54 @@
+## <summary>SELinux policy for rhc-collector domains</summary>
+
+########################################
+## <summary>
+##	Execute rhc-collector in the rhc_collector_t domain.
+## </summary>
+## <desc>
+##	<p>
+##	Public API for transitioning into rhc_collector_t when executing
+##	rhc_collector_exec_t. Not invoked from rhc.te: init_daemon_domain()
+##	already wires init_t (systemd) for the oneshot runner. Exported for
+##	CCT-2894 and for other policy modules that need this transition.
+##	</p>
+## </desc>
+## <param name="domain">
+##	<summary>
+##	Domain allowed to transition.
+##	</summary>
+## </param>
+#
+interface(`rhc_collector_domtrans',`
+	gen_require(`
+		type rhc_collector_t, rhc_collector_exec_t;
+	')
+
+	corecmd_search_bin($1)
+	domtrans_pattern($1, rhc_collector_exec_t, rhc_collector_t)
+')
+
+########################################
+## <summary>
+##	Execute com.redhat.minimal in the rhc_collector_minimal_t domain.
+## </summary>
+## <desc>
+##	<p>
+##	Automatic domain transition to rhc_collector_minimal_t when executing
+##	rhc_collector_minimal_exec_t. Sufficient for rhc_collector_t to start
+##	the child collector confined.
+##	</p>
+## </desc>
+## <param name="domain">
+##	<summary>
+##	Domain allowed to transition.
+##	</summary>
+## </param>
+#
+interface(`rhc_collector_minimal_domtrans',`
+	gen_require(`
+		type rhc_collector_minimal_t, rhc_collector_minimal_exec_t;
+	')
+
+	corecmd_search_bin($1)
+	domtrans_pattern($1, rhc_collector_minimal_exec_t, rhc_collector_minimal_t)
+')
