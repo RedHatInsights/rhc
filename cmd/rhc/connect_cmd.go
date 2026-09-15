@@ -277,7 +277,7 @@ func connectAction(ctx context.Context, cmd *cli.Command) error {
 	if errors.Is(err, operations.ErrOrganizationRequired) && !isConnectFormatMachineReadable(cmd) {
 		org, orgErr := promptOrganization(opts.Username, opts.Password)
 		if orgErr != nil {
-			failOrganizationRequired(&report, fmt.Sprintf("cannot retrieve organizations: %s", orgErr))
+			failOrganizationRequired(&report, orgErr.Error())
 			err = nil
 		} else {
 			opts.Organization = org
@@ -386,7 +386,7 @@ func failOrganizationRequired(report *operations.ConnectReport, msg string) {
 func promptOrganization(username, password string) (string, error) {
 	orgs, err := operations.GetOrganizations(username, password)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("cannot retrieve organizations: %w", err)
 	}
 
 	fmt.Println("Available Organizations:")
@@ -405,11 +405,11 @@ func promptOrganization(username, password string) (string, error) {
 		if err := scanner.Err(); err != nil {
 			return "", fmt.Errorf("unable to read organization: %w", err)
 		}
-		return "", fmt.Errorf("unable to read organization: EOF")
+		return "", errors.New("unable to read organization: EOF")
 	}
 	org := strings.TrimSpace(scanner.Text())
 	if org == "" {
-		return "", fmt.Errorf("no organization specified")
+		return "", errors.New("no organization specified")
 	}
 	fmt.Printf("\n")
 	return org, nil
