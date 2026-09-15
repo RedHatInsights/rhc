@@ -29,27 +29,6 @@ type connectJSONDocument struct {
 	} `json:"features"`
 }
 
-func formatConnectStep(step operations.ConnectStep, report operations.ConnectReport) {
-	switch step {
-	case operations.ConnectStepRHSM:
-		formatConnectRHSM(report)
-	case operations.ConnectStepAnalytics:
-		formatConnectFeature(
-			report.Analytics,
-			"Analytics",
-			"Connected to Red Hat Lightspeed (formerly Insights)",
-			"Cannot connect to Red Hat Lightspeed (formerly Insights)",
-		)
-	case operations.ConnectStepYggdrasil:
-		formatConnectFeature(
-			report.RemoteManagement,
-			"Remote Management",
-			"Activated the yggdrasil service",
-			"Cannot activate the yggdrasil service",
-		)
-	}
-}
-
 func formatConnectRHSM(report operations.ConnectReport) {
 	if report.RHSMConnected {
 		formatConnectLine(ui.Indent.Small, ui.Icons.Ok, "Connected to Red Hat Subscription Management")
@@ -88,9 +67,19 @@ func formatConnectLine(indent, icon, text string) {
 }
 
 func formatConnectStepsReport(report operations.ConnectReport) {
-	formatConnectStep(operations.ConnectStepRHSM, report)
-	formatConnectStep(operations.ConnectStepAnalytics, report)
-	formatConnectStep(operations.ConnectStepYggdrasil, report)
+	formatConnectRHSM(report)
+	formatConnectFeature(
+		report.Analytics,
+		"Analytics",
+		"Connected to Red Hat Lightspeed (formerly Insights)",
+		"Cannot connect to Red Hat Lightspeed (formerly Insights)",
+	)
+	formatConnectFeature(
+		report.RemoteManagement,
+		"Remote Management",
+		"Activated the yggdrasil service",
+		"Cannot activate the yggdrasil service",
+	)
 }
 
 func connectJSONFeatureFrom(result operations.FeatureResult) connectJSONFeature {
@@ -136,25 +125,4 @@ func formatConnectSuccess() {
 
 func formatConnectFooter() {
 	ui.Printf("\nManage your connected systems: https://red.ht/connector\n")
-}
-
-func withConnectWithProgress(opts *operations.ConnectOptions) {
-	opts.OnStep = func(step operations.ConnectStep, fn func() error) error {
-		prefix, message := connectStepSpinner(step)
-		return ui.Spinner(fn, prefix, message)
-	}
-	opts.AfterStep = formatConnectStep
-}
-
-func connectStepSpinner(step operations.ConnectStep) (prefix, message string) {
-	switch step {
-	case operations.ConnectStepRHSM:
-		return ui.Indent.Small, "Connecting to Red Hat Subscription Management..."
-	case operations.ConnectStepAnalytics:
-		return ui.Indent.Medium, "Connecting to Red Hat Lightspeed (formerly Insights)..."
-	case operations.ConnectStepYggdrasil:
-		return ui.Indent.Medium, "Activating the yggdrasil service"
-	default:
-		return ui.Indent.Small, string(step)
-	}
 }

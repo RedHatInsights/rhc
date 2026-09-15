@@ -10,6 +10,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/redhatinsights/rhc/internal/ui"
 	"github.com/redhatinsights/rhc/pkg/exitcode"
 	"github.com/redhatinsights/rhc/pkg/feature"
 	"github.com/redhatinsights/rhc/pkg/operations"
@@ -228,7 +229,7 @@ func connectErrorMessages(report operations.ConnectReport) map[string]string {
 
 // connectAction is the CLI handler for 'rhc connect'.
 // It checks identity, collects credentials, runs operations.Connect
-// (with spinner and per-step output), handles an organization prompt
+// with a spinner, handles an organization prompt
 // if RHSM requires one, and prints the human readable or JSON result.
 func connectAction(ctx context.Context, cmd *cli.Command) error {
 	logCommandStart(cmd)
@@ -271,11 +272,7 @@ func connectAction(ctx context.Context, cmd *cli.Command) error {
 		return cli.Exit(err, exitcode.Err)
 	}
 
-	withConnectWithProgress(&opts)
-
-	report, err = operations.Connect(opts)
-	report.Hostname = hostname
-	report.UID = uid
+	report, err = connectWithSpinner(opts, hostname, uid)
 
 	if errors.Is(err, operations.ErrOrganizationRequired) && !isConnectFormatMachineReadable(cmd) {
 		org, orgErr := promptOrganization(opts.Username, opts.Password)
@@ -284,9 +281,7 @@ func connectAction(ctx context.Context, cmd *cli.Command) error {
 			err = nil
 		} else {
 			opts.Organization = org
-			report, err = operations.Connect(opts)
-			report.Hostname = hostname
-			report.UID = uid
+			report, err = connectWithSpinner(opts, hostname, uid)
 		}
 	}
 
@@ -299,6 +294,7 @@ func connectAction(ctx context.Context, cmd *cli.Command) error {
 		return cli.Exit(err, exitcode.Err)
 	}
 
+	formatConnectStepsReport(report)
 	if report.RHSMConnected {
 		formatConnectSuccess()
 	}
@@ -368,10 +364,23 @@ func buildConnectionOptions(cmd *cli.Command, cache *feature.PreferenceCache) (o
 	return opts, nil
 }
 
+func connectWithSpinner(
+	opts operations.ConnectOptions,
+	hostname string,
+	uid int,
+) (report operations.ConnectReport, err error) {
+	err = ui.Spinner(func() error {
+		report, err = operations.Connect(opts)
+		return err
+	}, ui.Indent.Small, "Connecting to Red Hat Subscription Management...")
+	report.Hostname = hostname
+	report.UID = uid
+	return report, err
+}
+
 func failOrganizationRequired(report *operations.ConnectReport, msg string) {
 	report.RHSMError = msg
 	slog.Error(report.RHSMError)
-	formatConnectStepsReport(*report)
 }
 
 func promptOrganization(username, password string) (string, error) {

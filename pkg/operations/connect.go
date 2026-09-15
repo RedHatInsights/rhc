@@ -11,14 +11,6 @@ import (
 	"github.com/redhatinsights/rhc/internal/subman"
 )
 
-type ConnectStep string
-
-const (
-	ConnectStepRHSM      ConnectStep = "rhsm"
-	ConnectStepAnalytics ConnectStep = "insights"
-	ConnectStepYggdrasil ConnectStep = "yggdrasil"
-)
-
 var ErrOrganizationRequired = subman.ErrOrganizationRequired
 
 type ConnectOptions struct {
@@ -30,8 +22,6 @@ type ConnectOptions struct {
 	EnableContent          bool
 	EnableAnalytics        bool
 	EnableRemoteManagement bool
-	OnStep                 func(step ConnectStep, fn func() error) error
-	AfterStep              func(step ConnectStep, report ConnectReport)
 }
 
 type FeatureResult struct {
@@ -54,19 +44,6 @@ type ConnectReport struct {
 	Analytics        FeatureResult
 	RemoteManagement FeatureResult
 	Durations        map[string]time.Duration
-}
-
-func (opts ConnectOptions) runStep(step ConnectStep, fn func() error) error {
-	if opts.OnStep == nil {
-		return fn()
-	}
-	return opts.OnStep(step, fn)
-}
-
-func (opts ConnectOptions) afterStep(step ConnectStep, report ConnectReport) {
-	if opts.AfterStep != nil {
-		opts.AfterStep(step, report)
-	}
 }
 
 type connectDependencies struct {
@@ -127,42 +104,28 @@ func connect(opts ConnectOptions, connectDeps connectDependencies) (ConnectRepor
 	report.Durations = make(map[string]time.Duration)
 
 	start := time.Now()
-	err := opts.runStep(
-		ConnectStepRHSM,
-		func() error {
-			return registerRHSM(opts, &report, connectDeps.RegisterRHSM)
-		},
-	)
+	err := registerRHSM(opts, &report, connectDeps.RegisterRHSM)
 	if err != nil {
 		skipUnstarted(&report.Analytics)
 		skipUnstarted(&report.RemoteManagement)
 		return report, err
 	}
 	report.Durations["rhsm"] = time.Since(start)
-	opts.afterStep(ConnectStepRHSM, report)
 
 	if opts.EnableAnalytics {
 		start = time.Now()
-		_ = opts.runStep(
-			ConnectStepAnalytics,
-			func() error {
-				slog.Info("Connecting to Red Hat Lightspeed")
-				if err := connectDeps.RegisterInsightsClient(); err != nil {
-					report.Analytics.Error = fmt.Sprintf(
-						"cannot connect to Red Hat Lightspeed (formerly Insights): %v", err)
-					slog.Error("cannot connect to Red Hat Lightspeed", "err", err)
-				} else {
-					report.Analytics.Successful = true
-				}
-				return nil
-			},
-		)
+		slog.Info("Connecting to Red Hat Lightspeed")
+		if err := connectDeps.RegisterInsightsClient(); err != nil {
+			report.Analytics.Error = fmt.Sprintf(
+				"cannot connect to Red Hat Lightspeed (formerly Insights): %v", err)
+			slog.Error("cannot connect to Red Hat Lightspeed", "err", err)
+		} else {
+			report.Analytics.Successful = true
+		}
 		report.Durations["insights"] = time.Since(start)
 	}
-	opts.afterStep(ConnectStepAnalytics, report)
 
 	if !opts.EnableRemoteManagement {
-		opts.afterStep(ConnectStepYggdrasil, report)
 		return report, nil
 	}
 
@@ -173,23 +136,16 @@ func connect(opts ConnectOptions, connectDeps connectDependencies) (ConnectRepor
 		skipRemoteManagement(&report, "analytics")
 	default:
 		start = time.Now()
-		_ = opts.runStep(
-			ConnectStepYggdrasil,
-			func() error {
-				slog.Info("Activating yggdrasil service")
-				if err := connectDeps.ActivateYggdrasil(); err != nil {
-					report.RemoteManagement.Error = fmt.Sprintf(
-						"cannot activate the yggdrasil service: %v", err)
-					slog.Error(report.RemoteManagement.Error)
-				} else {
-					report.RemoteManagement.Successful = true
-				}
-				return nil
-			},
-		)
+		slog.Info("Activating yggdrasil service")
+		if err := connectDeps.ActivateYggdrasil(); err != nil {
+			report.RemoteManagement.Error = fmt.Sprintf(
+				"cannot activate the yggdrasil service: %v", err)
+			slog.Error(report.RemoteManagement.Error)
+		} else {
+			report.RemoteManagement.Successful = true
+		}
 		report.Durations["yggdrasil"] = time.Since(start)
 	}
-	opts.afterStep(ConnectStepYggdrasil, report)
 	return report, nil
 }
 

@@ -204,16 +204,14 @@ func TestFormatConnectStepsReport(t *testing.T) {
 	}
 }
 
-func TestFormatConnectStepRHSM(t *testing.T) {
+func TestFormatConnectRHSM(t *testing.T) {
 	ui.ConfigureOutput(false, false, false)
 	okIcon := ui.Icons.Ok
 	report := operations.ConnectReport{
 		RHSMConnected: true,
 		Content:       operations.FeatureResult{Requested: true, Successful: true},
 	}
-	got := captureStdout(t, func() {
-		formatConnectStep(operations.ConnectStepRHSM, report)
-	})
+	got := captureStdout(t, func() { formatConnectRHSM(report) })
 	want := " [" + okIcon + "] Connected to Red Hat Subscription Management\n" +
 		"  [" + okIcon + "] Content ... System has access to content\n"
 	if got != want {
