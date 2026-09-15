@@ -1,6 +1,6 @@
 module github.com/redhatinsights/rhc
 
-go 1.25.0
+go 1.26.0
 
 require (
 	github.com/BurntSushi/toml v1.6.0
@@ -15,7 +15,7 @@ require (
 	github.com/urfave/cli-altsrc/v3 v3.1.0
 	github.com/urfave/cli-docs/v3 v3.1.0
 	github.com/urfave/cli/v3 v3.11.0
-	golang.org/x/sys v0.47.0
+	golang.org/x/sys v0.48.0
 	golang.org/x/term v0.45.0
 )
 
