@@ -11,8 +11,11 @@ import (
 	"github.com/redhatinsights/rhc/internal/subman"
 )
 
+// ErrOrganizationRequired indicates that password registration needs an
+// explicit organization before it can continue.
 var ErrOrganizationRequired = subman.ErrOrganizationRequired
 
+// ConnectOptions contains validated values for a connection attempt.
 type ConnectOptions struct {
 	Username               string
 	Password               string
@@ -24,7 +27,9 @@ type ConnectOptions struct {
 	EnableRemoteManagement bool
 }
 
-type FeatureResult struct {
+// ConnectFeatureResult describes the requested action and resulting state of
+// one connect feature.
+type ConnectFeatureResult struct {
 	Requested      bool
 	Successful     bool
 	Skipped        bool
@@ -33,6 +38,8 @@ type FeatureResult struct {
 	Enabled        bool
 }
 
+// ConnectReport contains connection outcome data without presentation or
+// exit-code behavior.
 type ConnectReport struct {
 	Hostname         string
 	HostnameError    string
@@ -40,9 +47,9 @@ type ConnectReport struct {
 	UIDError         string
 	RHSMConnected    bool
 	RHSMError        string
-	Content          FeatureResult
-	Analytics        FeatureResult
-	RemoteManagement FeatureResult
+	Content          ConnectFeatureResult
+	Analytics        ConnectFeatureResult
+	RemoteManagement ConnectFeatureResult
 	Durations        map[string]time.Duration
 }
 
@@ -83,6 +90,7 @@ func defaultRegisterRHSM(opts ConnectOptions) error {
 	return fmt.Errorf("cannot connect to Red Hat Subscription Management: %s", err)
 }
 
+// GetOrganizations returns the organizations available to the supplied account.
 func GetOrganizations(username, password string) ([]string, error) {
 	client, err := subman.NewRHSMClient()
 	if err != nil {
@@ -91,15 +99,16 @@ func GetOrganizations(username, password string) ([]string, error) {
 	return client.GetOrganizations(username, password)
 }
 
+// Connect registers the system and enables the requested dependent features.
 func Connect(opts ConnectOptions) (ConnectReport, error) {
 	return connect(opts, defaultConnectDependencies())
 }
 
 func connect(opts ConnectOptions, connectDeps connectDependencies) (ConnectReport, error) {
 	report := ConnectReport{
-		Content:          FeatureResult{Requested: opts.EnableContent},
-		Analytics:        FeatureResult{Requested: opts.EnableAnalytics},
-		RemoteManagement: FeatureResult{Requested: opts.EnableRemoteManagement},
+		Content:          ConnectFeatureResult{Requested: opts.EnableContent},
+		Analytics:        ConnectFeatureResult{Requested: opts.EnableAnalytics},
+		RemoteManagement: ConnectFeatureResult{Requested: opts.EnableRemoteManagement},
 	}
 	report.Durations = make(map[string]time.Duration)
 
@@ -180,7 +189,7 @@ func skipRemoteManagement(report *ConnectReport, dependency string) {
 	slog.Warn("Skipping remote-management (dependency failed)", "dependency", dependency)
 }
 
-func skipUnstarted(result *FeatureResult) {
+func skipUnstarted(result *ConnectFeatureResult) {
 	if result.Requested && !result.Successful {
 		result.Skipped = true
 	}

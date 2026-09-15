@@ -10,12 +10,12 @@ import (
 func TestSkipUnstarted(t *testing.T) {
 	tests := []struct {
 		name     string
-		result   FeatureResult
+		result   ConnectFeatureResult
 		wantSkip bool
 	}{
-		{name: "not requested", result: FeatureResult{}, wantSkip: false},
-		{name: "already successful", result: FeatureResult{Requested: true, Successful: true}, wantSkip: false},
-		{name: "requested and unstarted", result: FeatureResult{Requested: true}, wantSkip: true},
+		{name: "not requested", result: ConnectFeatureResult{}, wantSkip: false},
+		{name: "already successful", result: ConnectFeatureResult{Requested: true, Successful: true}, wantSkip: false},
+		{name: "requested and unstarted", result: ConnectFeatureResult{Requested: true}, wantSkip: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -44,7 +44,7 @@ func formatConnectRHSM(report operations.ConnectReport) {
 	}
 }
 
-func formatConnectFeature(f operations.FeatureResult, name, okMsg, errMsg string) {
+func formatConnectFeature(f operations.ConnectFeatureResult, name, okMsg, errMsg string) {
 	switch {
 	case !f.Requested, f.Skipped && f.SkipDependency == "":
 		formatConnectLine(ui.Indent.Medium, ui.Icons.Info, name+" ... Skipped")
@@ -82,7 +82,7 @@ func formatConnectStepsReport(report operations.ConnectReport) {
 	)
 }
 
-func connectJSONFeatureFrom(result operations.FeatureResult) connectJSONFeature {
+func connectJSONFeatureFrom(result operations.ConnectFeatureResult) connectJSONFeature {
 	return connectJSONFeature{
 		Enabled:    result.Enabled,
 		Successful: result.Successful,

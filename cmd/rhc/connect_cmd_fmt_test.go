@@ -12,17 +12,17 @@ func TestFormatConnectJSON(t *testing.T) {
 		Hostname:      "test-host",
 		UID:           0,
 		RHSMConnected: true,
-		Content: operations.FeatureResult{
+		Content: operations.ConnectFeatureResult{
 			Requested:  true,
 			Successful: true,
 			Enabled:    true,
 		},
-		Analytics: operations.FeatureResult{
+		Analytics: operations.ConnectFeatureResult{
 			Requested:  true,
 			Successful: true,
 			Enabled:    true,
 		},
-		RemoteManagement: operations.FeatureResult{
+		RemoteManagement: operations.ConnectFeatureResult{
 			Requested:  true,
 			Successful: true,
 			Enabled:    true,
@@ -64,18 +64,18 @@ func TestFormatConnectJSONPartialFailure(t *testing.T) {
 		Hostname:      "test-host",
 		RHSMConnected: true,
 		RHSMError:     "",
-		Content: operations.FeatureResult{
+		Content: operations.ConnectFeatureResult{
 			Requested:  true,
 			Successful: true,
 			Enabled:    true,
 		},
-		Analytics: operations.FeatureResult{
+		Analytics: operations.ConnectFeatureResult{
 			Requested:  true,
 			Successful: false,
 			Error:      "cannot connect to Red Hat Lightspeed (formerly Insights): boom",
 			Enabled:    false,
 		},
-		RemoteManagement: operations.FeatureResult{
+		RemoteManagement: operations.ConnectFeatureResult{
 			Requested:  true,
 			Successful: false,
 			Skipped:    true,
@@ -133,9 +133,9 @@ func TestFormatConnectStepsReport(t *testing.T) {
 			name: "full success",
 			report: operations.ConnectReport{
 				RHSMConnected: true,
-				Content:       operations.FeatureResult{Requested: true, Successful: true},
-				Analytics:     operations.FeatureResult{Requested: true, Successful: true},
-				RemoteManagement: operations.FeatureResult{
+				Content:       operations.ConnectFeatureResult{Requested: true, Successful: true},
+				Analytics:     operations.ConnectFeatureResult{Requested: true, Successful: true},
+				RemoteManagement: operations.ConnectFeatureResult{
 					Requested:  true,
 					Successful: true,
 				},
@@ -150,8 +150,8 @@ func TestFormatConnectStepsReport(t *testing.T) {
 			report: operations.ConnectReport{
 				RHSMConnected: false,
 				RHSMError:     "cannot connect",
-				Analytics:     operations.FeatureResult{Requested: true},
-				RemoteManagement: operations.FeatureResult{
+				Analytics:     operations.ConnectFeatureResult{Requested: true},
+				RemoteManagement: operations.ConnectFeatureResult{
 					Requested:      true,
 					Skipped:        true,
 					SkipDependency: "content",
@@ -167,7 +167,7 @@ func TestFormatConnectStepsReport(t *testing.T) {
 			name: "unrequested features skipped",
 			report: operations.ConnectReport{
 				RHSMConnected: true,
-				Content:       operations.FeatureResult{Requested: true, Successful: true},
+				Content:       operations.ConnectFeatureResult{Requested: true, Successful: true},
 			},
 			want: " [" + okIcon + "] Connected to Red Hat Subscription Management\n" +
 				"  [" + okIcon + "] Content ... System has access to content\n" +
@@ -178,11 +178,11 @@ func TestFormatConnectStepsReport(t *testing.T) {
 			name: "org required aborts before later steps",
 			report: operations.ConnectReport{
 				RHSMError: "no organization specified",
-				Analytics: operations.FeatureResult{
+				Analytics: operations.ConnectFeatureResult{
 					Requested: true,
 					Skipped:   true,
 				},
-				RemoteManagement: operations.FeatureResult{
+				RemoteManagement: operations.ConnectFeatureResult{
 					Requested: true,
 					Skipped:   true,
 				},
@@ -209,7 +209,7 @@ func TestFormatConnectRHSM(t *testing.T) {
 	okIcon := ui.Icons.Ok
 	report := operations.ConnectReport{
 		RHSMConnected: true,
-		Content:       operations.FeatureResult{Requested: true, Successful: true},
+		Content:       operations.ConnectFeatureResult{Requested: true, Successful: true},
 	}
 	got := captureStdout(t, func() { formatConnectRHSM(report) })
 	want := " [" + okIcon + "] Connected to Red Hat Subscription Management\n" +
@@ -222,8 +222,8 @@ func TestFormatConnectRHSM(t *testing.T) {
 func TestConnectErrorMessages(t *testing.T) {
 	report := operations.ConnectReport{
 		RHSMError: "rhsm failed",
-		Analytics: operations.FeatureResult{Error: "insights failed"},
-		RemoteManagement: operations.FeatureResult{
+		Analytics: operations.ConnectFeatureResult{Error: "insights failed"},
+		RemoteManagement: operations.ConnectFeatureResult{
 			Skipped: true,
 			Error:   "skipped: dependency 'analytics' failed",
 		},

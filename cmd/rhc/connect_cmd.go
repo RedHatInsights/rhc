@@ -195,7 +195,7 @@ func beforeConnectAction(ctx context.Context, cmd *cli.Command) (context.Context
 func setConnectFeatureStatus(report *operations.ConnectReport) {
 	for _, item := range []struct {
 		feature operations.Feature
-		result  *operations.FeatureResult
+		result  *operations.ConnectFeatureResult
 	}{
 		{operations.Content, &report.Content},
 		{operations.Analytics, &report.Analytics},
