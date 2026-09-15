@@ -113,8 +113,7 @@ func formatConnectIgnoringPrefs() {
 func formatConnectHeader(hostname string, toEnable []string) {
 	ui.Printf("Connecting %v to Red Hat.", hostname)
 	if len(toEnable) > 0 {
-		ui.Printf(" ")
-		ui.Printf("Enabled features: %s.", strings.Join(toEnable, ", "))
+		ui.Printf(" Enabled features: %s.", strings.Join(toEnable, ", "))
 	}
 	ui.Printf("\nThis might take some time.\n\n")
 }

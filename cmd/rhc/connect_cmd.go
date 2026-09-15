@@ -10,12 +10,13 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/urfave/cli/v3"
+	"golang.org/x/term"
+
 	"github.com/redhatinsights/rhc/internal/ui"
 	"github.com/redhatinsights/rhc/pkg/exitcode"
 	"github.com/redhatinsights/rhc/pkg/feature"
 	"github.com/redhatinsights/rhc/pkg/operations"
-	"github.com/urfave/cli/v3"
-	"golang.org/x/term"
 )
 
 // checkFeatureFlags validates --enable-feature and --disable-feature flag combinations.
@@ -243,16 +244,15 @@ func connectAction(ctx context.Context, cmd *cli.Command) error {
 		slog.Error(errMsg)
 		report.UID = uid
 		report.UIDError = errMsg
-		return printConnectTextOrJSON(cmd, report, fmt.Errorf("%s", errMsg), exitcode.NoPerm)
+		return printConnectTextOrJSON(cmd, report, errors.New(errMsg), exitcode.NoPerm)
 	}
 
 	hostname, err := os.Hostname()
 	if err != nil {
-		slog.Error(fmt.Sprintf("Error retrieving system hostname: %v", err))
+		slog.Error("Error retrieving system hostname", "error", err)
 		report.HostnameError = err.Error()
 		return printConnectTextOrJSON(cmd, report, err, exitcode.Err)
 	}
-	report.Hostname = hostname
 
 	var toEnable []string
 	if cache.Get(operations.Content) {
@@ -277,7 +277,7 @@ func connectAction(ctx context.Context, cmd *cli.Command) error {
 	if errors.Is(err, operations.ErrOrganizationRequired) && !isConnectFormatMachineReadable(cmd) {
 		org, orgErr := promptOrganization(opts.Username, opts.Password)
 		if orgErr != nil {
-			failOrganizationRequired(&report, orgErr.Error())
+			recordOrganizationFailure(&report, orgErr.Error())
 			err = nil
 		} else {
 			opts.Organization = org
@@ -286,7 +286,7 @@ func connectAction(ctx context.Context, cmd *cli.Command) error {
 	}
 
 	if errors.Is(err, operations.ErrOrganizationRequired) {
-		failOrganizationRequired(&report, "no organization specified")
+		recordOrganizationFailure(&report, "no organization specified")
 		err = nil
 	}
 
@@ -348,7 +348,7 @@ func buildConnectionOptions(cmd *cli.Command, cache *feature.PreferenceCache) (o
 			if err := scanner.Err(); err != nil {
 				return opts, fmt.Errorf("unable to read username: %w", err)
 			}
-			return opts, fmt.Errorf("unable to read username: EOF")
+			return opts, errors.New("unable to read username: EOF")
 		}
 		opts.Username = strings.TrimSpace(scanner.Text())
 	}
@@ -359,7 +359,7 @@ func buildConnectionOptions(cmd *cli.Command, cache *feature.PreferenceCache) (o
 			return opts, fmt.Errorf("unable to read password: %w", err)
 		}
 		opts.Password = string(data)
-		fmt.Printf("\n\n")
+		fmt.Print("\n\n")
 	}
 	return opts, nil
 }
@@ -378,7 +378,7 @@ func connectWithSpinner(
 	return report, err
 }
 
-func failOrganizationRequired(report *operations.ConnectReport, msg string) {
+func recordOrganizationFailure(report *operations.ConnectReport, msg string) {
 	report.RHSMError = msg
 	slog.Error(report.RHSMError)
 }
@@ -411,7 +411,7 @@ func promptOrganization(username, password string) (string, error) {
 	if org == "" {
 		return "", errors.New("no organization specified")
 	}
-	fmt.Printf("\n")
+	fmt.Print("\n")
 	return org, nil
 }
 

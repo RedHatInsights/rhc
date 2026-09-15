@@ -109,8 +109,8 @@ func connect(opts ConnectOptions, connectDeps connectDependencies) (ConnectRepor
 		Content:          ConnectFeatureResult{Requested: opts.EnableContent},
 		Analytics:        ConnectFeatureResult{Requested: opts.EnableAnalytics},
 		RemoteManagement: ConnectFeatureResult{Requested: opts.EnableRemoteManagement},
+		Durations:        make(map[string]time.Duration),
 	}
-	report.Durations = make(map[string]time.Duration)
 
 	start := time.Now()
 	err := registerRHSM(opts, &report, connectDeps.RegisterRHSM)
@@ -127,7 +127,7 @@ func connect(opts ConnectOptions, connectDeps connectDependencies) (ConnectRepor
 		if err := connectDeps.RegisterInsightsClient(); err != nil {
 			report.Analytics.Error = fmt.Sprintf(
 				"cannot connect to Red Hat Lightspeed (formerly Insights): %v", err)
-			slog.Error("cannot connect to Red Hat Lightspeed", "err", err)
+			slog.Error("cannot connect to Red Hat Lightspeed", "error", err)
 		} else {
 			report.Analytics.Successful = true
 		}
