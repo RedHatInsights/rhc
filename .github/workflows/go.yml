@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go: ["1.25", "1.26"]
+        go: ["1.26", "1.27"]
     steps:
       - name: Updating ...
         run: sudo apt-get -qq update
