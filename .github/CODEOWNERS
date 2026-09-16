@@ -1,0 +1,14 @@
+# Default owners — Null team members
+* @Archana-PandeyM @mjcr99 @pkoprda @Peto-RH @stephenbourke @zpetrace
+
+# Void team members
+# @cnsnyder @Aftermath @DuckBoss @jirihnidek @jlocash @pbartiko
+
+# Void team owns the RHSM Varlink API, Null team owns the rhc-collector Varlink API
+varlink/ @cnsnyder @Aftermath @DuckBoss @jirihnidek @jlocash @pbartiko
+varlink/collectorapi/ @Archana-PandeyM @mjcr99 @pkoprda @Peto-RH @stephenbourke @zpetrace
+
+# Void team owns RHSM feature flags and RHSM-specific server code
+features/ @cnsnyder @Aftermath @DuckBoss @jirihnidek @jlocash @pbartiko
+cmd/rhc-server/rhsm.go @cnsnyder @Aftermath @DuckBoss @jirihnidek @jlocash @pbartiko
+cmd/rhc-server/constants.go @cnsnyder @Aftermath @DuckBoss @jirihnidek @jlocash @pbartiko
