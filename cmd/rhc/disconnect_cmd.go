@@ -6,19 +6,16 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"time"
 
 	"github.com/urfave/cli/v3"
 
-	"github.com/redhatinsights/rhc/internal/datacollection"
-	"github.com/redhatinsights/rhc/internal/remotemanagement"
-	"github.com/redhatinsights/rhc/internal/subman"
 	"github.com/redhatinsights/rhc/pkg/exitcode"
+	"github.com/redhatinsights/rhc/pkg/operations"
 )
 
-// DisconnectResult is structure holding information about result of
-// disconnect command. The result could be printed in machine-readable format.
-type DisconnectResult struct {
+// disconnectJSONDocument is the machine-readable representation of a disconnect
+// report. It keeps the presentation data separate from operations.DisconnectReport.
+type disconnectJSONDocument struct {
 	Hostname                  string `json:"hostname"`
 	HostnameError             string `json:"hostname_error,omitempty"`
 	UID                       int    `json:"uid"`
@@ -29,148 +26,24 @@ type DisconnectResult struct {
 	InsightsDisconnectedError string `json:"insights_disconnected_error,omitempty"`
 	YggdrasilStopped          bool   `json:"yggdrasil_stopped"`
 	YggdrasilStoppedError     string `json:"yggdrasil_stopped_error,omitempty"`
-	format                    string
 }
 
-// Error implement error interface for structure DisconnectResult
-func (disconnectResult *DisconnectResult) Error() string {
-	var result string
-	switch disconnectResult.format {
-	case "json":
-		data, err := json.MarshalIndent(disconnectResult, "", "    ")
-		if err != nil {
-			return err.Error()
-		}
-		result = string(data)
-	case "":
-		break
-	default:
-		result = "unsupported document format: " + disconnectResult.format
+func disconnectJSONDocumentFrom(report *operations.DisconnectReport) disconnectJSONDocument {
+	return disconnectJSONDocument{
+		Hostname:                  report.Hostname,
+		HostnameError:             report.HostnameError,
+		UID:                       report.UID,
+		UIDError:                  report.UIDError,
+		RHSMDisconnected:          report.RHSMDisconnected,
+		RHSMDisconnectedError:     report.RHSMDisconnectedError,
+		InsightsDisconnected:      report.InsightsDisconnected,
+		InsightsDisconnectedError: report.InsightsDisconnectedError,
+		YggdrasilStopped:          report.YggdrasilStopped,
+		YggdrasilStoppedError:     report.YggdrasilStoppedError,
 	}
-	return result
 }
 
-func (disconnectResult *DisconnectResult) errorMessages() map[string]string {
-	errorMessages := make(map[string]string)
-	if disconnectResult.YggdrasilStoppedError != "" {
-		errorMessages["yggdrasil"] = disconnectResult.YggdrasilStoppedError
-	}
-	if disconnectResult.InsightsDisconnectedError != "" {
-		errorMessages["insights"] = disconnectResult.InsightsDisconnectedError
-	}
-	if disconnectResult.RHSMDisconnectedError != "" {
-		errorMessages["rhsm"] = disconnectResult.RHSMDisconnectedError
-	}
-	return errorMessages
-}
-
-// TryDeactivateServices tries to stop yggdrasil.service, when it hasn't
-// been already stopped.
-func (disconnectResult *DisconnectResult) TryDeactivateServices() error {
-	slog.Info("Deactivating the yggdrasil service")
-
-	// First check if the service hasn't been already stopped
-	isInactive, err := remotemanagement.AssertYggdrasilServiceState("inactive")
-	if err != nil {
-		return err
-	}
-	if isInactive {
-		infoMsg := "The yggdrasil service is already inactive"
-		disconnectResult.YggdrasilStopped = true
-		slog.Info(infoMsg)
-		printf(" [%v] %v\n", icons.Info, infoMsg)
-		return nil
-	}
-	// When the service is not inactive, then try to get this service to this state
-	progressMessage := "Deactivating the yggdrasil service"
-	err = withSpinner(remotemanagement.DeactivateServices, indent.Small, progressMessage)
-	if err != nil {
-		errMsg := fmt.Sprintf("Cannot deactivate yggdrasil service: %v", err)
-		disconnectResult.YggdrasilStopped = false
-		disconnectResult.YggdrasilStoppedError = errMsg
-		slog.Error(errMsg)
-		printf(" [%v] %v\n", icons.Error, errMsg)
-	} else {
-		disconnectResult.YggdrasilStopped = true
-		infoMsg := "Deactivated the yggdrasil service"
-		slog.Info(infoMsg)
-		printf(" [%v] %v\n", icons.Ok, infoMsg)
-	}
-	return nil
-}
-
-// TryUnregisterInsightsClient tries to unregister insights-client if the client hasn't been
-// already unregistered
-func (disconnectResult *DisconnectResult) TryUnregisterInsightsClient() error {
-	slog.Info("Disconnecting from Red Hat Lightspeed")
-
-	isRegistered, err := datacollection.InsightsClientIsRegistered()
-	if err != nil {
-		return err
-	}
-	if !isRegistered {
-		disconnectResult.InsightsDisconnected = true
-		slog.Info("Already disconnected from Red Hat Lightspeed")
-		printf(" [%v] %v\n", icons.Info, "Already disconnected from Red Hat Lightspeed (formerly Insights)")
-		return nil
-	}
-	err = withSpinner(datacollection.UnregisterInsightsClient, indent.Small, "Disconnecting from Red Hat Lightspeed (formerly Insights)...")
-	if err != nil {
-		errMsg := fmt.Sprintf("Cannot disconnect from Red Hat Lightspeed (formerly Insights): %v", err)
-		disconnectResult.InsightsDisconnected = false
-		disconnectResult.InsightsDisconnectedError = errMsg
-		slog.Error(fmt.Sprintf("Cannot disconnect from Red Hat Lightspeed: %v", err))
-		printf(" [%v] %v\n", icons.Error, errMsg)
-	} else {
-		disconnectResult.InsightsDisconnected = true
-		slog.Debug("Disconnected from Red Hat Lightspeed")
-		printf(" [%v] %v\n", icons.Ok, "Disconnected from Red Hat Lightspeed (formerly Insights)")
-	}
-	return nil
-}
-
-// TryUnregisterRHSM tries to unregister system from RHSM if the client hasn't been already
-// unregistered from RHSM
-func (disconnectResult *DisconnectResult) TryUnregisterRHSM() error {
-	slog.Info("Unregistering system from Red Hat Subscription Management")
-
-	client, err := subman.NewRHSMClient()
-	if err != nil {
-		return err
-	}
-	isRegistered, err := client.IsRegistered()
-	if err != nil {
-		return err
-	}
-	if !isRegistered {
-		infoMsg := "Already disconnected from Red Hat Subscription Management"
-		disconnectResult.RHSMDisconnected = true
-		slog.Info(infoMsg)
-		printf(" [%v] %v\n", icons.Info, infoMsg)
-		return nil
-	}
-	err = withSpinner(
-		client.Unregister,
-		indent.Small,
-		"Disconnecting from Red Hat Subscription Management...",
-	)
-	if err != nil {
-		errMsg := fmt.Sprintf("Cannot disconnect from Red Hat Subscription Management: %v", err)
-		disconnectResult.RHSMDisconnected = false
-		disconnectResult.RHSMDisconnectedError = errMsg
-		slog.Error(errMsg)
-		printf(" [%v] %v\n", icons.Error, errMsg)
-		return nil
-	}
-
-	disconnectResult.RHSMDisconnected = true
-	infoMsg := "Disconnected from Red Hat Subscription Management"
-	slog.Debug(infoMsg)
-	printf(" [%v] %v\n", icons.Ok, infoMsg)
-	return nil
-}
-
-// beforeDisconnectAction ensures the user has supplied a correct `--format` flag
+// beforeDisconnectAction ensures the user has supplied a correct `--format` flag.
 func beforeDisconnectAction(ctx context.Context, cmd *cli.Command) (context.Context, error) {
 	err := checkFormatFlag(cmd)
 	if err != nil {
@@ -182,72 +55,88 @@ func beforeDisconnectAction(ctx context.Context, cmd *cli.Command) (context.Cont
 	return ctx, checkForUnknownArgs(cmd)
 }
 
-// disconnectAction tries to stop (yggdrasil) rhcd service, disconnect from Red Hat Lightspeed,
-// and finally it unregisters system from Red Hat Subscription Management
-func disconnectAction(ctx context.Context, cmd *cli.Command) error {
+// disconnectAction disconnects the system and formats the resulting report.
+func disconnectAction(_ context.Context, cmd *cli.Command) error {
 	logCommandStart(cmd)
 
-	var disconnectResult DisconnectResult
-	disconnectResult.format = cmd.String("format")
-
-	uid := os.Getuid()
-	if uid != 0 {
-		errMsg := "non-root user cannot disconnect system"
-		slog.Error(errMsg)
-		if isOutputMachineReadable() {
-			disconnectResult.UID = uid
-			disconnectResult.UIDError = errMsg
-			return cli.Exit(disconnectResult, exitcode.NoPerm)
-		} else {
-			return cli.Exit(fmt.Errorf("%s", errMsg), exitcode.NoPerm)
-		}
-	}
-
 	hostname, err := os.Hostname()
-	disconnectResult.Hostname = hostname
 	if err != nil {
 		slog.Error("error retrieving system hostname", "err", err)
-		if isOutputMachineReadable() {
-			disconnectResult.HostnameError = err.Error()
-			return cli.Exit(disconnectResult, exitcode.Err)
-		} else {
-			return cli.Exit(err, exitcode.Err)
-		}
+		return formatDisconnectReport(&operations.DisconnectReport{HostnameError: err.Error()}, err)
 	}
 
-	slog.Info(fmt.Sprintf("Disconnecting %v from Red Hat", hostname))
+	slog.Info("Disconnecting from Red Hat", "hostname", hostname)
 	printf("Disconnecting %v from Red Hat.\nThis might take a few seconds.\n\n", hostname)
 
-	var start time.Time
-	durations := make(map[string]time.Duration)
+	var report *operations.DisconnectReport
+	err = withSpinner(func() error {
+		var err error
+		report, err = operations.Disconnect()
+		return err
+	}, indent.Small, "Disconnecting from Red Hat...")
+	report.Hostname = hostname
 
-	/* 1. Deactivate yggdrasil (rhcd) service */
-	start = time.Now()
-	_ = disconnectResult.TryDeactivateServices()
-	durations["yggdrasil"] = time.Since(start)
+	return formatDisconnectReport(report, err)
+}
 
-	/* 2. Disconnect from Red Hat Lightspeed */
-	start = time.Now()
-	_ = disconnectResult.TryUnregisterInsightsClient()
-	durations["insights"] = time.Since(start)
-
-	/* 3. Unregister system from Red Hat Subscription Management */
-	start = time.Now()
-	_ = disconnectResult.TryUnregisterRHSM()
-	durations["rhsm"] = time.Since(start)
-
-	if !isOutputMachineReadable() {
-		showTimeDuration(durations)
-
-		err = showErrorMessages("disconnect", disconnectResult.errorMessages())
-		if err != nil {
-			return err
+// formatDisconnectReport prints the report and selects the CLI exit code.
+func formatDisconnectReport(report *operations.DisconnectReport, err error) error {
+	if err != nil {
+		code := exitcode.Err
+		if report.UIDError != "" {
+			code = exitcode.NoPerm
 		}
+		if isOutputMachineReadable() {
+			data, marshalErr := json.MarshalIndent(disconnectJSONDocumentFrom(report), "", "    ")
+			if marshalErr != nil {
+				return cli.Exit(marshalErr, code)
+			}
+			return cli.Exit(string(data), code)
+		}
+		return cli.Exit(err, code)
 	}
 
 	if isOutputMachineReadable() {
-		fmt.Println(disconnectResult.Error())
+		if err := printJSON(disconnectJSONDocumentFrom(report)); err != nil {
+			return cli.Exit(
+				fmt.Errorf("unable to print disconnect as json document: %s", err.Error()),
+				exitcode.IOErr)
+		}
+		// Preserve the successful JSON exit code even when individual steps fail.
+		return nil
 	}
 
-	return nil
+	errorMessages := make(map[string]string)
+	switch {
+	case report.YggdrasilStoppedError != "":
+		errorMessages["yggdrasil"] = report.YggdrasilStoppedError
+		printf(" [%v] %v\n", icons.Error, report.YggdrasilStoppedError)
+	case report.YggdrasilAlreadyInactive:
+		printf(" [%v] %v\n", icons.Info, "The yggdrasil service is already inactive")
+	case report.YggdrasilStopped:
+		printf(" [%v] %v\n", icons.Ok, "Deactivated the yggdrasil service")
+	}
+
+	switch {
+	case report.InsightsDisconnectedError != "":
+		errorMessages["insights"] = report.InsightsDisconnectedError
+		printf(" [%v] %v\n", icons.Error, report.InsightsDisconnectedError)
+	case report.InsightsAlreadyDisconnected:
+		printf(" [%v] %v\n", icons.Info, "Already disconnected from Red Hat Lightspeed (formerly Insights)")
+	case report.InsightsDisconnected:
+		printf(" [%v] %v\n", icons.Ok, "Disconnected from Red Hat Lightspeed (formerly Insights)")
+	}
+
+	switch {
+	case report.RHSMDisconnectedError != "":
+		errorMessages["rhsm"] = report.RHSMDisconnectedError
+		printf(" [%v] %v\n", icons.Error, report.RHSMDisconnectedError)
+	case report.RHSMAlreadyDisconnected:
+		printf(" [%v] %v\n", icons.Info, "Already disconnected from Red Hat Subscription Management")
+	case report.RHSMDisconnected:
+		printf(" [%v] %v\n", icons.Ok, "Disconnected from Red Hat Subscription Management")
+	}
+
+	showTimeDuration(report.Durations)
+	return showErrorMessages("disconnect", errorMessages)
 }
