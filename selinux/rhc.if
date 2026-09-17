@@ -52,3 +52,31 @@ interface(`rhc_collector_minimal_domtrans',`
 	corecmd_search_bin($1)
 	domtrans_pattern($1, rhc_collector_minimal_exec_t, rhc_collector_minimal_t)
 ')
+
+########################################
+## <summary>
+##	Execute a third-party collector in the rhc_collector_plugin_t domain.
+## </summary>
+## <desc>
+##	<p>
+##	Automatic domain transition to rhc_collector_plugin_t when executing
+##	rhc_collector_plugin_exec_t. This is the restrictive fallback domain
+##	for collectors that do not ship their own policy: it grants working-
+##	directory access but no network, no credentials, and no privilege
+##	escalation, enforcing the contract from rhc-collector(5).
+##	</p>
+## </desc>
+## <param name="domain">
+##	<summary>
+##	Domain allowed to transition.
+##	</summary>
+## </param>
+#
+interface(`rhc_collector_plugin_domtrans',`
+	gen_require(`
+		type rhc_collector_plugin_t, rhc_collector_plugin_exec_t;
+	')
+
+	corecmd_search_bin($1)
+	domtrans_pattern($1, rhc_collector_plugin_exec_t, rhc_collector_plugin_t)
+')

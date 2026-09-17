@@ -1,7 +1,10 @@
 # rhc-collector systemd oneshot binary
 /usr/libexec/rhc/rhc-collector			--	gen_context(system_u:object_r:rhc_collector_exec_t,s0)
 
-# com.redhat.minimal collector binary
+# Collector binaries — third-party fallback (rhc_collector_plugin_exec_t)
+# followed by the more specific com.redhat.minimal override.
+# SELinux longest-stem matching ensures the specific entry wins.
+/usr/libexec/rhc/collectors/.*				--	gen_context(system_u:object_r:rhc_collector_plugin_exec_t,s0)
 /usr/libexec/rhc/collectors/com\.redhat\.minimal	--	gen_context(system_u:object_r:rhc_collector_minimal_exec_t,s0)
 
 # Collector configuration (TOML) shipped under /usr/lib/rhc/collectors

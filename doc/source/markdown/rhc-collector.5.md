@@ -43,6 +43,12 @@ The collector executable must be installed at **/usr/libexec/rhc/collectors/**_C
 
 The collector must not perform any network communication or upload. It only collects data into the working directory; **rhc-collector** handles compression and upload.
 
+### SELinux confinement
+
+Third-party collectors that do not ship their own SELinux policy run under the **rhc_collector_plugin_t** domain. This domain enforces the no-network contract above and additionally denies execution of system binaries and interpreters (**corecmd_exec_bin**, **corecmd_exec_shell** are not granted). As a result, interpreted collectors using a shebang (e.g. **#!/usr/bin/python**, **#!/bin/bash**) will be denied execution of the interpreter binary.
+
+Compiled, statically-linked collectors work under this fallback domain without additional policy. Interpreted collectors, or any collector requiring network, credentials, or additional privileges, must ship their own SELinux exec type and domain. See **selinux/rhc.te** and **selinux/rhc.if** for the pattern used by **com.redhat.minimal**.
+
 ## Configuration file
 
 Each collector must ship a TOML configuration file at **/usr/lib/rhc/collectors/**_COLLECTOR_**.toml** with the following structure:
