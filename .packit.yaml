@@ -18,8 +18,10 @@ actions:
     # go-vendor-tools package is only available in Fedora repositories
     - bash -c 'source /etc/os-release && [ "$ID" = "fedora" ] && dnf install -y go-vendor-tools || true'
   get-current-version:
-    # Extract version from the .spec file
-    - bash -c 'rpmspec --query --queryformat "%{version}\n" rhc.spec'
+    # Extract version from the .spec file. --srpm queries the source package
+    # instead of enumerating every binary subpackage (rhc, rhc-selinux, ...),
+    # so this always prints exactly one line regardless of subpackage count.
+    - bash -c 'rpmspec --query --srpm --queryformat "%{version}\n" rhc.spec'
   create-archive:
     - bash -c 'make archive archive-deps'
     # Packit expects a single archive was created

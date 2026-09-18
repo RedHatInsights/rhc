@@ -7,6 +7,10 @@
 %global with_rhcd_compat 1
 %endif
 
+%global selinuxtype targeted
+%global selinux_modulename rhc
+%global selinux_policy_version 42.1.8
+
 %global goipath         github.com/redhatinsights/rhc
 Version:                0.3.13
 
@@ -25,6 +29,7 @@ Source2:        go-vendor-tools.toml
 %endif
 
 BuildRequires:  systemd-rpm-macros
+BuildRequires:  selinux-policy-devel
 
 %if 0%{?with_rhcd_compat}
 # semanage is called in %post/%postun to manage the rhcd_t SELinux type.
@@ -50,10 +55,29 @@ Requires: yggdrasil >= 0.4
 Requires: insights-client
 Requires: yggdrasil-worker-package-manager
 %endif
+# Pull rhc-selinux when the targeted SELinux policy is installed.
+Requires: ((%{name}-selinux >= %{version}-%{release}) if selinux-policy-%{selinuxtype})
 
 %description
 Client tool to register Fedora, CentOS Stream or Red Hat Enterprise Linux
 to Red Hat Subscription Management and Red Hat Lightspeed.
+
+%package selinux
+Summary:        SELinux policy for rhc-collector
+License:        Apache-2.0
+BuildArch:      noarch
+Requires:           selinux-policy >= %{selinux_policy_version}
+Requires:           selinux-policy-%{selinuxtype} >= %{selinux_policy_version}
+Requires(post):     selinux-policy-base >= %{selinux_policy_version}
+Requires(post):     libselinux-utils
+Requires(post):     policycoreutils
+Requires(post):     selinux-policy-%{selinuxtype}
+Requires(postun):   libselinux-utils
+Requires(postun):   policycoreutils
+
+%description selinux
+SELinux policy module for rhc-collector domains. Loaded by the package
+scriptlets; does not require the host to be registered.
 
 %prep
 # Unpack Source0 and set up the Go build directory. Since -k is not passed in,
@@ -79,6 +103,10 @@ export GO_LDFLAGS="-X github.com/redhatinsights/rhc/pkg/version.Version=%{versio
 
 # Generate man page
 %{gobuilddir}/bin/rhc --generate-man-page > rhc.1
+
+# SELinux policy module for the rhc-selinux subpackage (in-tree selinux/).
+make -C selinux -f %{_datadir}/selinux/devel/Makefile %{selinux_modulename}.pp
+bzip2 -9 selinux/%{selinux_modulename}.pp
 
 %install
 %if 0%{?fedora}
@@ -127,6 +155,10 @@ install -m 0644 -vp data/tmpfiles.d/rhc.conf %{buildroot}%{_tmpfilesdir}/rhc.con
 install -m 0755 -vd %{buildroot}%{_unitdir}/yggdrasil.service.d/
 install -m 0644 -vp data/systemd/rhcd.conf %{buildroot}%{_unitdir}/yggdrasil.service.d/
 %endif
+
+# SELinux policy module and exported interfaces
+install -D -p -m 0644 selinux/%{selinux_modulename}.pp.bz2 %{buildroot}%{_datadir}/selinux/packages/%{selinuxtype}/%{selinux_modulename}.pp.bz2
+install -D -p -m 0644 selinux/%{selinux_modulename}.if %{buildroot}%{_datadir}/selinux/devel/include/distributed/%{selinux_modulename}.if
 
 %check
 %if 0%{?fedora}
@@ -193,6 +225,19 @@ if [ $1 -eq 0 ]; then
 fi
 %endif
 
+%pre selinux
+%selinux_relabel_pre -s %{selinuxtype}
+
+%post selinux
+%selinux_modules_install -s %{selinuxtype} %{_datadir}/selinux/packages/%{selinuxtype}/%{selinux_modulename}.pp.bz2
+%selinux_relabel_post -s %{selinuxtype}
+
+%postun selinux
+if [ $1 -eq 0 ]; then
+	%selinux_modules_uninstall -s %{selinuxtype} %{selinux_modulename}
+	%selinux_relabel_post -s %{selinuxtype}
+fi
+
 %if 0%{?fedora}
 # With go-vendor-tools, we also get a list of dependency licenses.
 %global extra_files -f %{go_vendor_license_filelist}
@@ -237,6 +282,11 @@ fi
 # Yggdrasil rhcd compatibility drop-in
 %{_unitdir}/yggdrasil.service.d/rhcd.conf
 %endif
+
+%files selinux
+%{_datadir}/selinux/packages/%{selinuxtype}/%{selinux_modulename}.pp.*
+%{_datadir}/selinux/devel/include/distributed/%{selinux_modulename}.if
+%ghost %verify(not md5 size mode mtime) %{_sharedstatedir}/selinux/%{selinuxtype}/active/modules/200/%{selinux_modulename}
 
 %changelog
 %autochangelog
