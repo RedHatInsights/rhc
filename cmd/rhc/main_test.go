@@ -7,7 +7,6 @@ import (
 
 	"github.com/urfave/cli/v3"
 
-	"github.com/redhatinsights/rhc/internal/ui"
 	"github.com/redhatinsights/rhc/pkg/exitcode"
 )
 
@@ -84,11 +83,11 @@ func TestConfigureUIForNonInteractiveOutput(t *testing.T) {
 		os.Stdout = originalStdout
 		_ = pipeReader.Close()
 		_ = pipeWriter.Close()
-		ui.ConfigureOutput(true, true, false)
+		configureOutput(true, true, false)
 	})
 
-	if ui.IsInteractive() {
-		t.Fatal("ui.IsInteractive() = true for pipe output, want false")
+	if isInteractive() {
+		t.Fatal("IsInteractive() = true for pipe output, want false")
 	}
 
 	tests := []struct {
@@ -126,13 +125,13 @@ func TestConfigureUIForNonInteractiveOutput(t *testing.T) {
 				t.Fatalf("Command.Run() error = %v", err)
 			}
 
-			if ui.AreAnimationsEnabled() {
+			if areAnimationsEnabled() {
 				t.Error("AreAnimationsEnabled() = true, want false")
 			}
-			if got := ui.Icons.Ok; got != tt.wantIcon {
+			if got := icons.Ok; got != tt.wantIcon {
 				t.Errorf("Icons.Ok = %q, want %q", got, tt.wantIcon)
 			}
-			if ui.IsOutputMachineReadable() {
+			if isOutputMachineReadable() {
 				t.Error("IsOutputMachineReadable() = true, want false")
 			}
 		})

@@ -1,4 +1,4 @@
-package ui
+package main
 
 import (
 	"encoding/json"
@@ -19,34 +19,34 @@ const (
 	colorReset  = "\u001B[0m"
 )
 
-var Indent = indent{
+var indent = indentSet{
 	Small:  " ",
 	Medium: "  ",
 }
 
-type indent struct {
+type indentSet struct {
 	Small  string
 	Medium string
 }
 
-type icons struct {
+type iconSet struct {
 	Ok      string
 	Info    string
 	Error   string
 	Warning string
 }
 
-var Icons icons
-var areAnimationsEnabled bool
-var isOutputMachineReadable bool
+var icons iconSet
+var animationsEnabled bool
+var outputMachineReadable bool
 
 func init() {
 	// Default to colored and animated terminal experience
-	ConfigureOutput(true, true, false)
+	configureOutput(true, true, false)
 }
 
-// IsInteractive returns true if the standard output is a terminal.
-func IsInteractive() bool {
+// isInteractive returns true if the standard output is a terminal.
+func isInteractive() bool {
 	return isTerminal(os.Stdout.Fd())
 }
 
@@ -56,60 +56,60 @@ func isTerminal(fd uintptr) bool {
 	return err == nil
 }
 
-// ConfigureOutput sets up a global state for communicating information to the user.
+// configureOutput sets up a global state for communicating information to the user.
 // 'animated' enables transient animations such as spinners,
 // 'colored' enables ANSI colors,
 // 'machineReadable' is true for JSON or similar machine-readable formats.
-func ConfigureOutput(animated bool, colored bool, machineReadable bool) {
-	areAnimationsEnabled = animated
-	isOutputMachineReadable = machineReadable
+func configureOutput(animated bool, colored bool, machineReadable bool) {
+	animationsEnabled = animated
+	outputMachineReadable = machineReadable
 
-	Icons = icons{
+	icons = iconSet{
 		Ok:      "✓",
 		Info:    "●",
 		Warning: "!",
 		Error:   "𐄂",
 	}
 	if colored {
-		Icons.Ok = colorGreen + Icons.Ok + colorReset
-		Icons.Info = colorYellow + Icons.Info + colorReset
-		Icons.Error = colorRed + Icons.Error + colorReset
-		Icons.Warning = colorRed + Icons.Warning + colorReset
+		icons.Ok = colorGreen + icons.Ok + colorReset
+		icons.Info = colorYellow + icons.Info + colorReset
+		icons.Error = colorRed + icons.Error + colorReset
+		icons.Warning = colorRed + icons.Warning + colorReset
 	}
 }
 
-// IsOutputMachineReadable returns true when the output should be formatted as
+// isOutputMachineReadable returns true when the output should be formatted as
 // JSON or similar machine-readable format.
-func IsOutputMachineReadable() bool {
-	return isOutputMachineReadable
+func isOutputMachineReadable() bool {
+	return outputMachineReadable
 }
 
-// AreAnimationsEnabled returns true when transient output animations are enabled.
-func AreAnimationsEnabled() bool {
-	return areAnimationsEnabled
+// areAnimationsEnabled returns true when transient output animations are enabled.
+func areAnimationsEnabled() bool {
+	return animationsEnabled
 }
 
-// Printf acts as a no-op if the output is machine-readable.
+// printf acts as a no-op if the output is machine-readable.
 // Otherwise, passes the input to fmt.Printf.
-func Printf(
+func printf(
 	format string,
 	a ...interface{},
 ) {
-	if IsOutputMachineReadable() {
+	if isOutputMachineReadable() {
 		return
 	}
 	fmt.Printf(format, a...)
 }
 
-// Spinner calls a function and displays a spinner with an explanatory message.
+// withSpinner calls a function and displays a spinner with an explanatory message.
 // The spinner is not displayed when animations are disabled.
-func Spinner(
+func withSpinner(
 	function func() error,
 	prefix string,
 	message string,
 ) error {
 	var s *spinner.Spinner
-	if AreAnimationsEnabled() {
+	if areAnimationsEnabled() {
 		s = spinner.New(spinner.CharSets[9], 100*time.Millisecond)
 		s.Prefix = prefix + "["
 		s.Suffix = "]" + " " + message
@@ -120,9 +120,9 @@ func Spinner(
 	return function()
 }
 
-// PrintJSON prints the given data as JSON to stdout.
+// printJSON prints the given data as JSON to stdout.
 // When marshaling of data fails, then error is returned.
-func PrintJSON(v any) error {
+func printJSON(v any) error {
 	data, err := json.MarshalIndent(v, "", "    ")
 	if err != nil {
 		return err
@@ -131,10 +131,10 @@ func PrintJSON(v any) error {
 	return nil
 }
 
-// PrintTable prints data in a table format using tabwriter.
+// printTable prints data in a table format using tabwriter.
 // headers are the column headers, rows contain the data for each row.
-func PrintTable(headers []string, rows [][]string) {
-	if IsOutputMachineReadable() {
+func printTable(headers []string, rows [][]string) {
+	if isOutputMachineReadable() {
 		return
 	}
 

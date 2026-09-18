@@ -7,7 +7,6 @@ import (
 
 	"github.com/urfave/cli/v3"
 
-	"github.com/redhatinsights/rhc/internal/ui"
 	"github.com/redhatinsights/rhc/pkg/exitcode"
 	"github.com/redhatinsights/rhc/pkg/feature"
 	"github.com/redhatinsights/rhc/pkg/operations"
@@ -48,7 +47,7 @@ func (status *ConfigureFeaturesStatus) setFeatureResult(featureID string, result
 
 // TODO All methods should return 'cli.ExitCoder' instead of plain 'error'
 
-// TODO Use ui.Icons.Ok when we have UTF-8 capable tabwriter
+// TODO Use icons.Ok when we have UTF-8 capable tabwriter
 
 // beforeFeaturesStatusAction validates inputs before executing the status action.
 func beforeFeaturesStatusAction(ctx context.Context, cmd *cli.Command) (context.Context, error) {
@@ -81,8 +80,8 @@ func printConfigureFeaturesStatus(
 	rows [][]string,
 	connected bool,
 ) error {
-	if ui.IsOutputMachineReadable() {
-		if err := ui.PrintJSON(status); err != nil {
+	if isOutputMachineReadable() {
+		if err := printJSON(status); err != nil {
 			return cli.Exit(
 				fmt.Errorf("unable to print status as %s document: %s", cmd.String("format"), err.Error()),
 				exitcode.IOErr,
@@ -99,7 +98,7 @@ func printConfigureFeaturesStatus(
 		fmt.Println("Not connected to Red Hat.")
 	}
 	fmt.Println("")
-	ui.PrintTable(headers, rows)
+	printTable(headers, rows)
 	return nil
 }
 
@@ -125,7 +124,7 @@ func featuresStatusActionNotRegistered(_ context.Context, cmd *cli.Command) erro
 				Description: f.Description(),
 			},
 		)
-		if !ui.IsOutputMachineReadable() {
+		if !isOutputMachineReadable() {
 			rows = append(rows, []string{featureID, pref, f.Description()})
 		}
 	}
@@ -154,7 +153,7 @@ func featuresStatusActionRegistered(_ context.Context, cmd *cli.Command) (err er
 				Description: f.Description(),
 			},
 		)
-		if !ui.IsOutputMachineReadable() {
+		if !isOutputMachineReadable() {
 			rows = append(rows, []string{featureID, state, f.Description()})
 		}
 	}

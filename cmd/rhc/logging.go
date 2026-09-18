@@ -6,8 +6,6 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-
-	"github.com/redhatinsights/rhc/internal/ui"
 )
 
 var (
@@ -72,7 +70,7 @@ func configureFileLogging(logLevel slog.Leveler) {
 	if err != nil {
 		// Discard log messages if we can't open the log file
 		w = io.Discard
-		ui.Printf("Unable to open log file: %v. \n\nDetailed logs will not be available.\n\n", err)
+		printf("Unable to open log file: %v. \n\nDetailed logs will not be available.\n\n", err)
 	} else {
 		logFile = file
 		w = logFile

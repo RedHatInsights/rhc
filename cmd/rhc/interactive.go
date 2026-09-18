@@ -10,7 +10,6 @@ import (
 	"github.com/urfave/cli/v3"
 
 	"github.com/redhatinsights/rhc/internal/conf"
-	"github.com/redhatinsights/rhc/internal/ui"
 	"github.com/redhatinsights/rhc/pkg/exitcode"
 )
 
@@ -29,7 +28,7 @@ func showTimeDuration(durations map[string]time.Duration) {
 
 // showErrorMessages shows table with all error messages gathered during action
 func showErrorMessages(action string, errorMessages map[string]string) error {
-	if ui.IsOutputMachineReadable() || len(errorMessages) == 0 {
+	if isOutputMachineReadable() || len(errorMessages) == 0 {
 		return nil
 	}
 

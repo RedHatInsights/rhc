@@ -1,4 +1,4 @@
-package ui
+package main
 
 import (
 	"encoding/json"
@@ -57,8 +57,8 @@ func printMachineReadable(data interface{}) {
 // PrintCollectorInfo formats CollectorInfo for output.
 // For human-readable output, it prints formatted text.
 // For machine-readable output, it returns JSON.
-func PrintCollectorInfo(info *collectorapi.CollectorInfo) {
-	if IsOutputMachineReadable() {
+func printCollectorInfo(info *collectorapi.CollectorInfo) {
+	if isOutputMachineReadable() {
 		printMachineReadable(info)
 		return
 	}
@@ -93,8 +93,8 @@ func PrintCollectorInfo(info *collectorapi.CollectorInfo) {
 // PrintCollectorTimers formats multiple CollectorInfo structs into a table showing timing information.
 // For machine-readable output, it returns JSON array.
 // For human-readable output, it prints a table.
-func PrintCollectorTimers(infos []*collectorapi.CollectorInfo) {
-	if IsOutputMachineReadable() {
+func printCollectorTimers(infos []*collectorapi.CollectorInfo) {
+	if isOutputMachineReadable() {
 		printMachineReadable(infos)
 		return
 	}
@@ -119,7 +119,7 @@ func PrintCollectorTimers(infos []*collectorapi.CollectorInfo) {
 		rows = append(rows, []string{info.Id, lastRun, nextRun})
 	}
 
-	PrintTable(headers, rows)
+	printTable(headers, rows)
 	if len(infos) != 0 {
 		fmt.Println("\nHint: Run 'rhc collector info COLLECTOR' to show more details.")
 	}

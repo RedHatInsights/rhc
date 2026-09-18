@@ -14,7 +14,6 @@ import (
 	"github.com/emersion/go-varlink"
 
 	"github.com/redhatinsights/rhc/internal/collector"
-	"github.com/redhatinsights/rhc/internal/ui"
 	"github.com/redhatinsights/rhc/pkg/exitcode"
 	"github.com/redhatinsights/rhc/varlink/collectorapi"
 	"github.com/urfave/cli/v3"
@@ -79,7 +78,7 @@ func collectorInfoAction(ctx context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return cli.Exit(fmt.Sprintf("failed to get collector info: %v", err), exitcode.Err)
 	}
-	ui.PrintCollectorInfo(&response.Info)
+	printCollectorInfo(&response.Info)
 	return nil
 }
 
@@ -104,7 +103,7 @@ func collectorListAction(ctx context.Context, cmd *cli.Command) error {
 		return cli.Exit("No data collectors available.", exitcode.Err)
 	}
 
-	if ui.IsOutputMachineReadable() {
+	if isOutputMachineReadable() {
 		if len(response.Collectors) == 0 {
 			fmt.Println("[]")
 			return nil
@@ -123,7 +122,7 @@ func collectorListAction(ctx context.Context, cmd *cli.Command) error {
 	}
 
 	headers := []string{"ID", "NAME"}
-	ui.PrintTable(headers, rows)
+	printTable(headers, rows)
 	return nil
 }
 
@@ -153,7 +152,7 @@ func collectorTimersAction(ctx context.Context, cmd *cli.Command) error {
 		infos = append(infos, &response.Collectors[i])
 	}
 
-	ui.PrintCollectorTimers(infos)
+	printCollectorTimers(infos)
 	return nil
 }
 
@@ -187,9 +186,9 @@ func collectorEnableAction(ctx context.Context, cmd *cli.Command) error {
 		if err != nil {
 			return cli.Exit(fmt.Sprintf("failed to start service %s: %v", serviceName, err), exitcode.OSFile)
 		}
-		ui.Printf("Enabled timer %s and triggered immediate collection.\n", timerName)
+		printf("Enabled timer %s and triggered immediate collection.\n", timerName)
 	} else {
-		ui.Printf("Enabled timer %s.\n", timerName)
+		printf("Enabled timer %s.\n", timerName)
 	}
 	return nil
 }
@@ -227,9 +226,9 @@ func collectorDisableAction(ctx context.Context, cmd *cli.Command) error {
 	}
 
 	if nowFlag {
-		ui.Printf("Disabled timer %s and stopped collection immediately.\n", timerName)
+		printf("Disabled timer %s and stopped collection immediately.\n", timerName)
 	} else {
-		ui.Printf("Disabled timer %s.\n", timerName)
+		printf("Disabled timer %s.\n", timerName)
 	}
 	return nil
 }

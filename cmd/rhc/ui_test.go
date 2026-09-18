@@ -1,15 +1,15 @@
-package ui
+package main
 
 import "testing"
 
 func TestConfigureOutput(t *testing.T) {
-	plainIcons := icons{
+	plainIcons := iconSet{
 		Ok:      "✓",
 		Info:    "●",
 		Error:   "𐄂",
 		Warning: "!",
 	}
-	coloredIcons := icons{
+	coloredIcons := iconSet{
 		Ok:      colorGreen + "✓" + colorReset,
 		Info:    colorYellow + "●" + colorReset,
 		Error:   colorRed + "𐄂" + colorReset,
@@ -22,7 +22,7 @@ func TestConfigureOutput(t *testing.T) {
 		machineReadable       bool
 		wantAnimationsEnabled bool
 		wantMachineReadable   bool
-		wantIcons             icons
+		wantIcons             iconSet
 	}{
 		{
 			name:                  "animated and colored",
@@ -72,21 +72,21 @@ func TestConfigureOutput(t *testing.T) {
 	}
 
 	t.Cleanup(func() {
-		ConfigureOutput(true, true, false)
+		configureOutput(true, true, false)
 	})
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ConfigureOutput(tt.animated, tt.colored, tt.machineReadable)
+			configureOutput(tt.animated, tt.colored, tt.machineReadable)
 
-			if got := AreAnimationsEnabled(); got != tt.wantAnimationsEnabled {
-				t.Errorf("AreAnimationsEnabled() = %v, want %v", got, tt.wantAnimationsEnabled)
+			if got := areAnimationsEnabled(); got != tt.wantAnimationsEnabled {
+				t.Errorf("areAnimationsEnabled() = %v, want %v", got, tt.wantAnimationsEnabled)
 			}
-			if got := IsOutputMachineReadable(); got != tt.wantMachineReadable {
-				t.Errorf("IsOutputMachineReadable() = %v, want %v", got, tt.wantMachineReadable)
+			if got := isOutputMachineReadable(); got != tt.wantMachineReadable {
+				t.Errorf("isOutputMachineReadable() = %v, want %v", got, tt.wantMachineReadable)
 			}
-			if Icons != tt.wantIcons {
-				t.Errorf("Icons = %#v, want %#v", Icons, tt.wantIcons)
+			if icons != tt.wantIcons {
+				t.Errorf("icons = %#v, want %#v", icons, tt.wantIcons)
 			}
 		})
 	}
