@@ -94,6 +94,9 @@ Make sure to replace "host" with your virtual machine's IP address.
 * Commit messages should include a concise subject line that completes the
   following phrase: "when applied, this commit will...". The body of the commit
   should further expand on this statement with additional relevant details.
+* If a commit resolves a Jira issue, reference it in the commit body:
+  `* Card ID: CCT-XXXX` or `* Card ID: RHEL-XXXX`.
+* All commits must be signed (`git commit -S`).
 * Communicate errors through return values, not logging. Library functions in
   particular should follow this guideline. You never know under which condition
   a library function will be called, so excessive logging should be avoided.
@@ -101,6 +104,17 @@ Make sure to replace "host" with your virtual machine's IP address.
   exclusively.
 * Code can exist in a package if it provides an alternative interface to
   another package, and the two packages cannot be imported together.
+* Preferably create only single-commit PRs. If a multi-commit PR is needed,
+  use a merge commit to preserve individual signed commits. In that case, ensure
+  each commit is clean and meaningful before merging — no fixup commits, no
+  "resolve merge conflicts" commits. Rebase and clean up your branch locally
+  (re-signing as needed) before merging.
+* The PR author merges their own PR once it has the required approvals.
+
+## Code Ownership
+
+Ownership is enforced via [CODEOWNERS](.github/CODEOWNERS). All changes require
+approval from the owning team.
 
 # Required Reading
 
