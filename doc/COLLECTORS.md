@@ -84,12 +84,22 @@ Note: `ingress.content_type` must be coordinated with the Ingress/backend owners
 
 ## Collector Executable
 
-A collector can be any executable (Go, Python, Shell etc). The executable must fulfill each of the following requirements:
+A collector can be any executable. The executable must fulfill each of the following requirements:
 
 1. Accept exactly one subcommand: `collect`
 2. Write output into the current working directory (set by `rhc-collector` to a temp dir under `/var/tmp/rhc/`)
 3. Exit 0 on success, non-zero on failure
 4. Take no untrusted user input. The collector executable runs as the user and group configured in the collector TOML (default: root).
+
+### SELinux confinement
+
+Third-party collector executables that do not ship their own SELinux policy run under the `rhc_collector_plugin_t` domain. This domain is deliberately restrictive: it grants access only to the working directory and Go runtime basics. In particular:
+
+- **No network access** — outbound connections, DNS resolution, and TLS credentials are denied.
+- **No privilege escalation** — `setuid`/`setgid` capabilities are denied.
+- **No interpreter execution** — `corecmd_exec_bin` and `corecmd_exec_shell` are not granted, so interpreted collectors using a shebang (e.g. `#!/usr/bin/python`, `#!/bin/bash`) will be denied execution of the interpreter binary.
+
+Compiled, statically-linked collectors (e.g. Go binaries) work under this fallback domain without additional policy. Interpreted collectors, or any collector that requires network, credentials, or other privileges, must ship their own SELinux exec type and domain modeled on `rhc_collector_minimal_t`. See `selinux/rhc.te` and `selinux/rhc.if` for the pattern.
 
 ## Collector Archive Format
 

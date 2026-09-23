@@ -4,9 +4,6 @@ policy_module(rhc, 1.0.0)
 #
 # Declarations
 #
-# Skeleton only: process domains and file types. Do not encode the full
-# allow set here; that is later work.
-#
 
 #
 # rhc_collector_t — systemd oneshot runner (/usr/libexec/rhc/rhc-collector)
@@ -22,6 +19,17 @@ type rhc_collector_minimal_t;
 type rhc_collector_minimal_exec_t;
 application_domain(rhc_collector_minimal_t, rhc_collector_minimal_exec_t)
 role system_r types rhc_collector_minimal_t;
+
+#
+# rhc_collector_plugin_t — fallback domain for third-party collectors
+# installed under /usr/libexec/rhc/collectors/ without their own policy.
+# Deliberately has NO network, NO certs, NO setuid — enforces the
+# "collectors must not do network" contract from rhc-collector(5).
+#
+type rhc_collector_plugin_t;
+type rhc_collector_plugin_exec_t;
+application_domain(rhc_collector_plugin_t, rhc_collector_plugin_exec_t)
+role system_r types rhc_collector_plugin_t;
 
 #
 # File types
@@ -40,8 +48,185 @@ files_tmp_file(rhc_tmp_t)
 # Domain transitions
 #
 # init_t -> rhc_collector_t is established by init_daemon_domain() above.
-# rhc_collector_domtrans() in rhc.if is the exported public API (not called here).
-# rhc_collector_t -> rhc_collector_minimal_t uses the exported interface below.
+# rhc_collector_t -> rhc_collector_minimal_t:
 #
 
 rhc_collector_minimal_domtrans(rhc_collector_t)
+rhc_collector_plugin_domtrans(rhc_collector_t)
+
+# Inherit signal state, resource limits, and AT_SECURE across transitions.
+# domtrans_pattern covers transition + entrypoint; these three are separate
+# permissions that the base policy normally hides behind dontaudit.
+allow rhc_collector_t rhc_collector_minimal_t:process { siginh rlimitinh noatsecure };
+allow rhc_collector_t rhc_collector_plugin_t:process { siginh rlimitinh noatsecure };
+
+########################################
+#
+# rhc_collector_t policy
+#
+
+# --- Process privileges ---------------------------------------------------
+# fork + exec for child collector and tar
+allow rhc_collector_t self:process { fork signal_perms getsched setsched };
+
+# setuid/setgid to run child collector as configured user/group
+allow rhc_collector_t self:capability { setuid setgid };
+
+# Pipes for capturing child process stdout/stderr
+allow rhc_collector_t self:fifo_file rw_fifo_file_perms;
+
+# --- Collector configuration: /usr/lib/rhc/collectors/*.toml ---------------
+# GetConfig -> loadConfigFromFile -> toml.DecodeFile
+list_dirs_pattern(rhc_collector_t, rhc_collector_conf_t, rhc_collector_conf_t)
+read_files_pattern(rhc_collector_t, rhc_collector_conf_t, rhc_collector_conf_t)
+
+# --- Timer cache: /var/cache/rhc/collectors/*.json -------------------------
+# WriteTimerCache -> writeTimerToFile
+manage_dirs_pattern(rhc_collector_t, rhc_cache_t, rhc_cache_t)
+manage_files_pattern(rhc_collector_t, rhc_cache_t, rhc_cache_t)
+
+# Search /var and /var/cache (var_t) to reach /var/cache/rhc/collectors
+files_search_var(rhc_collector_t)
+
+# --- Temp working dirs: /var/tmp/rhc/collector-* ---------------------------
+# createTmpDir -> os.MkdirAll + os.MkdirTemp + os.Stat + os.Chmod
+# cleanup -> os.RemoveAll
+# GetArchive -> ensureOutputDir + createArchive
+manage_dirs_pattern(rhc_collector_t, rhc_tmp_t, rhc_tmp_t)
+manage_files_pattern(rhc_collector_t, rhc_tmp_t, rhc_tmp_t)
+
+# Search /var/tmp (tmp_t) to reach /var/tmp/rhc (rhc_tmp_t).
+# tmpfiles.d/rhc.conf pre-creates /var/tmp/rhc at boot.
+files_search_tmp(rhc_collector_t)
+
+# --- Archive creation: tar --create --xz ----------------------------------
+# createArchive -> exec.Command("tar", …)
+corecmd_exec_bin(rhc_collector_t)
+
+# --- mTLS credentials: /etc/pki/consumer/{cert,key}.pem -------------------
+# loadClientCertificate -> tls.LoadX509KeyPair + x509.SystemCertPool
+miscfiles_read_generic_certs(rhc_collector_t)
+
+# --- Outbound mTLS HTTPS to console.redhat.com / Satellite ----------------
+# UploadArchive -> http.Client.Do(POST)
+allow rhc_collector_t self:tcp_socket create_stream_socket_perms;
+corenet_tcp_sendrecv_generic_if(rhc_collector_t)
+corenet_tcp_sendrecv_generic_node(rhc_collector_t)
+corenet_tcp_connect_http_port(rhc_collector_t)
+
+# DNS resolution for ingress hostname
+#   Go net.Dial -> getaddrinfo / pure-Go resolver
+sysnet_dns_name_resolve(rhc_collector_t)
+
+# --- Go runtime dependencies ----------------------------------------------
+# /dev/urandom for crypto/tls session keys
+dev_read_urand(rhc_collector_t)
+
+# /sys/kernel/mm/transparent_hugepage/hpage_pmd_size — Go >= 1.21 reads this
+# at startup to size its memory arenas for THP alignment
+dev_read_sysfs(rhc_collector_t)
+
+# NSS for user/group lookup (user.Lookup, user.LookupGroup)
+auth_use_nsswitch(rhc_collector_t)
+
+# Locale data for Go runtime
+miscfiles_read_localization(rhc_collector_t)
+
+# Logging via slog -> stderr -> systemd journal
+logging_send_syslog_msg(rhc_collector_t)
+
+########################################
+#
+# rhc_collector_minimal_t policy
+#
+
+# --- Process / IPC with parent runner --------------------------------------
+# Inherit file descriptors (stdout/stderr pipes) from rhc_collector_t
+allow rhc_collector_minimal_t rhc_collector_t:fd use;
+allow rhc_collector_minimal_t rhc_collector_t:fifo_file rw_fifo_file_perms;
+allow rhc_collector_minimal_t self:fifo_file rw_fifo_file_perms;
+allow rhc_collector_minimal_t self:process { getsched signal_perms };
+
+# --- Working directory: /var/tmp/rhc/collector-* (rhc_tmp_t) ---------------
+# os.Getwd() at startup stats "." which is the rhc_tmp_t working dir
+# createArchiveStructure creates data/, meta_data/ subdirs and writes files
+# writeVersionInfo, writeBranchInfo, writeCanonicalFacts write JSON files
+manage_dirs_pattern(rhc_collector_minimal_t, rhc_tmp_t, rhc_tmp_t)
+manage_files_pattern(rhc_collector_minimal_t, rhc_tmp_t, rhc_tmp_t)
+files_search_tmp(rhc_collector_minimal_t)
+
+# --- Canonical facts: system identity files --------------------------------
+# /etc/machine-id
+files_read_etc_files(rhc_collector_minimal_t)
+files_read_etc_runtime_files(rhc_collector_minimal_t)
+
+# /etc/insights-client/machine-id — directory is insights_client_etc_t,
+# file is insights_client_etc_rw_t (from the insights-client policy module).
+# optional_policy so rhc still loads on systems without insights-client.
+# readFile("/etc/insights-client/machine-id")
+optional_policy(`
+	gen_require(`
+		type insights_client_etc_t;
+		type insights_client_etc_rw_t;
+	')
+	read_files_pattern(rhc_collector_minimal_t, insights_client_etc_t, insights_client_etc_rw_t)
+')
+
+# /etc/pki/consumer/cert.pem — SubscriptionManagerID + org ID extraction
+miscfiles_read_generic_certs(rhc_collector_minimal_t)
+
+# /sys/devices/virtual/dmi/id/product_uuid — BIOS UUID
+# Go runtime reads /sys/kernel/mm/transparent_hugepage/hpage_pmd_size
+dev_read_sysfs(rhc_collector_minimal_t)
+
+# --- Network interface enumeration (local only, no outbound) ---------------
+# net.Interfaces() + iface.Addrs() for IP and MAC address collection
+# Go uses AF_NETLINK/NETLINK_ROUTE sockets for interface enumeration
+allow rhc_collector_minimal_t self:netlink_route_socket create_netlink_socket_perms;
+kernel_read_network_state(rhc_collector_minimal_t)
+
+# os.Hostname()
+kernel_read_system_state(rhc_collector_minimal_t)
+
+# --- Go runtime dependencies ----------------------------------------------
+dev_read_urand(rhc_collector_minimal_t)
+miscfiles_read_localization(rhc_collector_minimal_t)
+logging_send_syslog_msg(rhc_collector_minimal_t)
+
+# /sys/fs/cgroup/ — Go runtime reads cpu.max, memory.max for GOMAXPROCS/limit detection
+fs_read_cgroup_files(rhc_collector_minimal_t)
+
+########################################
+#
+# rhc_collector_plugin_t policy — restrictive fallback for third-party collectors
+#
+# Deliberately absent (enforces rhc-collector(5) contract):
+#   - corenet / tcp_socket / sysnet_dns_name_resolve (no outbound network)
+#   - miscfiles_read_generic_certs (no access to TLS credentials)
+#   - self:capability { setuid setgid } (no privilege escalation)
+#   - corecmd_exec_bin / corecmd_exec_shell (no exec of system binaries or
+#     interpreters — this domain is for self-contained compiled collectors)
+#
+# Interpreted collectors (e.g. #!/usr/bin/python) will be denied exec on
+# the interpreter binary.  Such collectors — and any collector needing
+# network, credentials, or additional privileges — should ship their own
+# exec type and domain (modeled on rhc_collector_minimal_t).
+#
+
+# --- Process / IPC with parent runner --------------------------------------
+allow rhc_collector_plugin_t rhc_collector_t:fd use;
+allow rhc_collector_plugin_t rhc_collector_t:fifo_file rw_fifo_file_perms;
+allow rhc_collector_plugin_t self:fifo_file rw_fifo_file_perms;
+allow rhc_collector_plugin_t self:process { getsched signal_perms };
+
+# --- Working directory: /var/tmp/rhc/collector-* (rhc_tmp_t) ---------------
+manage_dirs_pattern(rhc_collector_plugin_t, rhc_tmp_t, rhc_tmp_t)
+manage_files_pattern(rhc_collector_plugin_t, rhc_tmp_t, rhc_tmp_t)
+files_search_tmp(rhc_collector_plugin_t)
+
+# --- Go runtime dependencies ----------------------------------------------
+dev_read_urand(rhc_collector_plugin_t)
+dev_read_sysfs(rhc_collector_plugin_t)
+miscfiles_read_localization(rhc_collector_plugin_t)
+logging_send_syslog_msg(rhc_collector_plugin_t)
+fs_read_cgroup_files(rhc_collector_plugin_t)
