@@ -87,7 +87,7 @@ Note: `ingress.content_type` must be coordinated with the Ingress/backend owners
 A collector can be any executable. The executable must fulfill each of the following requirements:
 
 1. Accept exactly one subcommand: `collect`
-2. Write output into the current working directory (set by `rhc-collector` to a temp dir under `/var/tmp/rhc/`)
+2. Write output into the current working directory (set by `rhc-collector` to the `workdir` directory in a temporary `/var/tmp/rhc-*` workspace)
 3. Exit 0 on success, non-zero on failure
 4. Take no untrusted user input. The collector executable runs as the user and group configured in the collector TOML (default: root).
 

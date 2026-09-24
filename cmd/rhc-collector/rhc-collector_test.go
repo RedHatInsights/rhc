@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -10,78 +11,29 @@ import (
 )
 
 func TestCreateTmpDir(t *testing.T) {
-	t.Run("successful temp directory creation", func(t *testing.T) {
-		// Ensure the parent directory exists for testing
-		if err := os.MkdirAll(rhcTmpDir, 0755); err != nil {
-			t.Skipf("Cannot create parent directory %s: %v", rhcTmpDir, err)
-		}
-		t.Cleanup(func() { _ = os.RemoveAll(rhcTmpDir) })
-		tmpDir, err := createTmpDir()
-		if err != nil {
-			t.Errorf("createTmpDir() unexpected error: %v", err)
-			return
-		}
-		t.Cleanup(func() {
-			if err := os.RemoveAll(tmpDir); err != nil {
-				t.Logf("Failed to clean up temp dir: %v", err)
-			}
-		})
-		if tmpDir == "" {
-			t.Error("createTmpDir() returned empty string")
-			return
-		}
-		if !strings.HasPrefix(tmpDir, rhcTmpDir) {
-			t.Errorf("createTmpDir() = %q, want prefix '%q'", tmpDir, rhcTmpDir)
-		}
-		parentInfo, err := os.Stat(rhcTmpDir)
-		if err != nil {
-			t.Errorf("parent directory does not exist: %v", err)
-			return
-		}
-		if perms := parentInfo.Mode().Perm(); perms != 0700 {
-			t.Errorf("parent directory permissions = %o, want %o", perms, os.FileMode(0700))
-		}
-		info, err := os.Stat(tmpDir)
-		if err != nil {
-			t.Errorf("created directory does not exist: %v", err)
-			return
-		}
-		if !info.IsDir() {
-			t.Error("created path is not a directory")
-		}
-	})
-}
-
-func TestCreateTmpDirCreatesMissingParent(t *testing.T) {
-	if err := os.RemoveAll(rhcTmpDir); err != nil {
-		t.Fatalf("failed to remove existing rhcTmpDir: %v", err)
-	}
-	t.Cleanup(func() {
-		if err := os.RemoveAll(rhcTmpDir); err != nil {
-			t.Logf("Failed to clean up rhcTmpDir: %v", err)
-		}
-	})
-
 	tmpDir, err := createTmpDir()
 	if err != nil {
 		t.Fatalf("createTmpDir() unexpected error: %v", err)
 	}
-
-	defer func() {
+	t.Cleanup(func() {
 		if err := os.RemoveAll(tmpDir); err != nil {
 			t.Logf("Failed to clean up temp dir: %v", err)
 		}
-	}()
+	})
 
-	info, err := os.Stat(rhcTmpDir)
+	if filepath.Dir(tmpDir) != collectorTmpParent {
+		t.Errorf("createTmpDir() = %q, want parent %q", tmpDir, collectorTmpParent)
+	}
+	if !strings.HasPrefix(filepath.Base(tmpDir), "rhc-") {
+		t.Errorf("createTmpDir() = %q, want name beginning with %q", tmpDir, "rhc-")
+	}
+	info, err := os.Stat(tmpDir)
 	if err != nil {
-		t.Fatalf("parent directory was not created: %v", err)
+		t.Fatalf("created directory does not exist: %v", err)
 	}
-
 	if !info.IsDir() {
-		t.Fatal("rhcTmpDir is not a directory")
+		t.Fatal("created path is not a directory")
 	}
-
 	if perms := info.Mode().Perm(); perms != 0700 {
 		t.Errorf("permissions = %o, want %o", perms, os.FileMode(0700))
 	}
@@ -179,6 +131,38 @@ func TestGetArchive(t *testing.T) {
 		_, err := collector.GetArchive(nonexistentDir, outDir)
 		if err == nil {
 			t.Error("GetArchive() expected error for nonexistent directory")
+		}
+	})
+
+	t.Run("empty output directory", func(t *testing.T) {
+		_, err := collector.GetArchive(t.TempDir(), "")
+		if err == nil {
+			t.Error("GetArchive() expected error for empty output directory")
+		}
+	})
+
+	t.Run("workspace archive excludes itself", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		workDir := filepath.Join(tmpDir, "workdir")
+		if err := os.Mkdir(workDir, 0700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(workDir, "test.txt"), []byte("test content"), 0600); err != nil {
+			t.Fatal(err)
+		}
+		archivePath, err := getArchivePath(workDir, tmpDir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if filepath.Dir(archivePath) != tmpDir {
+			t.Errorf("archive directory = %q, want %q", filepath.Dir(archivePath), tmpDir)
+		}
+		contents, err := exec.Command("tar", "--list", "--xz", "--file", archivePath).Output()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(string(contents), "./test.txt\n") || strings.Contains(string(contents), filepath.Base(archivePath)) {
+			t.Errorf("archive contents = %q, want test.txt without the archive itself", contents)
 		}
 	})
 }
