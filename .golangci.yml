@@ -1,0 +1,32 @@
+version: "2"
+
+# Layer boundaries from doc/ARCHITECTURE.md (ADR-011):
+# presentation (cmd/) → business (pkg/) → internal (internal/).
+# depguard runs as part of the existing Lint workflow (golangci-lint).
+# list-mode lax denies only the packages listed below; everything else stays allowed.
+#
+# Scope note (CCT-2403): this rule only blocks presentation packages from being
+# imported by pkg/ and internal/. ARCHITECTURE.md also says cmd/ should not
+# import internal/ directly, but that direction is not linted yet — many cmd/
+# packages still call internal/ while architecture-reset migrations finish, and
+# fixing those existing imports is out of scope for this check.
+linters:
+  enable:
+    - depguard
+  settings:
+    depguard:
+      rules:
+        no-presentation-in-core:
+          list-mode: lax
+          files:
+            - "**/internal/**"
+            - "**/pkg/**"
+          deny:
+            - pkg: "github.com/urfave/cli"
+              desc: "CLI packages (urfave/cli, cli-altsrc, cli-docs) belong in cmd/. Keep presentation types out of pkg/ and internal/."
+            - pkg: "github.com/briandowns/spinner"
+              desc: "Terminal UI belongs in cmd/. Keep presentation types out of pkg/ and internal/."
+            - pkg: "golang.org/x/term"
+              desc: "Terminal handling belongs in cmd/. Keep presentation types out of pkg/ and internal/."
+            - pkg: "github.com/redhatinsights/rhc/cmd"
+              desc: "pkg/ and internal/ must not import the presentation layer (cmd/)."
