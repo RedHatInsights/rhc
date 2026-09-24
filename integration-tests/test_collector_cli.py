@@ -23,7 +23,6 @@ from utils.constants import (
     MINIMAL_SERVICE_UNIT,
     MINIMAL_TIMER_UNIT,
     RHC_COLLECTOR,
-    RHC_TMP_DIR,
     TIMER_CACHE_DIR,
     EXIT_CODE_MOCK_MINIMAL_COLLECTOR_EXECUTABLE,
 )
@@ -53,7 +52,6 @@ def test_rhc_collector_writes_timer_cache(collector_config):
     collector_id = collector_config["id"]
     cache_path = os.path.join(TIMER_CACHE_DIR, f"{collector_id}.json")
 
-    os.makedirs(RHC_TMP_DIR, exist_ok=True)
     os.makedirs(TIMER_CACHE_DIR, exist_ok=True)
     if os.path.exists(cache_path):
         os.remove(cache_path)

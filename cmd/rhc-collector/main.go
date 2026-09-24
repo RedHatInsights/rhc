@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"os/user"
+	"path/filepath"
 	"time"
 
 	"github.com/redhatinsights/rhc/internal/collector"
@@ -16,10 +17,10 @@ import (
 
 // FIXME: Make these configurable (use the values from "rhc configure")
 const (
-	ingressUrl     = "https://cert.console.redhat.com/api/ingress/v1/upload"
-	clientCertPath = "/etc/pki/consumer/cert.pem"
-	clientKeyPath  = "/etc/pki/consumer/key.pem"
-	rhcTmpDir      = "/var/tmp/rhc"
+	ingressUrl         = "https://cert.console.redhat.com/api/ingress/v1/upload"
+	clientCertPath     = "/etc/pki/consumer/cert.pem"
+	clientKeyPath      = "/etc/pki/consumer/key.pem"
+	collectorTmpParent = "/var/tmp"
 )
 
 func main() {
@@ -58,53 +59,27 @@ func run(collectorId, command string) error {
 	}
 	defer cleanup(tmpDir)
 
-	if err = executeCollector(config, tmpDir); err != nil {
+	workDir := filepath.Join(tmpDir, "workdir")
+	if err := os.Mkdir(workDir, 0700); err != nil {
+		return fmt.Errorf("failed to create collector working directory: %w", err)
+	}
+
+	if err = executeCollector(config, workDir); err != nil {
 		return err
 	}
-	archivePath, err := getArchivePath(tmpDir)
+	archivePath, err := getArchivePath(workDir, tmpDir)
 	if err != nil {
 		return err
 	}
-	defer cleanup(archivePath)
 	if err = uploadArchive(archivePath, config); err != nil {
 		return err
 	}
 	return nil
 }
 
-// createTmpDir ensures rhcTmpDir exists with root-only permissions (0700)
-// and creates a collector-specific temporary directory inside it. If the
-// parent directory exists with different permissions, they are reset to
-// 0700. Returns the temporary directory path or an error if any step fails.
+// createTmpDir creates a private temporary directory for a collector run.
 func createTmpDir() (string, error) {
-	// Ensure the parent directory exists
-	if err := os.MkdirAll(rhcTmpDir, 0700); err != nil {
-		slog.Error("failed to create rhc temporary directory", "error", err)
-		return "", fmt.Errorf("failed to create rhc temporary directory: %w", err)
-	}
-
-	// Verify permissions and fix if necessary
-	info, err := os.Stat(rhcTmpDir)
-	if err != nil {
-		slog.Error("failed to stat rhc temporary directory", "error", err)
-		return "", fmt.Errorf("failed to stat rhc temporary directory: %w", err)
-	}
-
-	if perms := info.Mode().Perm(); perms != 0700 {
-		slog.Warn(
-			"rhc temporary directory has incorrect permissions, resetting",
-			"path", rhcTmpDir,
-			"current_permissions", fmt.Sprintf("%#o", perms),
-			"expected_permissions", "0700",
-		)
-
-		if err := os.Chmod(rhcTmpDir, 0700); err != nil {
-			slog.Error("failed to reset permissions on rhc temporary directory", "error", err)
-			return "", fmt.Errorf("failed to reset permissions on rhc temporary directory: %w", err)
-		}
-	}
-
-	tmpDir, err := os.MkdirTemp(rhcTmpDir, "collector-")
+	tmpDir, err := os.MkdirTemp(collectorTmpParent, "rhc-")
 	if err != nil {
 		slog.Error("failed to create a temporary directory", "error", err)
 		return "", fmt.Errorf("failed to create temporary directory: %w", err)
@@ -125,10 +100,10 @@ func getConfig(collectorId string) (collector.Config, error) {
 	return config, nil
 }
 
-// executeCollector runs the specified collector binary with the collect argument in tmpDir as the working directory.
+// executeCollector runs the specified collector binary with the collect argument in workDir as the working directory.
 // The collector process is executed as the user and group defined in the collector configuration.
 // Returns an error if the command execution fails.
-func executeCollector(config collector.Config, tmpDir string) error {
+func executeCollector(config collector.Config, workDir string) error {
 	collectorPath := fmt.Sprintf("/usr/libexec/rhc/collectors/%s", config.ID)
 
 	sysProcAttr, err := collector.ResolveUserGroupAttr(config.User, config.Group, user.Lookup, user.LookupGroup)
@@ -139,7 +114,7 @@ func executeCollector(config collector.Config, tmpDir string) error {
 	slog.Info("executing collector as configured user/group", "collector", config.ID, "user", config.User, "group", config.Group)
 
 	cmd := exec.Command(collectorPath, "collect")
-	cmd.Dir = tmpDir
+	cmd.Dir = workDir
 	cmd.SysProcAttr = sysProcAttr
 
 	// Capture start/end time and execute the command
@@ -176,10 +151,10 @@ func executeCollector(config collector.Config, tmpDir string) error {
 	return nil
 }
 
-// getArchivePath creates a compressed .tar.xz archive from the temporary directory.
+// getArchivePath creates a compressed .tar.xz archive from the working directory.
 // Returns the archive file path or an error if compression fails.
-func getArchivePath(tmpDir string) (string, error) {
-	archivePath, err := collector.GetArchive(tmpDir, "")
+func getArchivePath(workDir, outputDir string) (string, error) {
+	archivePath, err := collector.GetArchive(workDir, outputDir)
 	if err != nil {
 		slog.Error("failed to compress directory", "error", err)
 		return "", fmt.Errorf("failed to compress directory: %w", err)

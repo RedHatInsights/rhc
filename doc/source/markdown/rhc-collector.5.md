@@ -17,12 +17,12 @@ rhc-collector - execute a data collector and upload its archive
 The binary performs the following steps for a given collector:
 
 1. Loads the collector configuration from **/usr/lib/rhc/collectors/**_COLLECTOR_**.toml**.
-2. Creates a temporary directory under **/var/tmp/rhc/**.
-3. Executes the collector binary at **/usr/libexec/rhc/collectors/**_COLLECTOR_ with the **collect** subcommand, using the temporary directory as the working directory.
-4. If the collector exits with a non-zero status, the temporary directory is removed and **rhc-collector** exits with an error.
-5. Compresses the temporary directory into a **.tar.xz** archive.
+2. Creates a private temporary workspace at `/var/tmp/rhc-*/`.
+3. Executes the collector binary at **/usr/libexec/rhc/collectors/**_COLLECTOR_ with the **collect** subcommand, using the workspace's **workdir** directory as the working directory.
+4. If the collector exits with a non-zero status, the workspace is removed and **rhc-collector** exits with an error.
+5. Compresses the working directory into a **.tar.xz** archive in the workspace.
 6. Uploads the archive to the Ingress service.
-7. Removes both the temporary directory and the archive.
+7. Removes the workspace and its contents.
 
 # COMMANDS
 
@@ -107,8 +107,8 @@ The service unit invokes **/usr/libexec/rhc/rhc-collector run** _COLLECTOR_.
 **/usr/lib/rhc/collectors/**
 : Directory containing collector TOML configuration files.
 
-**/var/tmp/rhc/**
-: Parent directory for temporary directories created during data collection.
+`/var/tmp/rhc-*/`
+: Temporary workspace created for each collection and removed afterward.
 
 **/var/cache/rhc/collectors/**
 : Directory containing cached execution data (start time, finish time, exit code) in JSON format.

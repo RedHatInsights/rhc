@@ -13,5 +13,5 @@
 # Collector timer cache
 /var/cache/rhc/collectors(/.*)?				gen_context(system_u:object_r:rhc_cache_t,s0)
 
-# Collector working directory
-/var/tmp/rhc(/.*)?					gen_context(system_u:object_r:rhc_tmp_t,s0)
+# Collector temporary workspace
+/var/tmp/rhc-[^/]+(/.*)?				gen_context(system_u:object_r:rhc_tmp_t,s0)
