@@ -15,6 +15,7 @@ import time
 import pytest
 
 from utils import prepare_args_for_connect, poll_until
+from utils.selinux import is_selinux_disabled, label_type
 from utils.systemctl import is_unit_active, is_unit_enabled
 from utils.constants import (
     MINIMAL_COLLECTOR_ID,
@@ -22,6 +23,7 @@ from utils.constants import (
     MINIMAL_COLLECTOR_CONFIG_PATH,
     MINIMAL_SERVICE_UNIT,
     MINIMAL_TIMER_UNIT,
+    COLLECTOR_BIN_DIR,
     RHC_COLLECTOR,
     RHC_TMP_DIR,
     TIMER_CACHE_DIR,
@@ -958,3 +960,40 @@ def test_minimal_collector_missing_executable(missing_minimal_collector_executab
     finally:
         if os.path.exists(cache_path):
             os.remove(cache_path)
+
+
+@pytest.mark.skipif(is_selinux_disabled(), reason="SELinux is disabled")
+@pytest.mark.tier2
+def test_minimal_collector_selinux_domains():
+    """
+    :id: 14f68a36-57b9-4e20-8c4d-1e9f7a2b3c4e
+    :title: Verify minimal collector SELinux domains
+    :description:
+        Test that the minimal collector SELinux domains are set correctly.
+        Process domains are gone after this oneshot, and default audit rules do
+        not record them. CI asserts the file labels that remain.
+        Denials during the run are failed by the autouse AVC check.
+    :tags: Tier 2
+    :steps:
+        1. Remove any existing timer cache for the minimal collector
+        2. Reset and start the minimal collector service
+        3. Read the SELinux type of the cache and of the two binaries
+    :expectedresults:
+        1. The timer cache file is absent
+        2. The service start recreates the cache file. A non-zero exit
+           from the upload is acceptable
+        3. The cache is rhc_cache_t, /usr/libexec/rhc/rhc-collector is
+           rhc_collector_exec_t, and com.redhat.minimal is
+           rhc_collector_minimal_exec_t
+    """
+    cache = os.path.join(TIMER_CACHE_DIR, f"{MINIMAL_COLLECTOR_ID}.json")
+    if os.path.exists(cache):
+        os.remove(cache)
+
+    subprocess.run(["systemctl", "reset-failed", MINIMAL_SERVICE_UNIT], check=False)
+    subprocess.run(["systemctl", "start", MINIMAL_SERVICE_UNIT], check=False)
+
+    assert os.path.exists(cache)
+    assert label_type(cache) == "rhc_cache_t"
+    assert label_type(RHC_COLLECTOR) == "rhc_collector_exec_t"
+    assert label_type(os.path.join(COLLECTOR_BIN_DIR, MINIMAL_COLLECTOR_ID)) == "rhc_collector_minimal_exec_t"
