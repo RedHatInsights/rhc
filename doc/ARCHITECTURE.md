@@ -3,9 +3,11 @@
 rhc codebase is separated into three hierarchical layers: `cmd/` → `pkg/` → `internal/`.
 You may treat it as a mix of layered and ports-and-adapters architecture: `cmd/` is an input adapter (with `*Options` structs being the ports), `pkg/` is the application core, and `internal/` output adapters that wrap system interfaces, filesystem, or host binaries.
 
-- **Presentation** contains input adapters in `cmd/`: it takes input from the user and presents them back the output. It translates presentation-specific input (CLI flags, Varlink objects) into an internal representation the business layer understands. Raw input is captured into an `Input` object, validated, and passed forward as an `Options`. Presentation code must not import from `internal/`, it should always go through `pkg/`.
+- **Presentation** contains input adapters in `cmd/`: it takes input from the user and presents them back the output. It translates presentation-specific input (CLI flags, Varlink objects) into an internal representation the business layer understands. Raw input is captured into an `Input` object, validated, and passed forward as an `Options`. Presentation code should not import from `internal/`; it should go through `pkg/`.
 - **Business** contains the application core in `pkg/`. It owns operations, functions that map to product use-cases such as `connect` or `configure features`. This is where shared types and constants live.
 - **Internal** contains output adapters in `internal/`. It interfaces with the host system by interacting with system tools or external APIs over HTTP or D-Bus. Information should generally be passed in by the business layer rather than pulled.
+
+`depguard` enforces one direction of that boundary in CI (see `.golangci.yml`): packages under `pkg/` and `internal/` must not import the presentation layer (`cmd/`, `github.com/urfave/cli` and its companion modules, `github.com/briandowns/spinner`, or `golang.org/x/term`). The lint job fails when one of those imports appears. The reverse rule (`cmd/` must not import `internal/`) remains an architectural goal until remaining architecture-reset migrations finish; it is not linted yet because existing `cmd/` → `internal/` imports would fail CI today.
 
 It is important to note the only public API is the command line interface and the Varlink objects and methods.
 rhc is not meant to be a library, and the major version will _not_ be bumped when a breaking change is made to methods or structs.
