@@ -491,66 +491,6 @@ func TestCreateArchive(t *testing.T) {
 	})
 }
 
-func TestEnsureOutputDir(t *testing.T) {
-	t.Run("empty string defaults to defaultOutputDir", func(t *testing.T) {
-		defer func() {
-			// Clean up the default output directory, ignore errors if it's already removed or in use
-			_ = os.RemoveAll(defaultOutputDir)
-		}()
-
-		got, err := ensureOutputDir("")
-		if err != nil {
-			t.Errorf("ensureOutputDir(\"\") got unexpected error: %v", err)
-		}
-		if got != defaultOutputDir {
-			t.Errorf("ensureOutputDir(\"\") = %q, want %q", got, defaultOutputDir)
-		}
-		if _, err := os.Stat(got); os.IsNotExist(err) {
-			t.Errorf("expected directory %q to be created", got)
-		}
-	})
-
-	t.Run("custom path creates directory", func(t *testing.T) {
-		testDir := filepath.Join(t.TempDir(), "custom-output")
-		got, err := ensureOutputDir(testDir)
-		if err != nil {
-			t.Errorf("ensureOutputDir(%q) got unexpected error: %v", testDir, err)
-		}
-		if got != testDir {
-			t.Errorf("ensureOutputDir(%q) = %q, want %q", testDir, got, testDir)
-		}
-		if _, err := os.Stat(got); os.IsNotExist(err) {
-			t.Errorf("expected directory %q to be created", got)
-		}
-	})
-}
-
-func TestEnsureOutputDirErrors(t *testing.T) {
-	t.Run("path is existing file returns error", func(t *testing.T) {
-		tempFile, err := os.CreateTemp("", "test-file-*")
-		if err != nil {
-			t.Fatalf("Failed to create temp file: %v", err)
-		}
-		if err := tempFile.Close(); err != nil {
-			t.Fatalf("Failed to close temp file: %v", err)
-		}
-		defer func(name string) {
-			err := os.Remove(name)
-			if err != nil {
-				t.Fatalf("Failed to remove temp file: %v", err)
-			}
-		}(tempFile.Name())
-
-		_, err = ensureOutputDir(tempFile.Name())
-		if err == nil {
-			t.Error("ensureOutputDir() expected error for existing file")
-		}
-		if !strings.Contains(err.Error(), "failed to create output directory") {
-			t.Errorf("error = %v, want error containing %q", err, "failed to create output directory")
-		}
-	})
-}
-
 func TestNewTimer(t *testing.T) {
 	tests := []struct {
 		description string

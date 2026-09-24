@@ -88,15 +88,15 @@ manage_files_pattern(rhc_collector_t, rhc_cache_t, rhc_cache_t)
 # Search /var and /var/cache (var_t) to reach /var/cache/rhc/collectors
 files_search_var(rhc_collector_t)
 
-# --- Temp working dirs: /var/tmp/rhc/collector-* ---------------------------
-# createTmpDir -> os.MkdirAll + os.MkdirTemp + os.Stat + os.Chmod
+# --- Temp workspace: /var/tmp/rhc-* ---------------------------------------
+# createTmpDir -> os.MkdirTemp under /var/tmp (tmp_t)
+# The working directory and archive are created under rhc_tmp_t.
 # cleanup -> os.RemoveAll
-# GetArchive -> ensureOutputDir + createArchive
+files_tmp_filetrans(rhc_collector_t, rhc_tmp_t, dir)
 manage_dirs_pattern(rhc_collector_t, rhc_tmp_t, rhc_tmp_t)
 manage_files_pattern(rhc_collector_t, rhc_tmp_t, rhc_tmp_t)
 
-# Search /var/tmp (tmp_t) to reach /var/tmp/rhc (rhc_tmp_t).
-# tmpfiles.d/rhc.conf pre-creates /var/tmp/rhc at boot.
+# Search /var/tmp (tmp_t) to reach the temporary workspace.
 files_search_tmp(rhc_collector_t)
 
 # --- Archive creation: tar --create --xz ----------------------------------
@@ -147,7 +147,7 @@ allow rhc_collector_minimal_t rhc_collector_t:fifo_file rw_fifo_file_perms;
 allow rhc_collector_minimal_t self:fifo_file rw_fifo_file_perms;
 allow rhc_collector_minimal_t self:process { getsched signal_perms };
 
-# --- Working directory: /var/tmp/rhc/collector-* (rhc_tmp_t) ---------------
+# --- Working directory: /var/tmp/rhc-*/workdir (rhc_tmp_t) -----------------
 # os.Getwd() at startup stats "." which is the rhc_tmp_t working dir
 # createArchiveStructure creates data/, meta_data/ subdirs and writes files
 # writeVersionInfo, writeBranchInfo, writeCanonicalFacts write JSON files
@@ -219,7 +219,7 @@ allow rhc_collector_plugin_t rhc_collector_t:fifo_file rw_fifo_file_perms;
 allow rhc_collector_plugin_t self:fifo_file rw_fifo_file_perms;
 allow rhc_collector_plugin_t self:process { getsched signal_perms };
 
-# --- Working directory: /var/tmp/rhc/collector-* (rhc_tmp_t) ---------------
+# --- Working directory: /var/tmp/rhc-*/workdir (rhc_tmp_t) -----------------
 manage_dirs_pattern(rhc_collector_plugin_t, rhc_tmp_t, rhc_tmp_t)
 manage_files_pattern(rhc_collector_plugin_t, rhc_tmp_t, rhc_tmp_t)
 files_search_tmp(rhc_collector_plugin_t)
