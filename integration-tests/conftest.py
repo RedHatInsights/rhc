@@ -10,6 +10,7 @@ import textwrap
 from contextlib import suppress
 from functools import lru_cache
 
+from utils.selinux import SELinuxAVCChecker, is_selinux_disabled
 from utils.systemctl import is_unit_active, is_unit_enabled
 from utils.constants import (
     COLLECTOR_BIN_DIR,
@@ -489,3 +490,65 @@ def missing_minimal_collector_executable(writable_collector_dirs):
             if os.path.exists(bin_path):
                 os.remove(bin_path)
             os.rename(backup_path, bin_path)
+
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_makereport(item, call):
+    """
+    Reclassify check_* fixture "teardown"/"setup" failures as FAIL (instead of ERROR) by
+    setting the test execution phase to "call" instead of "setup"/"teardown".
+    """
+    outcome = yield
+    rep = outcome.get_result()
+    if call.when == "call" or not call.excinfo:
+        return
+
+    for entry in call.excinfo.traceback:
+        if getattr(entry, "name", "").startswith("check_"):
+            rep.when = "call"
+            return
+
+
+def add_known_avcs_to_skiplist(avc_checker):
+    avc_checker.skip_avc_entry_by_fields(
+        {"subj": "system_u:system_r:rhsmcertd_t:s0"}
+    )
+
+
+@pytest.fixture(autouse=True)
+def check_avcs():
+    """
+    Monitor SELinux AVCs during the test execution.
+    Only runs if SELinux is enabled.
+    This fixture is applied to all tests and can be configured following way:
+     * Skipping all SELinux AVCs (only logging them):
+        Use this fixture explicitly by the test (adding `check_avcs` to test arguments)
+        and then at the beginning of the test call: `check_avcs.skip_all_avcs()`
+     * Skipping selected SELinux AVCs (only logging them)
+        Use this fixture explicitly by the test (adding `check_avcs` to test arguments)
+        and then at the beginning of the test call one of `SELinuxAVCChecker` skip methods.
+
+    This pytest fixture yields instance of SELinuxAVCChecker class.
+    """
+    if is_selinux_disabled():
+        logger.info("SELinux is disabled; not checking AVCs")
+        yield SELinuxAVCChecker()
+        return
+
+    with SELinuxAVCChecker() as checker:
+        add_known_avcs_to_skiplist(checker)
+        yield checker
+
+    try:
+        logger.info(
+            "All AVCs detected during test execution:\n"
+            + "\n".join(denial.summary() for denial in checker.get_avcs(skiplisted=False))
+        )
+        denials = tuple(checker.get_avcs())
+    except Exception as ex:
+        pytest.fail(f"AVC check could not run: {ex}")
+    if denials:
+        pytest.fail(
+            "AVCs detected during test run!\n"
+            + "\n".join(str(d) for d in denials)
+        )
