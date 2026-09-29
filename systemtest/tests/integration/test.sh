@@ -2,7 +2,7 @@
 set -ux
 
 # get to project root
-cd ../../../
+rpm -q rhc-tests &>/dev/null || cd ../../../
 
 # Read information about release from standard release file
 if [[ -f "/etc/os-release" ]]; then
