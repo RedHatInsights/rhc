@@ -4,6 +4,10 @@
 # Void team members
 # @cnsnyder @Aftermath @DuckBoss @jirihnidek @jlocash @pbartiko
 
+# Dependency files are owned by both teams
+go.mod @RedHatInsights/csi-client-tools
+go.sum @RedHatInsights/csi-client-tools
+
 # Void team owns the RHSM Varlink API, Null team owns the rhc-collector Varlink API
 varlink/ @cnsnyder @Aftermath @DuckBoss @jirihnidek @jlocash @pbartiko
 varlink/collectorapi/ @Archana-PandeyM @mjcr99 @pkoprda @Peto-RH @stephenbourke @zpetrace
