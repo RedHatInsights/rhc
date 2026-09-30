@@ -171,6 +171,11 @@ install -D -p -m 0644 selinux/%{selinux_modulename}.if %{buildroot}%{_datadir}/s
 %gocheck
 %endif
 
+%clean
+# Remove the module cache so rpmbuild can remove the build tree.
+GOMODCACHE="%{gobuilddir}/pkg/mod" go clean -modcache
+rm -rf %{buildroot}
+
 %if 0%{?with_rhcd_compat}
 %pre
 # On upgrade, back up /etc/rhc/config.toml before new files are laid down.
