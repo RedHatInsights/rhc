@@ -279,7 +279,6 @@ fi
 %config(noreplace) %{_sysconfdir}/logrotate.d/rhc
 # Runtime directories
 %ghost %attr(0755,root,root) %dir /run/%{name}
-%ghost %attr(0700,root,root) %dir %{_localstatedir}/tmp/%{name}
 # Systemd-tmpfiles configuration file
 %{_tmpfilesdir}/rhc.conf
 

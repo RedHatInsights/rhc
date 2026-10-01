@@ -34,7 +34,6 @@ const TimerDir = "/var/cache/rhc/collectors/"
 const defaultMetaType = "ingress"
 const defaultUser = "root"
 const defaultGroup = "root"
-const defaultOutputDir = "/var/tmp/rhc/"
 const compactTimestamp = "20060102150405.000"
 
 // Config represents the configuration for a collector instance.
@@ -104,10 +103,10 @@ type timerDto struct {
 
 // GetArchive generates an archive filename, creates a compressed archive
 // from the sourceDir in the outputDir, and returns the path to the created archive.
+// The outputDir must already exist.
 func GetArchive(sourceDir, outputDir string) (string, error) {
-	outputDir, err := ensureOutputDir(outputDir)
-	if err != nil {
-		return "", err
+	if outputDir == "" {
+		return "", fmt.Errorf("output directory is empty")
 	}
 	archiveTimestamp := strings.ReplaceAll(time.Now().Format(compactTimestamp), ".", "")
 	archiveName := "rhc-collector-" + archiveTimestamp + ".tar.xz"
@@ -310,19 +309,6 @@ func createArchive(archiveName, sourceDir, outputDir string) (string, error) {
 		slog.Info("tar command", "output", string(stdoutStderr))
 	}
 	return archivePath, nil
-}
-
-// ensureOutputDir ensures the output directory exists and returns its path.
-// Uses defaultOutputDir when path is empty.
-func ensureOutputDir(path string) (string, error) {
-	if path == "" {
-		path = defaultOutputDir
-	}
-	if err := os.MkdirAll(path, 0755); err != nil {
-		slog.Error("failed to create output directory", "error", err)
-		return "", fmt.Errorf("failed to create output directory: %w", err)
-	}
-	return path, nil
 }
 
 // getConfigFilename returns the filename if the file entry is a valid TOML configuration file.
