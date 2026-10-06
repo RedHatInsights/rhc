@@ -173,3 +173,9 @@ func RefreshContent(force bool, ipcSender *string, locale *string, correlationID
 
 	return nil
 }
+
+// SendProfile gathers and uploads the combined RPM profile (installed RPMs and
+// enabled repositories) to the candlepin server.
+func SendProfile(ipcSender *string, locale *string, correlationID *string) error {
+	return &ServerError{Message: "profile upload is not yet supported"}
+}
