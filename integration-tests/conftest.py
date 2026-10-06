@@ -542,7 +542,7 @@ def check_avcs():
     try:
         logger.info(
             "All AVCs detected during test execution:\n"
-            + "\n".join(denial.summary() for denial in checker.get_avcs(skiplisted=False))
+            + "\n".join(denial.summary for denial in checker.get_avcs(skiplisted=False))
         )
         denials = tuple(checker.get_avcs())
     except Exception as ex:
