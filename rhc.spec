@@ -142,6 +142,7 @@ install -m 0755 -vd %{buildroot}%{_prefix}/lib/systemd/system-preset/
 install -m 0644 -vp data/systemd/presets/50-rhc.preset %{buildroot}%{_prefix}/lib/systemd/system-preset/
 # Configuration
 install -m 0755 -vd                     %{buildroot}%{_sysconfdir}/%{name}/
+install -m 0640 -vp data/config/rhc.conf %{buildroot}%{_sysconfdir}/%{name}/rhc.conf
 # Minimal collector
 install -m 0755 -vp _build/bin/com.redhat.minimal %{buildroot}%{_libexecdir}/%{name}/collectors/com.redhat.minimal
 install -m 0644 -vp data/collectors/com.redhat.minimal.toml %{buildroot}%{_prefix}/lib/%{name}/collectors/
@@ -266,7 +267,8 @@ fi
 %{_unitdir}/rhc-collector-com.redhat.minimal.*
 %{_prefix}/lib/systemd/system-preset/50-rhc.preset
 # Configuration
-%{_sysconfdir}/%{name}/
+%attr(0755,root,root) %dir %{_sysconfdir}/%{name}/
+%config(noreplace) %attr(0640,root,root) %{_sysconfdir}/%{name}/rhc.conf
 # Collector directories
 %dir %{_prefix}/lib/%{name}/collectors/
 %dir %{_libexecdir}/%{name}/collectors/

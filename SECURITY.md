@@ -37,7 +37,7 @@ APIs rhc connects to:
 
 Additionally, there are planned trust boundaries that are not yet implemented:
 
-- `rhc.conf` configuration file and files in its drop-in directory. They are owned by root with permissions `0640` (files) and `0750` (the directory).
+- `rhc.conf` configuration file and files in its drop-in directory. The RPM installs the `rhc.conf` as `root:root` with permissions `0640` inside `/etc/rhc` (`root:root`, `0755`), but the binaries do not read it yet.
 - `subscription.rhsm.redhat.com` HTTP API. Red Hat's CA certificates provided by subscription-manager-rhsm-certificates package are used for mTLS transport.
 - Satellite HTTP APIs. When reconfigured, rhc may communicate with remote HTTP APIs served by Red Hat Satellite Server or Red Hat Satellite Capsule Server. Satellite (Katello) CA certificates are used for mTLS transport.
 
