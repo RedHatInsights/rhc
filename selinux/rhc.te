@@ -11,6 +11,8 @@ policy_module(rhc, 1.0.0)
 type rhc_collector_t;
 type rhc_collector_exec_t;
 init_daemon_domain(rhc_collector_t, rhc_collector_exec_t)
+# NoNewPrivileges=yes: systemd starts the unit from init_t with NNP set.
+init_nnp_daemon_domain(rhc_collector_t)
 
 #
 # rhc_collector_minimal_t — com.redhat.minimal child collector
@@ -42,12 +44,18 @@ files_type(rhc_cache_t)
 
 type rhc_tmp_t;
 files_tmp_file(rhc_tmp_t)
+# PrivateTmp=yes: init_t (sd-rmrf) must be able to remove the private /var/tmp.
+systemd_private_tmp(rhc_tmp_t)
+
+allow init_t systemd_private_tmp_type:dir { remove_name rmdir write };
+allow init_t systemd_private_tmp_type:file unlink;
 
 ########################################
 #
 # Domain transitions
 #
-# init_t -> rhc_collector_t is established by init_daemon_domain() above.
+# init_t -> rhc_collector_t is established by init_daemon_domain() /
+# init_nnp_daemon_domain() above.
 # rhc_collector_t -> rhc_collector_minimal_t:
 #
 
@@ -59,6 +67,11 @@ rhc_collector_plugin_domtrans(rhc_collector_t)
 # permissions that the base policy normally hides behind dontaudit.
 allow rhc_collector_t rhc_collector_minimal_t:process { siginh rlimitinh noatsecure };
 allow rhc_collector_t rhc_collector_plugin_t:process { siginh rlimitinh noatsecure };
+
+# NoNewPrivileges=yes on the collector systemd units blocks type_transition
+# unless the destination domain is allowed nnp_transition / nosuid_transition.
+allow rhc_collector_t rhc_collector_minimal_t:process2 { nnp_transition nosuid_transition };
+allow rhc_collector_t rhc_collector_plugin_t:process2 { nnp_transition nosuid_transition };
 
 ########################################
 #

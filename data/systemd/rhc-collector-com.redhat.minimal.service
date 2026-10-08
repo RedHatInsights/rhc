@@ -14,5 +14,42 @@ ExecStart=/usr/libexec/rhc/rhc-collector run com.redhat.minimal
 Restart=on-failure
 RestartSec=1h
 
+# ProtectSystem=strict makes the tree read-only except API fs and ReadWritePaths.
+# Timer cache is under /var/cache/rhc/collectors. Scratch dirs are MkdirTemp under
+# /var/tmp (rhc-*); PrivateTmp already gives a writable private /var/tmp.
+# NoNewPrivileges requires nnp_transition in selinux/rhc.te for the child collector.
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/cache/rhc/collectors
+CacheDirectory=rhc/collectors
+
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+PrivateDevices=yes
+LockPersonality=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+RestrictNamespaces=yes
+SystemCallArchitectures=native
+UMask=0077
+
+# AF_INET*: upload to Ingress. AF_UNIX: NSS/resolved. AF_NETLINK: interface MAC list.
+# Host network is required; PrivateNetwork= and IPAddressDeny= would block the upload.
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+
+# SETUID/SETGID: rhc-collector applies the collector TOML user/group on exec.
+CapabilityBoundingSet=CAP_SETUID CAP_SETGID
+
+# Go binaries need executable mappings; MemoryDenyWriteExecute= would break them.
+SystemCallFilter=@system-service
+SystemCallFilter=~@clock @cpu-emulation @debug @module @mount @obsolete @raw-io @reboot @swap
+SystemCallErrorNumber=EPERM
+
 [Install]
 WantedBy=multi-user.target
