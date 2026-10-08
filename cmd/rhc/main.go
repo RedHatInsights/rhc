@@ -16,7 +16,6 @@ import (
 	docs "github.com/urfave/cli-docs/v3"
 	"github.com/urfave/cli/v3"
 
-	"github.com/redhatinsights/rhc/internal/conf"
 	"github.com/redhatinsights/rhc/pkg/exitcode"
 	"github.com/redhatinsights/rhc/pkg/operations"
 	"github.com/redhatinsights/rhc/pkg/version"
@@ -29,6 +28,15 @@ const (
 	envForceColor = "FORCE_COLOR"
 	envNoColor    = "NO_COLOR"
 )
+
+type Conf struct {
+	CertFile string
+	KeyFile  string
+	LogLevel slog.Level
+	CADir    string
+}
+
+var conf Conf
 
 // mainAction is triggered in the case, when no sub-command is specified
 func mainAction(ctx context.Context, cmd *cli.Command) error {
@@ -112,19 +120,19 @@ func beforeAction(ctx context.Context, cmd *cli.Command) (context.Context, error
 		logLevelSrc = fmt.Sprintf("config file: '%s'", cmd.String("config"))
 	}
 
-	conf.Config = conf.Conf{
+	conf = Conf{
 		CertFile: cmd.String(cliCertFile),
 		KeyFile:  cmd.String(cliKeyFile),
 	}
 
 	logLevelStr := cmd.String(cliLogLevel)
-	if err := conf.Config.LogLevel.UnmarshalText([]byte(logLevelStr)); err != nil {
+	if err := conf.LogLevel.UnmarshalText([]byte(logLevelStr)); err != nil {
 		slog.Error(fmt.Sprintf("invalid log level '%s' set via %s", logLevelStr, logLevelSrc))
-		conf.Config.LogLevel = slog.LevelInfo
+		conf.LogLevel = slog.LevelInfo
 	}
 
 	if !cmd.Bool("generate-man-page") && !cmd.Bool("generate-markdown") {
-		configureFileLogging(conf.Config.LogLevel)
+		configureFileLogging(conf.LogLevel)
 		slog.Info(cmd.Root().Name+" started", "version", version.Version, "pid", os.Getpid())
 	}
 
