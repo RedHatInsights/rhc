@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log/slog"
 	"path/filepath"
 
@@ -35,8 +34,8 @@ func buildBasicCollectorInfo(id string, config collector.Config) *collectorapi.C
 		Id:          id,
 		Name:        config.Name,
 		ConfigPath:  filepath.Join(collector.ConfigDir, id+".toml"),
-		ServiceName: fmt.Sprintf("rhc-collector-%s.service", id),
-		TimerName:   fmt.Sprintf("rhc-collector-%s.timer", id),
+		ServiceName: config.Service,
+		TimerName:   config.Timer,
 	}
 
 	// Set feature field (nil for non-analytics features, shown as "-")
