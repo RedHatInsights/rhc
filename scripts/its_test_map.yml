@@ -49,12 +49,12 @@ rules:
       - "^cmd/rhc/main\\.go$"
       - "^internal/rhsm/"
       - "^internal/http/"
-      - "^internal/conf/"
+      - "^internal/config/"
     go_packages:
       - "./cmd/rhc"
       - "./internal/rhsm"
       - "./internal/http"
-      - "./internal/conf"
+      - "./internal/config"
     pytest_files:
       - "integration-tests/test_connect.py"
       - "integration-tests/test_status.py"
