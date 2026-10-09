@@ -18,6 +18,11 @@ $ go build ./cmd/rhc
 See [doc/COLLECTORS.md](doc/COLLECTORS.md) for information on collectors and how to create them.
 Collectors are packaged and shipped by their owning projects (for example, insights-core or Foreman), not by this repository.
 
+## SELinux policy
+
+See [selinux/README.md](selinux/README.md) for the policy development, build,
+installation, relabeling, and AVC verification workflow.
+
 ## Translating
 
 We use [Fedora Weblate](https://translate.fedoraproject.org/engage/rhc/) to manage localization.
