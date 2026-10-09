@@ -50,11 +50,16 @@ type Config struct {
 	Group string
 	// ContentType is used by rhc when it uploads the data archive to Ingress.
 	ContentType string
+	// Service is the systemd service unit name for this collector.
+	Service string
+	// Timer is the systemd timer unit name for this collector.
+	Timer string
 }
 
 // configDto represents the structure of a TOML configuration file for parsing.
 type configDto struct {
 	Meta    *metaDto    `toml:"meta"`
+	Systemd *systemdDto `toml:"systemd"`
 	Ingress *ingressDto `toml:"ingress"`
 }
 
@@ -65,12 +70,22 @@ type metaDto struct {
 	Type    *string `toml:"type"`
 }
 
+// systemdDto represents the systemd section of a TOML configuration file.
+type systemdDto struct {
+	Service string `toml:"service"`
+	Timer   string `toml:"timer"`
+}
+
 // ingressDto represents the ingress section of a TOML configuration file.
 type ingressDto struct {
 	User        *string `toml:"user,omitempty"`
 	Group       *string `toml:"group,omitempty"`
 	ContentType string  `toml:"content_type"`
 }
+
+// unitNameRegex matches a systemd unit name with the given type suffix (.service or .timer).
+// Characters follow systemd.unit(5): ASCII letters, digits, ":", "-", "_", ".", and "\".
+var unitNameRegex = regexp.MustCompile(`^[A-Za-z0-9:_.\\\-]+(@[A-Za-z0-9:_.\\\-]*)?\.(service|timer)$`)
 
 // Timer represents the execution timing information for a collector.
 type Timer struct {
@@ -360,6 +375,16 @@ func newConfig(id string, dto *configDto) (Config, error) {
 		return Config{}, fmt.Errorf("invalid config: meta.type must be '%s'", defaultMetaType)
 	}
 
+	if dto.Systemd == nil {
+		return Config{}, fmt.Errorf("invalid config: systemd section is required")
+	}
+	if err := validateUnitName(dto.Systemd.Service, ".service"); err != nil {
+		return Config{}, fmt.Errorf("invalid config: systemd.service: %w", err)
+	}
+	if err := validateUnitName(dto.Systemd.Timer, ".timer"); err != nil {
+		return Config{}, fmt.Errorf("invalid config: systemd.timer: %w", err)
+	}
+
 	if dto.Ingress == nil {
 		return Config{}, fmt.Errorf("invalid config: ingress section is required")
 	}
@@ -391,28 +416,47 @@ func newConfig(id string, dto *configDto) (Config, error) {
 		User:               user,
 		Group:              group,
 		ContentType:        dto.Ingress.ContentType,
+		Service:            dto.Systemd.Service,
+		Timer:              dto.Systemd.Timer,
 	}, nil
+}
+
+// validateUnitName checks that name is a non-empty systemd unit name with the expected
+// type suffix (.service or .timer), at most 255 characters, per systemd.unit(5).
+func validateUnitName(name, suffix string) error {
+	if name == "" {
+		return fmt.Errorf("is required")
+	}
+	if len(name) > 255 {
+		return fmt.Errorf("exceeds 255 characters")
+	}
+	if !strings.HasSuffix(name, suffix) {
+		return fmt.Errorf("must end with %q", suffix)
+	}
+	if !unitNameRegex.MatchString(name) {
+		return fmt.Errorf("%q is not a valid systemd unit name", name)
+	}
+	return nil
 }
 
 // ValidateCollectorAndConnect validates that the collector exists and systemd is available,
 // then establishes a systemd connection for timer operations.
-// Returns the systemd connection, timer unit name, and any validation errors.
-func ValidateCollectorAndConnect(collectorID string) (*systemd.Conn, string, error) {
+// Returns the systemd connection, the collector config, and any validation errors.
+func ValidateCollectorAndConnect(collectorID string) (*systemd.Conn, Config, error) {
 	if !systemd.IsSystemdAvailable() {
-		return nil, "", fmt.Errorf("automatic execution requires systemd, which is not present in your environment")
+		return nil, Config{}, fmt.Errorf("automatic execution requires systemd, which is not present in your environment")
 	}
 
-	_, err := GetConfig(collectorID)
+	config, err := GetConfig(collectorID)
 	if err != nil {
-		return nil, "", fmt.Errorf("collector %s not found", collectorID)
+		return nil, Config{}, fmt.Errorf("collector %s not found", collectorID)
 	}
 
 	ctxSystemd := context.Background()
 	conn, err := systemd.NewConnectionContext(ctxSystemd, systemd.ConnectionTypeSystem)
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to connect to systemd: %w", err)
+		return nil, Config{}, fmt.Errorf("failed to connect to systemd: %w", err)
 	}
 
-	timerName := fmt.Sprintf("rhc-collector-%s.timer", collectorID)
-	return conn, timerName, nil
+	return conn, config, nil
 }

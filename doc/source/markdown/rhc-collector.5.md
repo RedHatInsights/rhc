@@ -59,6 +59,10 @@ name = "Minimal Host Inventory Collector"
 feature = "analytics"
 type = "ingress"
 
+[systemd]
+service = "rhc-collector-com.redhat.minimal.service"
+timer = "rhc-collector-com.redhat.minimal.timer"
+
 [ingress]
 user = "root"
 group = "root"
@@ -76,6 +80,14 @@ content_type = "application/vnd.redhat.advisor.minimal"
 **meta.type** (required)
 : Must be set to **"ingress"** for data collectors that use the standard upload workflow.
 
+### systemd section
+
+**systemd.service** (required)
+: Name of the systemd service unit that runs this collector (e.g., **"rhc-collector-com.redhat.minimal.service"** or **"insights-core.service"**). Must be a valid systemd unit name ending in **.service**.
+
+**systemd.timer** (required)
+: Name of the systemd timer unit that schedules this collector (e.g., **"rhc-collector-com.redhat.minimal.timer"** or **"insights-core.timer"**). Must be a valid systemd unit name ending in **.timer**.
+
 ### ingress section
 
 **ingress.user** (optional)
@@ -89,13 +101,9 @@ content_type = "application/vnd.redhat.advisor.minimal"
 
 ## systemd units
 
-Each collector must ship a systemd service and timer unit. Unit file names must be prefixed with **rhc-collector-** and use the collector ID as the base name:
-
-- **rhc-collector-**_COLLECTOR_**.service**
-- **rhc-collector-**_COLLECTOR_**.timer**
+Each collector must ship a systemd service and timer unit. Unit names are declared in the collector TOML **[systemd]** section and may use any valid systemd unit name (see **systemd.unit(5)**). A common convention is **rhc-collector-**_COLLECTOR_**.service** / **.timer**, but other names are allowed when a collector shares units across products or RHEL major versions.
 
 The service unit invokes **/usr/libexec/rhc/rhc-collector run** _COLLECTOR_.
-
 # FILES
 
 **/usr/libexec/rhc/rhc-collector**
