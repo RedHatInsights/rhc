@@ -18,13 +18,13 @@ Collectors and the `rhc collector` commands assume the following dependencies:
 
 ## Naming Conventions and Artifact Paths
 
-The collector `ID` is a key used for the config filename, executable name, systemd units, timer cache, and CLI arguments.
+The collector `ID` is a key used for the config filename, executable name, timer cache, and CLI arguments. Systemd unit names are configured separately in the collector TOML.
 
 **Format:** reverse-DNS, lowercase, dot-separated segments. A regex match on `^[a-z0-9]+\.[a-z0-9]+(\.[a-z0-9]+)*$` is used to validate the format.
 
 **Naming convention:** use a vendor prefix (`com.redhat.*`, `com.example.*`) and a descriptive suffix (`minimal`, `advisor`, `compliance`).
 
-**Systemd units:** unit names use the prefix `rhc-collector-{ID}`.
+**Systemd units:** service and timer unit names are mandatory fields in the collector TOML `[systemd]` section. Any valid systemd unit name is accepted (see `systemd.unit(5)`). A common convention is `rhc-collector-{ID}.service` / `.timer`.
 
 ### Valid Collector IDs
 
@@ -50,11 +50,10 @@ Collectors are discovered from fixed paths on the host. Product collectors ship 
 - **Config:** `/usr/lib/rhc/collectors/{ID}.toml`
 - **Executable:** `/usr/libexec/rhc/collectors/{ID}`
 - **Orchestrator:** `/usr/libexec/rhc/rhc-collector`
-- **Service:** `/usr/lib/systemd/system/rhc-collector-{ID}.service`
-- **Timer:** `/usr/lib/systemd/system/rhc-collector-{ID}.timer`
+- **Service / Timer:** paths under `/usr/lib/systemd/system/` matching the names in the TOML `[systemd]` section
 - **Timer cache:** `/var/cache/rhc/collectors/{ID}.json` (generated at runtime)
 
-The collector `ID` must match exactly across every shipped artifact. For collector ID `com.redhat.example`, the filenames and unit names are:
+The collector `ID` must match the config filename and executable name. Systemd unit names come from the TOML. For collector ID `com.redhat.example` with the conventional unit naming:
 
 - **Config:** `/usr/lib/rhc/collectors/com.redhat.example.toml`
 - **Executable:** `/usr/libexec/rhc/collectors/com.redhat.example`
@@ -74,13 +73,17 @@ name = "Example collector name"                             # required
 type = "ingress"                                            # required; "ingress" is supported
 feature = "analytics"                                       # optional; "analytics" is supported
 
+[systemd]
+service = "rhc-collector-com.redhat.example.service"        # required; any valid systemd unit name
+timer = "rhc-collector-com.redhat.example.timer"            # required; any valid systemd unit name
+
 [ingress]
 user = "root"                                               # optional; "root" as default
 group = "root"                                              # optional; "root" as default
 content_type = "application/vnd.redhat.example.collection"  # required
 ```
 
-Note: `ingress.content_type` must be coordinated with the Ingress/backend owners as it identifies the payload type on upload.
+Note: `ingress.content_type` must be coordinated with the Ingress/backend owners as it identifies the payload type on upload. Missing or invalid `[systemd]` keys cause the collector config to be ignored, the same as any other TOML validation error.
 
 ## Collector Executable
 
@@ -185,7 +188,7 @@ Include the following in the unit files:
 - `ExecStart` in the service unit to pass your collector ID to `rhc-collector run`
 - `OnCalendar` and `RandomizedDelaySec` in the timer as needed.
 
-The timer does not reference the collector executable directly. Systemd starts the paired service by name (`rhc-collector-{ID}.timer` activates `rhc-collector-{ID}.service`), the service invokes `rhc-collector run {ID}`, which in turn runs `/usr/libexec/rhc/collectors/{ID} collect`.
+The timer does not reference the collector executable directly. Systemd starts the paired service by name (as declared in the TOML `[systemd]` section), the service invokes `rhc-collector run {ID}`, which in turn runs `/usr/libexec/rhc/collectors/{ID} collect`.
 
 Use the `com.redhat.minimal` entries in `rhc.spec` and `data/systemd/` as a reference for install paths and `%systemd_post` / `%systemd_preun` / `%systemd_postun` packaging macros.
 

@@ -34,6 +34,10 @@ func TestNewConfig(t *testing.T) {
 					Feature: stringPtr("analytics"),
 					Type:    stringPtr("ingress"),
 				},
+				Systemd: &systemdDto{
+					Service: "rhc-collector-test.valid.config.service",
+					Timer:   "rhc-collector-test.valid.config.timer",
+				},
 				Ingress: &ingressDto{
 					User:        stringPtr("root"),
 					Group:       stringPtr("root"),
@@ -48,6 +52,38 @@ func TestNewConfig(t *testing.T) {
 				User:               "root",
 				Group:              "root",
 				ContentType:        "application/vnd.redhat.advisor.collection",
+				Service:            "rhc-collector-test.valid.config.service",
+				Timer:              "rhc-collector-test.valid.config.timer",
+			},
+		},
+		{
+			description: "custom systemd unit names",
+			input: &configDto{
+				Meta: &metaDto{
+					Name:    "Test custom units",
+					Feature: stringPtr("analytics"),
+					Type:    stringPtr("ingress"),
+				},
+				Systemd: &systemdDto{
+					Service: "insights-core.service",
+					Timer:   "insights-core.timer",
+				},
+				Ingress: &ingressDto{
+					User:        stringPtr("root"),
+					Group:       stringPtr("root"),
+					ContentType: "application/vnd.redhat.advisor.collection",
+				},
+			},
+			id: "test.custom.units",
+			want: Config{
+				ID:                 "test.custom.units",
+				Name:               "Test custom units",
+				IsAnalyticsFeature: true,
+				User:               "root",
+				Group:              "root",
+				ContentType:        "application/vnd.redhat.advisor.collection",
+				Service:            "insights-core.service",
+				Timer:              "insights-core.timer",
 			},
 		},
 		{
@@ -57,6 +93,10 @@ func TestNewConfig(t *testing.T) {
 					Name:    "Test no user defined",
 					Feature: stringPtr("analytics"),
 					Type:    stringPtr("ingress"),
+				},
+				Systemd: &systemdDto{
+					Service: "rhc-collector-test.no.user.defined.service",
+					Timer:   "rhc-collector-test.no.user.defined.timer",
 				},
 				Ingress: &ingressDto{
 					Group:       stringPtr("root"),
@@ -71,6 +111,8 @@ func TestNewConfig(t *testing.T) {
 				User:               "root",
 				Group:              "root",
 				ContentType:        "application/vnd.redhat.advisor.collection",
+				Service:            "rhc-collector-test.no.user.defined.service",
+				Timer:              "rhc-collector-test.no.user.defined.timer",
 			},
 		},
 		{
@@ -80,6 +122,10 @@ func TestNewConfig(t *testing.T) {
 					Name:    "Test no group defined",
 					Feature: stringPtr("analytics"),
 					Type:    stringPtr("ingress"),
+				},
+				Systemd: &systemdDto{
+					Service: "rhc-collector-test.no.group.defined.service",
+					Timer:   "rhc-collector-test.no.group.defined.timer",
 				},
 				Ingress: &ingressDto{
 					User:        stringPtr("root"),
@@ -94,6 +140,8 @@ func TestNewConfig(t *testing.T) {
 				User:               "root",
 				Group:              "root",
 				ContentType:        "application/vnd.redhat.advisor.collection",
+				Service:            "rhc-collector-test.no.group.defined.service",
+				Timer:              "rhc-collector-test.no.group.defined.timer",
 			},
 		},
 		{
@@ -103,6 +151,10 @@ func TestNewConfig(t *testing.T) {
 					Name:    "Test nil feature",
 					Feature: nil,
 					Type:    stringPtr("ingress"),
+				},
+				Systemd: &systemdDto{
+					Service: "rhc-collector-test.nil.feature.service",
+					Timer:   "rhc-collector-test.nil.feature.timer",
 				},
 				Ingress: &ingressDto{
 					User:        stringPtr("root"),
@@ -118,6 +170,8 @@ func TestNewConfig(t *testing.T) {
 				User:               "root",
 				Group:              "root",
 				ContentType:        "application/vnd.redhat.advisor.collection",
+				Service:            "rhc-collector-test.nil.feature.service",
+				Timer:              "rhc-collector-test.nil.feature.timer",
 			},
 		},
 		{
@@ -127,6 +181,10 @@ func TestNewConfig(t *testing.T) {
 					Name:    "Test non-analytics feature",
 					Feature: stringPtr("monitoring"),
 					Type:    stringPtr("ingress"),
+				},
+				Systemd: &systemdDto{
+					Service: "rhc-collector-test.non.analytics.feature.service",
+					Timer:   "rhc-collector-test.non.analytics.feature.timer",
 				},
 				Ingress: &ingressDto{
 					User:        stringPtr("root"),
@@ -142,6 +200,8 @@ func TestNewConfig(t *testing.T) {
 				User:               "root",
 				Group:              "root",
 				ContentType:        "application/vnd.redhat.advisor.collection",
+				Service:            "rhc-collector-test.non.analytics.feature.service",
+				Timer:              "rhc-collector-test.non.analytics.feature.timer",
 			},
 		},
 		{
@@ -196,12 +256,94 @@ func TestNewConfig(t *testing.T) {
 			wantError: "invalid config: meta.type must be 'ingress'",
 		},
 		{
+			description: "missing systemd section",
+			input: &configDto{
+				Meta: &metaDto{
+					Name:    "Test missing systemd section",
+					Feature: stringPtr("analytics"),
+					Type:    stringPtr("ingress"),
+				},
+				Ingress: &ingressDto{
+					User:        stringPtr("root"),
+					Group:       stringPtr("root"),
+					ContentType: "application/vnd.redhat.advisor.collection",
+				},
+			},
+			id:        "test.missing.systemd",
+			wantError: "invalid config: systemd section is required",
+		},
+		{
+			description: "missing systemd service",
+			input: &configDto{
+				Meta: &metaDto{
+					Name:    "Test missing systemd service",
+					Feature: stringPtr("analytics"),
+					Type:    stringPtr("ingress"),
+				},
+				Systemd: &systemdDto{
+					Timer: "rhc-collector-test.missing.systemd.service.timer",
+				},
+				Ingress: &ingressDto{
+					User:        stringPtr("root"),
+					Group:       stringPtr("root"),
+					ContentType: "application/vnd.redhat.advisor.collection",
+				},
+			},
+			id:        "test.missing.systemd.service",
+			wantError: "invalid config: systemd.service: is required",
+		},
+		{
+			description: "missing systemd timer",
+			input: &configDto{
+				Meta: &metaDto{
+					Name:    "Test missing systemd timer",
+					Feature: stringPtr("analytics"),
+					Type:    stringPtr("ingress"),
+				},
+				Systemd: &systemdDto{
+					Service: "rhc-collector-test.missing.systemd.timer.service",
+				},
+				Ingress: &ingressDto{
+					User:        stringPtr("root"),
+					Group:       stringPtr("root"),
+					ContentType: "application/vnd.redhat.advisor.collection",
+				},
+			},
+			id:        "test.missing.systemd.timer",
+			wantError: "invalid config: systemd.timer: is required",
+		},
+		{
+			description: "invalid systemd service suffix",
+			input: &configDto{
+				Meta: &metaDto{
+					Name:    "Test invalid systemd service suffix",
+					Feature: stringPtr("analytics"),
+					Type:    stringPtr("ingress"),
+				},
+				Systemd: &systemdDto{
+					Service: "insights-core.timer",
+					Timer:   "insights-core.timer",
+				},
+				Ingress: &ingressDto{
+					User:        stringPtr("root"),
+					Group:       stringPtr("root"),
+					ContentType: "application/vnd.redhat.advisor.collection",
+				},
+			},
+			id:        "test.invalid.systemd.service.suffix",
+			wantError: "invalid config: systemd.service: must end with \".service\"",
+		},
+		{
 			description: "missing ingress section",
 			input: &configDto{
 				Meta: &metaDto{
 					Name:    "Test missing ingress section",
 					Feature: stringPtr("analytics"),
 					Type:    stringPtr("ingress"),
+				},
+				Systemd: &systemdDto{
+					Service: "rhc-collector-test.missing.ingress.service",
+					Timer:   "rhc-collector-test.missing.ingress.timer",
 				},
 			},
 			id:        "test.missing.ingress",
@@ -214,6 +356,10 @@ func TestNewConfig(t *testing.T) {
 					Name:    "Test missing ingress content_type",
 					Feature: stringPtr("analytics"),
 					Type:    stringPtr("ingress"),
+				},
+				Systemd: &systemdDto{
+					Service: "rhc-collector-test.missing.ingress.content_type.service",
+					Timer:   "rhc-collector-test.missing.ingress.content_type.timer",
 				},
 				Ingress: &ingressDto{
 					User:  stringPtr("root"),
@@ -261,6 +407,10 @@ func TestParseConfigFromContent(t *testing.T) {
   feature = "analytics"
   type = "ingress"
 
+  [systemd]
+  service = "rhc-collector-test.config.service"
+  timer = "rhc-collector-test.config.timer"
+
   [ingress]
   user = "root"
   group = "root"
@@ -274,6 +424,8 @@ func TestParseConfigFromContent(t *testing.T) {
 				User:               "root",
 				Group:              "root",
 				ContentType:        "application/test",
+				Service:            "rhc-collector-test.config.service",
+				Timer:              "rhc-collector-test.config.timer",
 			},
 		},
 		{

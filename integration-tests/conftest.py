@@ -163,6 +163,10 @@ def collector_config_no_timer(writable_collector_dirs):
         feature = "analytics"
         type = "ingress"
 
+        [systemd]
+        service = "rhc-collector-test.integration.collector.service"
+        timer = "rhc-collector-test.integration.collector.timer"
+
         [ingress]
         user = "root"
         group = "root"
@@ -201,6 +205,10 @@ def collector_minimal(writable_collector_dirs):
         name = "Test Minimal Collector"
         feature = "analytics"
         type = "ingress"
+
+        [systemd]
+        service = "rhc-collector-test.collector1.service"
+        timer = "rhc-collector-test.collector1.timer"
 
         [ingress]
         user = "root"
