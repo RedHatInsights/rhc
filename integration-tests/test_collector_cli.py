@@ -379,12 +379,6 @@ def test_collector_cli_list(rhc):
 
 
 @pytest.mark.tier2
-@pytest.mark.skip(
-    reason=(
-        "Known issue: JSON output does not match human-readable output, "
-        "tracked by RHEL-217910."
-    )
-)
 def test_collector_cli_list_format_json(rhc):
     """
     :id: 2b3c4d5e-6f70-8901-bcde-f12345678901
@@ -484,12 +478,6 @@ def test_collector_cli_info(rhc, minimal_collector_timer_cache):
 
 
 @pytest.mark.tier2
-@pytest.mark.skip(
-    reason=(
-        "Known issue: JSON output does not match human-readable output, "
-        "tracked by RHEL-217910."
-    )
-)
 def test_collector_cli_info_format_json(rhc, minimal_collector_with_timing):
     """
     :id: 5e6f7081-9203-1234-ef01-345678901234
@@ -690,12 +678,6 @@ def test_collector_cli_timers(rhc):
 
 
 @pytest.mark.tier2
-@pytest.mark.skip(
-    reason=(
-        "Known issue: JSON output does not match human-readable output, "
-        "tracked by RHEL-217910."
-    )
-)
 def test_collector_cli_timers_format_json(rhc, minimal_collector_with_timing):
     """
     :id: b4c5d6e7-f869-7890-4567-901234567890
@@ -723,7 +705,10 @@ def test_collector_cli_timers_format_json(rhc, minimal_collector_with_timing):
     )
     assert collector is not None, f"Collector {MINIMAL_COLLECTOR_ID} not found"
 
-    assert "next_run" in collector
+    assert set(collector) == {"id", "last_run", "next_run"}, (
+        f"timers --format json should only expose id/last_run/next_run, "
+        f"not the full collector payload, got: {collector}"
+    )
     assert isinstance(collector["next_run"], int)
     assert collector["next_run"] > 0
     assert collector["id"] == MINIMAL_COLLECTOR_ID
