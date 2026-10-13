@@ -9,13 +9,12 @@ import (
 
 	"github.com/urfave/cli/v3"
 
-	"github.com/redhatinsights/rhc/internal/conf"
 	"github.com/redhatinsights/rhc/pkg/exitcode"
 )
 
 // showTimeDuration shows a table with the duration of each sub-action
 func showTimeDuration(durations map[string]time.Duration) {
-	if conf.Config.LogLevel <= slog.LevelDebug {
+	if conf.LogLevel <= slog.LevelDebug {
 		fmt.Println()
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 		_, _ = fmt.Fprintln(w, "STEP\tDURATION\t")
