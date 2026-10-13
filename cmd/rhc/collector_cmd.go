@@ -166,29 +166,28 @@ func collectorEnableAction(ctx context.Context, cmd *cli.Command) error {
 	logCommandStart(cmd)
 	collectorId := cmd.Args().First()
 	nowFlag := cmd.Bool("now")
-	conn, timerName, err := collector.ValidateCollectorAndConnect(collectorId)
+	conn, config, err := collector.ValidateCollectorAndConnect(collectorId)
 	if err != nil {
 		return cli.Exit(fmt.Sprintf("%v", err), exitcode.Err)
 	}
 	defer conn.Close()
 
-	err = conn.EnableUnit(timerName, true, false)
+	err = conn.EnableUnit(config.Timer, true, false)
 	if err != nil {
 		if strings.Contains(fmt.Sprintf("%v", err), "does not exist") {
-			return cli.Exit(fmt.Sprintf("timer unit %s does not exist, collector systemd units need to be installed first", timerName), exitcode.OSFile)
+			return cli.Exit(fmt.Sprintf("timer unit %s does not exist, collector systemd units need to be installed first", config.Timer), exitcode.OSFile)
 		}
-		return cli.Exit(fmt.Sprintf("failed to enable timer %s: %v", timerName, err), exitcode.OSFile)
+		return cli.Exit(fmt.Sprintf("failed to enable timer %s: %v", config.Timer, err), exitcode.OSFile)
 	}
 
 	if nowFlag {
-		serviceName := strings.Replace(timerName, ".timer", ".service", 1)
-		err = conn.StartUnit(serviceName, false)
+		err = conn.StartUnit(config.Service, false)
 		if err != nil {
-			return cli.Exit(fmt.Sprintf("failed to start service %s: %v", serviceName, err), exitcode.OSFile)
+			return cli.Exit(fmt.Sprintf("failed to start service %s: %v", config.Service, err), exitcode.OSFile)
 		}
-		printf("Enabled timer %s and triggered immediate collection.\n", timerName)
+		printf("Enabled timer %s and triggered immediate collection.\n", config.Timer)
 	} else {
-		printf("Enabled timer %s.\n", timerName)
+		printf("Enabled timer %s.\n", config.Timer)
 	}
 	return nil
 }
@@ -203,32 +202,31 @@ func collectorDisableAction(ctx context.Context, cmd *cli.Command) error {
 	logCommandStart(cmd)
 	collectorId := cmd.Args().First()
 	nowFlag := cmd.Bool("now")
-	conn, timerName, err := collector.ValidateCollectorAndConnect(collectorId)
+	conn, config, err := collector.ValidateCollectorAndConnect(collectorId)
 	if err != nil {
 		return cli.Exit(fmt.Sprintf("%v", err), exitcode.Err)
 	}
 	defer conn.Close()
 
 	if nowFlag {
-		serviceName := strings.Replace(timerName, ".timer", ".service", 1)
-		err = conn.StopUnit(serviceName, false)
+		err = conn.StopUnit(config.Service, false)
 		if err != nil {
-			return cli.Exit(fmt.Sprintf("failed to stop service %s: %v", serviceName, err), exitcode.OSFile)
+			return cli.Exit(fmt.Sprintf("failed to stop service %s: %v", config.Service, err), exitcode.OSFile)
 		}
 	}
 
-	err = conn.DisableUnit(timerName, true, false)
+	err = conn.DisableUnit(config.Timer, true, false)
 	if err != nil {
 		if strings.Contains(fmt.Sprintf("%v", err), "does not exist") {
-			return cli.Exit(fmt.Sprintf("timer unit %s does not exist. Collector systemd units need to be installed first.", timerName), exitcode.OSFile)
+			return cli.Exit(fmt.Sprintf("timer unit %s does not exist. Collector systemd units need to be installed first.", config.Timer), exitcode.OSFile)
 		}
-		return cli.Exit(fmt.Sprintf("failed to disable timer %s: %v", timerName, err), exitcode.OSFile)
+		return cli.Exit(fmt.Sprintf("failed to disable timer %s: %v", config.Timer, err), exitcode.OSFile)
 	}
 
 	if nowFlag {
-		printf("Disabled timer %s and stopped collection immediately.\n", timerName)
+		printf("Disabled timer %s and stopped collection immediately.\n", config.Timer)
 	} else {
-		printf("Disabled timer %s.\n", timerName)
+		printf("Disabled timer %s.\n", config.Timer)
 	}
 	return nil
 }

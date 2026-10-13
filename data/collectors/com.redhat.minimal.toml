@@ -3,6 +3,10 @@ name = "Minimal Host Inventory Collector"
 feature = "analytics"
 type = "ingress"
 
+[systemd]
+service = "rhc-collector-com.redhat.minimal.service"
+timer = "rhc-collector-com.redhat.minimal.timer"
+
 [ingress]
 user = "root"
 group = "root"

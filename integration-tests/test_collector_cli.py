@@ -636,7 +636,7 @@ def test_collector_cli_enable_nonexistent_id(rhc):
     """
     result = rhc.run("collector", "enable", "nonexistent.collector.id", check=False)
     assert result.returncode != 0
-    assert "collector nonexistent.collector.id not found" in result.stderr
+    assert "collector nonexistent.collector.id:" in result.stderr
 
 
 @pytest.mark.tier2
@@ -656,7 +656,7 @@ def test_collector_cli_enable_invalid_id(rhc):
     """
     result = rhc.run("collector", "enable", "invalid-collector-id", check=False)
     assert result.returncode != 0
-    assert "collector invalid-collector-id not found" in result.stderr
+    assert "collector invalid-collector-id:" in result.stderr
 
 
 @pytest.mark.tier2

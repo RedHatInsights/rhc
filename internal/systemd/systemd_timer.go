@@ -143,9 +143,18 @@ func parseTimer(input string) (TimerInfo, error) {
 	return timerInfo, nil
 }
 
+// unitNameRegex matches a systemd unit name ending in .service or .timer.
+// Characters follow systemd.unit(5): ASCII letters, digits, ":", "-", "_", ".", and "\".
+var unitNameRegex = regexp.MustCompile(`^[A-Za-z0-9:_.\\\-]+(@[A-Za-z0-9:_.\\\-]*)?\.(service|timer)$`)
+
+// IsValidUnitName reports whether name is a valid systemd unit name with a
+// .service or .timer suffix, per systemd.unit(5).
+func IsValidUnitName(name string) bool {
+	return unitNameRegex.MatchString(name)
+}
+
 // isValidTimerName validates whether a given string matches the systemd timer naming pattern.
 // Returns true if the name is valid, false otherwise.
 func isValidTimerName(name string) bool {
-	timerNameRegex := regexp.MustCompile(`^[A-Za-z0-9:_.\\\-]+(@[A-Za-z0-9:_.\\\-]*)?\.timer$`)
-	return timerNameRegex.MatchString(name)
+	return strings.HasSuffix(name, ".timer") && IsValidUnitName(name)
 }
