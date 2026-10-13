@@ -14,6 +14,7 @@ import time
 
 import pytest
 
+from conftest import is_bootc_system
 from utils import prepare_args_for_connect, poll_until
 from utils.selinux import is_selinux_disabled, label_type
 from utils.systemctl import is_unit_active, is_unit_enabled
@@ -873,6 +874,7 @@ def test_minimal_collector_unregistered(rhc):
 
 
 @pytest.mark.tier1
+@pytest.mark.skipif(is_bootc_system(), reason="/usr is not writable on bootc systems")
 def test_minimal_collector_executable_failure(failing_minimal_collector_executable):
     """
     :id: 9d2f5b3c-0e41-5f91-c2b7-1a3d9e6f6b22
@@ -918,6 +920,7 @@ def test_minimal_collector_executable_failure(failing_minimal_collector_executab
 
 
 @pytest.mark.tier1
+@pytest.mark.skipif(is_bootc_system(), reason="/usr is not writable on bootc systems")
 def test_minimal_collector_missing_executable(missing_minimal_collector_executable):
     """
     :id: 8d2f5b3c-0e41-5f91-c2b7-1a3d9e6f6b22
