@@ -1,7 +1,9 @@
 .ONESHELL:
 .SHELLFLAGS := -e -c
 
+ifneq ($(origin VERSION),command line)
 VERSION := $(shell rpmspec rhc.spec --query --srpm --queryformat '%{version}')
+endif
 LDFLAGS := -ldflags "-X github.com/redhatinsights/rhc/pkg/version.Version=$(VERSION)"
 GO_BUILD := go build $(LDFLAGS)
 RPMBUILD_CHECK_OPTION := $(if $(filter 1,$(NOCHECK)),--without check)
