@@ -33,6 +33,18 @@ We use [Fedora Weblate](https://translate.fedoraproject.org/engage/rhc/) to mana
 
 ## Packaging
 
+To open a version bump PR, run [Prepare upstream release](.github/workflows/prepare-release.yml)
+from **Actions**. Enter the new version, the branch to update, and the owning
+team's Jira card. It updates the version in `rhc.spec` and `meson.build` and
+opens a PR with a signed commit. Review and merge it manually.
+
+Enable **Allow GitHub Actions to create and approve pull requests** in
+**Settings > Actions > General**. No extra secret is needed. Running the same
+version again before merging updates its existing PR.
+
+To test before merging, push the changes to your fork (your GitHub copy), make
+that branch the fork's default branch, and run the workflow there.
+
 ```shell
 $ sudo dnf install go-vendor-tools
 $ # Create source code and vendor tarballs

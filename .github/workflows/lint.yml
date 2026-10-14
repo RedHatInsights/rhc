@@ -48,6 +48,14 @@ jobs:
         run: sudo apt install shellcheck
       - name: Check shell bash scripts
         run: shellcheck ./data/completion/rhc.bash
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Check release PR Python script
+        run: |
+          python3 -m pip install pyflakes
+          python3 -m pyflakes .github/workflows/prepare-release/*.py
   lint-language:
     name: Lint language
     runs-on: ubuntu-latest
