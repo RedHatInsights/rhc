@@ -102,3 +102,8 @@ def install_katello_rpm(test_config):
             logger.info("Successfully removed katello rpm")
         except subprocess.CalledProcessError as e:
             logger.warning(f"Failed to remove katello rpm: {e}")
+
+@pytest.fixture(autouse=True)
+def check_avcs():
+    """This branch does not ship rhc-selinux. Do not fail tests on AVC denials."""
+    yield
