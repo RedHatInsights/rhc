@@ -33,6 +33,13 @@ BuildRequires: systemd
 rhc is a client that registers a system with RHSM and activates the Red Hat yggd
 MQTT client.
 
+%package tests
+Summary: Tests for rhc
+
+%description tests
+Tests for rhc integration testing. Note that those tests have their own dependencies that are not in form of RPM
+dependency as those tests depend on content available in pip.
+
 
 %prep
 %setup -T -D -c -n %{name} -a 0
@@ -106,6 +113,17 @@ make PREFIX=%{_prefix} \
      'PROVIDER=@PROVIDER@' \
      install
 
+# Tests
+install -m 0755 -vd %{buildroot}%{_libexecdir}/%{name}
+install -m 0755 -vd %{buildroot}%{_libexecdir}/%{name}/systemtest/
+install -m 0755 -vp systemtest/tests/integration/test.sh %{buildroot}%{_libexecdir}/%{name}/systemtest/
+#install -m 0755 -vd %{buildroot}%{_datadir}/%{name}/systemtest/
+install -m 0755 -vd %{buildroot}%{_datadir}/%{name}/
+install -m 0644 -vp pytest.ini %{buildroot}%{_datadir}/%{name}/
+cp -rva systemtest %{buildroot}%{_datadir}/%{name}/systemtest
+cp -rva integration-tests %{buildroot}%{_datadir}/%{name}/integration-tests
+
+
 %files
 %doc %{name}-%{version}/README.md
 %{_bindir}/@SHORTNAME@
@@ -118,5 +136,11 @@ make PREFIX=%{_prefix} \
 %{_prefix}/share/pkgconfig/@LONGNAME@.pc
 %{_libexecdir}/@LONGNAME@
 
+
+%files tests
+%{_libexecdir}/%{name}/systemtest
+%{_datadir}/%{name}/pytest.ini
+%{_datadir}/%{name}/systemtest
+%{_datadir}/%{name}/integration-tests
 
 %changelog
