@@ -20,7 +20,13 @@ Source2: https://github.com/RedHatInsights/yggdrasil-worker-package-manager/rele
 
 ExclusiveArch: %{go_arches}
 
-Requires:      insights-client
+%if 0%{?rhel} && 0%{?rhel} == 8
+Requires:    insights-client
+%else
+Recommends: insights-client
+%endif
+
+Requires:    subscription-manager
 
 BuildRequires: git
 BuildRequires: golang
