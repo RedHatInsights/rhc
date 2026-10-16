@@ -20,7 +20,9 @@ Source2: https://github.com/RedHatInsights/yggdrasil-worker-package-manager/rele
 
 ExclusiveArch: %{go_arches}
 
-Requires:      insights-client
+Recommends:    insights-client
+
+Requires:      subscription-manager
 
 BuildRequires: git
 BuildRequires: golang
