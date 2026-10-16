@@ -104,11 +104,11 @@ func collectorListAction(ctx context.Context, cmd *cli.Command) error {
 	}
 
 	if isOutputMachineReadable() {
-		if len(response.Collectors) == 0 {
-			fmt.Println("[]")
-			return nil
+		collectorEntries := make([]collectorListJSON, 0, len(response.Collectors))
+		for _, info := range response.Collectors {
+			collectorEntries = append(collectorEntries, collectorListJSON{Id: info.Id, Name: info.Name})
 		}
-		jsonData, err := json.Marshal(response.Collectors)
+		jsonData, err := json.Marshal(collectorEntries)
 		if err != nil {
 			return cli.Exit(fmt.Sprintf("failed to marshal collectors: %v", err), exitcode.Err)
 		}

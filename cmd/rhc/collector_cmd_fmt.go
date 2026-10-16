@@ -11,6 +11,35 @@ import (
 
 const timeFormat = "Mon 2006-01-02 15:04 MST"
 
+// collectorListJSON is the JSON representation of a single collector entry
+// in "rhc collector list --format json" output.
+type collectorListJSON struct {
+	Id   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// collectorTimersJSON is the JSON representation of a single collector
+// entry in "rhc collector timers --format json" output.
+type collectorTimersJSON struct {
+	Id      string `json:"id"`
+	LastRun *int   `json:"last_run,omitempty"`
+	NextRun *int   `json:"next_run,omitempty"`
+}
+
+// collectorInfoJSON is the JSON representation of "rhc collector info
+// --format json" output. It omits "id": the ID is already the CLI argument
+// the caller supplied, and it is not shown in the human-readable output
+// either.
+type collectorInfoJSON struct {
+	Name        string  `json:"name"`
+	Feature     *string `json:"feature,omitempty"`
+	LastRun     *int    `json:"last_run,omitempty"`
+	NextRun     *int    `json:"next_run,omitempty"`
+	ConfigPath  string  `json:"config_path"`
+	ServiceName string  `json:"service_name"`
+	TimerName   string  `json:"timer_name"`
+}
+
 // formatRelativeTime converts a duration into a human-readable relative time string.
 func formatRelativeTime(d time.Duration) string {
 	if d < 0 {
@@ -42,10 +71,6 @@ func formatRelativeTime(d time.Duration) string {
 
 // printMachineReadable marshals data to JSON and prints it to stdout.
 func printMachineReadable(data interface{}) {
-	if slice, ok := data.([]*collectorapi.CollectorInfo); ok && len(slice) == 0 {
-		fmt.Println("[]")
-		return
-	}
 	jsonData, err := json.Marshal(data)
 	if err != nil {
 		slog.Error("Failed to marshal data to JSON", "error", err)
@@ -59,7 +84,15 @@ func printMachineReadable(data interface{}) {
 // For machine-readable output, it returns JSON.
 func printCollectorInfo(info *collectorapi.CollectorInfo) {
 	if isOutputMachineReadable() {
-		printMachineReadable(info)
+		printMachineReadable(collectorInfoJSON{
+			Name:        info.Name,
+			Feature:     info.Feature,
+			LastRun:     info.LastRun,
+			NextRun:     info.NextRun,
+			ConfigPath:  info.ConfigPath,
+			ServiceName: info.ServiceName,
+			TimerName:   info.TimerName,
+		})
 		return
 	}
 
@@ -95,7 +128,15 @@ func printCollectorInfo(info *collectorapi.CollectorInfo) {
 // For human-readable output, it prints a table.
 func printCollectorTimers(infos []*collectorapi.CollectorInfo) {
 	if isOutputMachineReadable() {
-		printMachineReadable(infos)
+		collectorEntries := make([]collectorTimersJSON, 0, len(infos))
+		for _, info := range infos {
+			collectorEntries = append(collectorEntries, collectorTimersJSON{
+				Id:      info.Id,
+				LastRun: info.LastRun,
+				NextRun: info.NextRun,
+			})
+		}
+		printMachineReadable(collectorEntries)
 		return
 	}
 
