@@ -1,0 +1,69 @@
+name: Prepare upstream release
+run-name: Prepare rhc-v${{ inputs.release_version }} by @${{ github.actor }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: "New version (X.Y.Z)"
+        required: true
+        type: string
+      base_branch:
+        description: "Branch to release"
+        required: true
+        default: "main"
+        type: string
+      jira_issue:
+        description: "Release Jira card (CCT-1234 or RHEL-1234)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout workflow helper
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+
+      - name: Checkout release branch
+        uses: actions/checkout@v7
+        with:
+          ref: refs/heads/${{ inputs.base_branch }}
+          path: source
+          persist-credentials: false
+
+      - name: Update release version
+        working-directory: source
+        env:
+          RELEASE_VERSION: ${{ inputs.release_version }}
+          JIRA_ISSUE: ${{ inputs.jira_issue }}
+        run: python3 ../.github/workflows/prepare-release/bump-version.py
+
+      - name: Open version bump PR
+        uses: peter-evans/create-pull-request@v8
+        with:
+          path: source
+          base: ${{ inputs.base_branch }}
+          branch: release-v${{ inputs.release_version }}
+          sign-commits: true
+          add-paths: |
+            rhc.spec
+            meson.build
+          commit-message: |
+            chore: Release rhc-v${{ inputs.release_version }}
+
+            * Card ID: ${{ inputs.jira_issue }}
+          title: "chore: Release rhc-v${{ inputs.release_version }}"
+          body: |
+            Update the version in rhc.spec and meson.build.
+
+            * Card ID: ${{ inputs.jira_issue }}
+
+            Review and merge this PR manually.
