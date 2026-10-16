@@ -62,13 +62,13 @@ else
   dnf --setopt install_weak_deps=False install -y \
     podman git-core python3-pip python3-pytest logrotate
 
-  if [[ "${ID}" = "fedora" ]]; then
-    # Do not try to install insights-client on Fedora, because it cannot be installed there.
-    # Try to only mock insights-client to be able to test behavior of rhc on Fedora.
+  if [[ "${ID}" = "centos" ]]; then
+    # Do not try to install insights-client on CentOS Stream 9, because it cannot be installed there.
+    # Try to only mock insights-client to be able to test behavior of rhc on CentOS Stream 9.
     mock_insights_client
   else
-    # Try to install insights-client on other Linux distributions
-    dnf --setopt install_weak_deps=False install -y insights-client
+    # Try to install insights-client on RHEL as a weak dependency
+    dnf --setopt install_weak_deps=True install -y insights-client
   fi
 
   # TEST_RPMS is set in jenkins jobs after parsing CI Messages in gating Jobs.
