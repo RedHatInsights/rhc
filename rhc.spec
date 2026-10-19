@@ -199,8 +199,20 @@ fi
 %if 0%{?with_rhcd_compat}
 # rhcd_t is the SELinux type used by the old rhcd daemon. Add it to the
 # permissive list so existing policies do not block yggdrasil on upgrade.
-if [ -d /var/lib/selinux/targeted ]; then
-	/usr/sbin/semanage permissive --add rhcd_t || true
+# Honor store-root from semanage.conf: image-mode (bootc) uses /etc/selinux
+# because /var/lib/selinux is absent at build time (RHEL-259013). Skip when
+# no store exists so container installs stay silent (RHEL-138412).
+store_root=/var/lib/selinux
+if [ -f /etc/selinux/semanage.conf ]; then
+	configured=$(sed -n 's/^[[:space:]]*store-root[[:space:]]*=[[:space:]]*\([^[:space:]#]*\).*/\1/p' /etc/selinux/semanage.conf | tail -1)
+	[ -n "$configured" ] && store_root=$configured
+fi
+if [ -d "$store_root/targeted/active" ]; then
+	if [ -d /run/systemd/system ]; then
+		/usr/sbin/semanage permissive --add rhcd_t || true
+	else
+		/usr/sbin/semanage permissive --noreload --add rhcd_t || true
+	fi
 fi
 
 # Complete the config migration started in %pre: transform the backed-up
@@ -225,8 +237,17 @@ fi
 %if 0%{?with_rhcd_compat}
 # Remove rhcd_t from the SELinux permissive list on full package removal.
 if [ $1 -eq 0 ]; then
-	if [ -d /var/lib/selinux/targeted ]; then
-		/usr/sbin/semanage permissive --delete rhcd_t || true
+	store_root=/var/lib/selinux
+	if [ -f /etc/selinux/semanage.conf ]; then
+		configured=$(sed -n 's/^[[:space:]]*store-root[[:space:]]*=[[:space:]]*\([^[:space:]#]*\).*/\1/p' /etc/selinux/semanage.conf | tail -1)
+		[ -n "$configured" ] && store_root=$configured
+	fi
+	if [ -d "$store_root/targeted/active" ]; then
+		if [ -d /run/systemd/system ]; then
+			/usr/sbin/semanage permissive --delete rhcd_t || true
+		else
+			/usr/sbin/semanage permissive --noreload --delete rhcd_t || true
+		fi
 	fi
 fi
 %endif
