@@ -1,0 +1,73 @@
+name: "Release 1: Create branch"
+run-name: "Release 1: rhc-v${{ inputs.release_version }}"
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: "New version (X.Y.Z)"
+        required: true
+        type: string
+      base_branch:
+        description: "Branch to release"
+        required: true
+        default: "main"
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  create-branch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout base branch
+        uses: actions/checkout@v7
+        with:
+          ref: refs/heads/${{ inputs.base_branch }}
+          persist-credentials: true # Required for git push.
+
+      - name: Create signed release branch
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ inputs.release_version }}
+        run: |
+          if [[ ! $RELEASE_VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Version must be X.Y.Z, got '$RELEASE_VERSION'." >&2
+            exit 1
+          fi
+          sed -i -E "/^Version:/ s/[0-9]+\.[0-9]+\.[0-9]+/$RELEASE_VERSION/" rhc.spec
+          sed -i -E "/^project\(/ s/( version : ')[^']+/\1$RELEASE_VERSION/" meson.build
+          if [[ $(awk '/^Version:/ {print $2}' rhc.spec) != "$RELEASE_VERSION" ]] ||
+            ! grep -Fq " version : '$RELEASE_VERSION'" meson.build; then
+            echo "Failed to set version $RELEASE_VERSION in rhc.spec and meson.build." >&2
+            exit 1
+          fi
+          branch="release-v$RELEASE_VERSION"
+          sha=$(git rev-parse HEAD)
+          # Replace any existing release branch with the selected base.
+          git push --force origin "HEAD:refs/heads/$branch"
+          jq -n --arg repo "$GITHUB_REPOSITORY" --arg branch "$branch" \
+            --arg sha "$sha" --arg message "chore: Release rhc-v$RELEASE_VERSION" \
+            --rawfile spec rhc.spec --rawfile meson meson.build '{
+              query: "mutation($input: CreateCommitOnBranchInput!) { createCommitOnBranch(input: $input) { commit { url } } }",
+              variables: {input: {
+                branch: {repositoryNameWithOwner: $repo, branchName: $branch},
+                expectedHeadOid: $sha,
+                message: {headline: $message},
+                fileChanges: {additions: [
+                  {path: "rhc.spec", contents: ($spec | @base64)},
+                  {path: "meson.build", contents: ($meson | @base64)}
+                ]}
+              }}
+            }' | gh api graphql --input -
+
+      - name: Show PR creation link
+        env:
+          BASE_BRANCH: ${{ inputs.base_branch }}
+          RELEASE_VERSION: ${{ inputs.release_version }}
+        run: |
+          base=$(jq -rn --arg branch "$BASE_BRANCH" '$branch | @uri')
+          url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/compare/$base...release-v$RELEASE_VERSION?expand=1"
+          printf '[Create release PR](%s)\n' "$url" | tee -a "$GITHUB_STEP_SUMMARY"

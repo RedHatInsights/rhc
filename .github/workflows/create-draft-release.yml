@@ -1,0 +1,46 @@
+name: "Release 2: Create draft"
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: write
+
+jobs:
+  create-draft:
+    if: >-
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      startsWith(github.event.pull_request.head.ref, 'release-v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          persist-credentials: true # Required for git push.
+
+      - name: Create tag and draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: |
+          version=$(awk '/^Version:/ {print $2}' rhc.spec)
+          if [[ ! $version =~ ^[0-9]+\.[0-9]+\.[0-9]+$ || $RELEASE_BRANCH != "release-v$version" ]]; then
+            echo "Branch must match release-vX.Y.Z and rhc.spec version '$version', got '$RELEASE_BRANCH'." >&2
+            exit 1
+          fi
+          make archive VERSION="$version"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git fetch --tags origin
+          if ! git show-ref --verify --quiet "refs/tags/v$version"; then
+            git tag -m "v$version" "v$version"
+          fi
+          if [[ $(git rev-parse "refs/tags/v$version^{commit}") != "$(git rev-parse HEAD)" ]]; then
+            echo "Tag v$version already exists on a different commit." >&2
+            exit 1
+          fi
+          git push origin "v$version"
+          gh release create "v$version" "rhc-$version.tar.gz" \
+            --draft --title "v$version" --generate-notes
