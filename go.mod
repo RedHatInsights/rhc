@@ -7,7 +7,7 @@ require (
 	github.com/briandowns/spinner v1.23.2
 	github.com/coreos/go-systemd/v22 v22.7.0
 	github.com/emersion/go-varlink v0.1.1-0.20260122150447-9c0e29254dd5
-	github.com/godbus/dbus/v5 v5.2.3
+	github.com/godbus/dbus/v5 v5.2.4
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
 	github.com/jirihnidek/rhsm2 v0.0.0-20260901114510-13670718c1c2
