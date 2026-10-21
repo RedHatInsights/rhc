@@ -2,3 +2,16 @@
 
 [licensing]
 detector = "askalono"
+# The modernc.org pure-Go SQLite stack ships auxiliary license files that
+# are not single license texts and cannot be mapped to an SPDX identifier:
+# LICENSE-SQLITE is the SQLite public-domain dedication (a grant that
+# restricts nothing; the Go translation it describes is covered by the
+# detected BSD-3-Clause LICENSE), the LICENSE-3RD-PARTY.md files are
+# flattened third-party notices for components covered by their own
+# detected license files, and LICENSE-LOGO covers a logo image.
+exclude_files = [
+    "vendor/modernc.org/libc/LICENSE-3RD-PARTY.md",
+    "vendor/modernc.org/memory/LICENSE-LOGO",
+    "vendor/modernc.org/sqlite/LICENSE-3RD-PARTY.md",
+    "vendor/modernc.org/sqlite/LICENSE-SQLITE",
+]

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -163,12 +164,43 @@ func RefreshContent(force bool, ipcSender *string, locale *string, correlationID
 
 	// Create client information from provided parameters
 	clientInfo := rhsm2.RequestMetadata{IPCSender: ipcSender, Locale: locale, CorrelationId: correlationID}
-	if err := rhsmClient.UpdateEntitlementCertificate(force, &clientInfo); err != nil {
+	// An up-to-date entitlement certificate is not a failure; the repo file is
+	// still regenerated below.
+	_, _, err = rhsmClient.UpdateEntitlementCertificate(force, &clientInfo)
+	if _, upToDate := errors.AsType[*rhsm2.EntitlementCertificateUpToDateError](err); err != nil && !upToDate {
 		return &ServerError{Message: err.Error()}
 	}
 
 	if err := rhsmClient.GenerateRepoFileFromInstalledEntitlementCerts(); err != nil {
 		return &contentapi.IOFailedError{Message: fmt.Sprintf("failed to generate redhat.repo file: %s", err)}
+	}
+
+	return nil
+}
+
+// SendProfile gathers and uploads the combined RPM profile (installed RPMs and
+// enabled repositories) to the candlepin server.
+//
+// The upload is performed synchronously (async=false): the Varlink request is
+// itself the asynchronous boundary for callers, and the backend needs the
+// result to report success/failure. The async mode of SendPackageProfile is for
+// in-process callers such as the rhsm libdnf5 plugin, not this Varlink path.
+//
+// A *rhsm2.ProfileNotSupportedError is returned unchanged so the Varlink
+// backend can distinguish "server does not support profile upload" from a
+// generic failure; all other failures are wrapped as a ServerError.
+func SendProfile(ipcSender *string, locale *string, correlationID *string) error {
+	rhsmClient, err := rhsm2.GetRHSMClient(nil, nil)
+	if err != nil {
+		return &ClientError{Message: err.Error()}
+	}
+
+	clientInfo := rhsm2.RequestMetadata{IPCSender: ipcSender, Locale: locale, CorrelationId: correlationID}
+	if err := rhsmClient.SendPackageProfile(false, &clientInfo); err != nil {
+		if _, ok := errors.AsType[*rhsm2.ProfileNotSupportedError](err); ok {
+			return err
+		}
+		return &ServerError{Message: err.Error()}
 	}
 
 	return nil
