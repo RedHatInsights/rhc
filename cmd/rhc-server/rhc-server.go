@@ -12,6 +12,7 @@ import (
 	"github.com/redhatinsights/rhc/varlink/collectorapi"
 	"github.com/redhatinsights/rhc/varlink/contentapi"
 	"github.com/redhatinsights/rhc/varlink/overrideapi"
+	"github.com/redhatinsights/rhc/varlink/profileapi"
 	"github.com/redhatinsights/rhc/varlink/releaseapi"
 	"github.com/redhatinsights/rhc/varlink/rhsmapi"
 )
@@ -402,4 +403,67 @@ func (c ComRedhatRhsmContentBackend) Refresh(in *contentapi.RefreshIn) (*content
 	return &contentapi.RefreshOut{
 		Result: contentapi.RefreshResult{CertificatePath: *certFilePath, KeyPath: *keyFilePath},
 	}, nil
+}
+
+// ComRedhatRhsmContentProfileBackend implements the interface for the com.redhat.rhsm.content.profile.varlink
+type ComRedhatRhsmContentProfileBackend struct{}
+
+// NewComRedhatRhsmContentProfileBackend creates a new ComRedhatRhsmContentProfileBackend instance.
+func NewComRedhatRhsmContentProfileBackend() *ComRedhatRhsmContentProfileBackend {
+	return &ComRedhatRhsmContentProfileBackend{}
+}
+
+// Send implements the interface for the com.redhat.rhsm.testing.content.profile.varlink.
+// It gathers and uploads the combined RPM profile (installed RPMs and enabled
+// repositories) to the candlepin server synchronously and reports the result
+// back to the caller.
+func (c ComRedhatRhsmContentProfileBackend) Send(in *profileapi.SendIn) (*profileapi.SendOut, error) {
+	registered, err := IsSystemRegistered()
+	if err != nil || !registered {
+		slog.Debug("System is not registered", "error", err)
+		return nil, &profileapi.SystemNotRegisteredError{}
+	}
+
+	if in.Metadata != nil {
+		err = SendProfile(in.Metadata.UserAgent, in.Metadata.Locale, in.Metadata.CorrelationId)
+	} else {
+		err = SendProfile(nil, nil, nil)
+	}
+	if err != nil {
+		slog.Error("Failed to send profile", "error", err)
+		// Only report ProfileNotSupported when the server genuinely lacks the
+		// combined-profile capability; every other failure (permissions,
+		// network, internal server error) must surface as a generic error
+		// rather than masquerading as "not supported".
+		if _, ok := errors.AsType[*rhsm2.ProfileNotSupportedError](err); ok {
+			return nil, &profileapi.ProfileNotSupportedError{}
+		}
+		return nil, err
+	}
+
+	return &profileapi.SendOut{Result: profileapi.SendResult{}}, nil
+}
+
+// SendAsync implements the interface for the com.redhat.rhsm.testing.content.profile.varlink.
+// It starts the gathering and uploading of the combined RPM profile in the
+// background and returns immediately; the result is only logged by the server,
+// so the caller is never blocked by the upload.
+func (c ComRedhatRhsmContentProfileBackend) SendAsync(in *profileapi.SendAsyncIn) (*profileapi.SendAsyncOut, error) {
+	registered, err := IsSystemRegistered()
+	if err != nil || !registered {
+		slog.Debug("System is not registered", "error", err)
+		return nil, &profileapi.SystemNotRegisteredError{}
+	}
+
+	if in.Metadata != nil {
+		err = SendProfileAsync(in.Metadata.UserAgent, in.Metadata.Locale, in.Metadata.CorrelationId)
+	} else {
+		err = SendProfileAsync(nil, nil, nil)
+	}
+	if err != nil {
+		slog.Error("Failed to start sending profile", "error", err)
+		return nil, err
+	}
+
+	return &profileapi.SendAsyncOut{}, nil
 }
