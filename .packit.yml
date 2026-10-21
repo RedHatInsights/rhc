@@ -50,7 +50,7 @@ jobs:
     targets:
       rhel-8-x86_64:
         distros:
-          - RHEL-8-Released
+          - RHEL-8-Nightly
       rhel-9-x86_64:
         distros:
           - RHEL-9-Nightly
