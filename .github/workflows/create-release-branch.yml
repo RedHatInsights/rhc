@@ -44,7 +44,7 @@ jobs:
             echo "Failed to set version $RELEASE_VERSION in rhc.spec and meson.build." >&2
             exit 1
           fi
-          branch="release-v$RELEASE_VERSION"
+          branch="bump-to-v$RELEASE_VERSION"
           sha=$(git rev-parse HEAD)
           # Replace any existing release branch with the selected base.
           git push --force origin "HEAD:refs/heads/$branch"
@@ -69,5 +69,5 @@ jobs:
           RELEASE_VERSION: ${{ inputs.release_version }}
         run: |
           base=$(jq -rn --arg branch "$BASE_BRANCH" '$branch | @uri')
-          url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/compare/$base...release-v$RELEASE_VERSION?expand=1"
+          url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/compare/$base...bump-to-v$RELEASE_VERSION?expand=1"
           printf '[Create release PR](%s)\n' "$url" | tee -a "$GITHUB_STEP_SUMMARY"
