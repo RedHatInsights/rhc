@@ -17,6 +17,7 @@ require (
 	github.com/urfave/cli/v3 v3.14.0
 	golang.org/x/sys v0.49.0
 	golang.org/x/term v0.47.0
+	gopkg.in/ini.v1 v1.67.3
 )
 
 require (
@@ -29,5 +30,4 @@ require (
 	github.com/mattn/go-isatty v0.0.22 // indirect
 	github.com/rs/zerolog v1.35.1 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
-	gopkg.in/ini.v1 v1.67.3 // indirect
 )
