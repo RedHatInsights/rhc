@@ -156,6 +156,34 @@ Then you finally can run test using:
 pytest -s -vvv --log-level=DEBUG
 ```
 
+### SELinux AVC collection
+
+`pytest-client-tools` provides the single autouse `check_avcs` fixture for
+integration tests. When SELinux, auditd, and the audit tools are available, it
+collects each test's audit window with `aureport --avc --interpret`, writes the
+report to that test's `artifacts/.../selinux.log` when AVCs are found, and fails
+the test for denials not listed as known exceptions. AVC query errors also fail
+the test.
+
+RHC's known exceptions live in `integration-tests/rhc_selinux.py` and are
+provided through the `client_tools_avc_skips` fixture in
+`integration-tests/conftest.py`. The `rhsmcertd_t` rule tracks the audit noise
+noted in [CCT-2900](https://redhat.atlassian.net/browse/CCT-2900); the
+`auditctl_t` rule is visible only on RHEL 10 and tracks
+[RHEL-246545](https://redhat.atlassian.net/browse/RHEL-246545). The shared
+fixture disables AVC collection when SELinux or its audit prerequisites are
+unavailable.
+
+Tests that produce expected AVCs can request `check_avcs` and adjust the
+current test's checks before teardown. Use `skip_all_avcs()` to skip every AVC
+collected for that test, or `skip_avc_entry_by_fields()` to skip only entries
+matching selected fields. For example:
+
+```python
+def test_operation_with_known_unrelated_denials(check_avcs):
+    check_avcs.skip_all_avcs()
+```
+
 Running Integration Tests Using tmt
 -----------------------------------
 
