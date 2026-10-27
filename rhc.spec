@@ -186,7 +186,7 @@ rm -rf %{buildroot}
 # The guard on /etc/yggdrasil/config.toml ensures we never overwrite a config
 # that was already migrated by a previous upgrade.
 if [ $1 -eq 2 ] && [ -f /etc/rhc/config.toml ] && [ ! -f /etc/yggdrasil/config.toml ]; then
-	cp /etc/rhc/config.toml /etc/yggdrasil/config.toml.migrated
+    cp /etc/rhc/config.toml /etc/yggdrasil/config.toml.migrated
 fi
 %endif
 
@@ -204,23 +204,23 @@ fi
 # no store exists so container installs stay silent (RHEL-138412).
 store_root=/var/lib/selinux
 if [ -f /etc/selinux/semanage.conf ]; then
-	configured=$(sed -n 's/^[[:space:]]*store-root[[:space:]]*=[[:space:]]*\([^[:space:]#]*\).*/\1/p' /etc/selinux/semanage.conf | tail -1)
-	[ -n "$configured" ] && store_root=$configured
+    configured=$(sed -n 's/^[[:space:]]*store-root[[:space:]]*=[[:space:]]*\([^[:space:]#]*\).*/\1/p' /etc/selinux/semanage.conf | tail -1)
+    [ -n "$configured" ] && store_root=$configured
 fi
 if [ -d "$store_root/targeted/active" ]; then
-	if [ -d /run/systemd/system ]; then
-		/usr/sbin/semanage permissive --add rhcd_t || true
-	else
-		/usr/sbin/semanage permissive --noreload --add rhcd_t || true
-	fi
+    if [ -d /run/systemd/system ]; then
+        /usr/sbin/semanage permissive --add rhcd_t || true
+    else
+        /usr/sbin/semanage permissive --noreload --add rhcd_t || true
+    fi
 fi
 
 # Complete the config migration started in %pre: transform the backed-up
 # /etc/rhc/config.toml into a valid /etc/yggdrasil/config.toml.
 if [ $1 -eq 2 ] && [ -f /etc/yggdrasil/config.toml.migrated ]; then
-	sed -E 's#^broker( ?=)#server\1#' /etc/yggdrasil/config.toml.migrated > /etc/yggdrasil/config.toml
-	echo 'facts-file = "/var/lib/yggdrasil/canonical-facts.json"' >> /etc/yggdrasil/config.toml
-	rm /etc/yggdrasil/config.toml.migrated
+    sed -E 's#^broker( ?=)#server\1#' /etc/yggdrasil/config.toml.migrated > /etc/yggdrasil/config.toml
+    echo 'facts-file = "/var/lib/yggdrasil/canonical-facts.json"' >> /etc/yggdrasil/config.toml
+    rm /etc/yggdrasil/config.toml.migrated
 fi
 %endif
 
@@ -237,18 +237,18 @@ fi
 %if 0%{?with_rhcd_compat}
 # Remove rhcd_t from the SELinux permissive list on full package removal.
 if [ $1 -eq 0 ]; then
-	store_root=/var/lib/selinux
-	if [ -f /etc/selinux/semanage.conf ]; then
-		configured=$(sed -n 's/^[[:space:]]*store-root[[:space:]]*=[[:space:]]*\([^[:space:]#]*\).*/\1/p' /etc/selinux/semanage.conf | tail -1)
-		[ -n "$configured" ] && store_root=$configured
-	fi
-	if [ -d "$store_root/targeted/active" ]; then
-		if [ -d /run/systemd/system ]; then
-			/usr/sbin/semanage permissive --delete rhcd_t || true
-		else
-			/usr/sbin/semanage permissive --noreload --delete rhcd_t || true
-		fi
-	fi
+    store_root=/var/lib/selinux
+    if [ -f /etc/selinux/semanage.conf ]; then
+        configured=$(sed -n 's/^[[:space:]]*store-root[[:space:]]*=[[:space:]]*\([^[:space:]#]*\).*/\1/p' /etc/selinux/semanage.conf | tail -1)
+        [ -n "$configured" ] && store_root=$configured
+    fi
+    if [ -d "$store_root/targeted/active" ]; then
+        if [ -d /run/systemd/system ]; then
+            /usr/sbin/semanage permissive --delete rhcd_t || true
+        else
+            /usr/sbin/semanage permissive --noreload --delete rhcd_t || true
+        fi
+    fi
 fi
 %endif
 
@@ -261,8 +261,8 @@ fi
 
 %postun selinux
 if [ $1 -eq 0 ]; then
-	%selinux_modules_uninstall -s %{selinuxtype} %{selinux_modulename}
-	%selinux_relabel_post -s %{selinuxtype}
+    %selinux_modules_uninstall -s %{selinuxtype} %{selinux_modulename}
+    %selinux_relabel_post -s %{selinuxtype}
 fi
 
 %if 0%{?fedora}
