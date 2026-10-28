@@ -18,6 +18,7 @@ import (
 
 	"github.com/redhatinsights/rhc/pkg/exitcode"
 	"github.com/redhatinsights/rhc/pkg/operations"
+	"github.com/redhatinsights/rhc/pkg/rhcconf"
 	"github.com/redhatinsights/rhc/pkg/version"
 )
 
@@ -133,6 +134,14 @@ func beforeAction(ctx context.Context, cmd *cli.Command) (context.Context, error
 
 	if !cmd.Bool("generate-man-page") && !cmd.Bool("generate-markdown") {
 		configureFileLogging(conf.LogLevel)
+
+		// Log effective configuration (rhc.conf + rhsm.conf merge)
+		if cfg, err := rhcconf.Get(); err != nil {
+			slog.Warn("failed to load effective configuration", "error", err)
+		} else {
+			cfg.Log()
+		}
+
 		slog.Info(cmd.Root().Name+" started", "version", version.Version, "pid", os.Getpid())
 	}
 
