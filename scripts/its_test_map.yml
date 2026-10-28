@@ -78,13 +78,18 @@ rules:
       - "^cmd/rhc/configure_features_cmd\\.go$"
       - "^pkg/feature/"
       - "^pkg/operations/"
+      - "^internal/rhcconf/"
+      - "^internal/subman/"
     go_packages:
       - "./cmd/rhc"
       - "./pkg/feature"
       - "./pkg/operations"
+      - "./internal/rhcconf"
+      - "./internal/subman"
     pytest_files:
       - "integration-tests/test_configure_feature.py"
       - "integration-tests/test_connect.py"
+      - "integration-tests/test_rhsm_config.py"
 
   - id: collector-surface
     description: Collector command, binary, and collector internals.

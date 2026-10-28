@@ -20,6 +20,10 @@ type Service interface {
 	// SetContentManagement enables or disables RHSM content management.
 	SetContentManagement(enabled bool) error
 
+	// SetConfig writes one rhsm.conf key. key is "section.name", for example
+	// "server.hostname".
+	SetConfig(key, value string) error
+
 	// Unregister removes the system's RHSM registration.
 	Unregister() error
 
