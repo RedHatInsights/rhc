@@ -64,26 +64,17 @@ func defaultConnectDependencies() connectDependencies {
 }
 
 func defaultRegisterRHSM(opts ConnectOptions) error {
+	// Translate rhc.conf before opening the RHSM client so an invalid file
+	// fails before Register and before any Config.Set call.
+	settings, err := loadRHSMSettingsFromRHCConf()
+	if err != nil {
+		return err
+	}
 	client, err := subman.NewRHSMClient()
 	if err != nil {
 		return fmt.Errorf("cannot connect to subscription-manager: %s", err)
 	}
-	regOpts := subman.RegisterOptions{
-		EnvironmentNames: opts.ContentTemplates,
-		EnableContent:    opts.EnableContent,
-	}
-	if len(opts.ActivationKeys) > 0 {
-		err = client.RegisterWithActivationKeys(opts.Organization, opts.ActivationKeys, regOpts)
-	} else {
-		err = client.RegisterWithPassword(opts.Username, opts.Password, opts.Organization, regOpts)
-	}
-	if err == nil {
-		return nil
-	}
-	if errors.Is(err, ErrOrganizationRequired) {
-		return err
-	}
-	return fmt.Errorf("cannot connect to Red Hat Subscription Management: %s", err)
+	return registerSetup(client, opts, settings)
 }
 
 // GetOrganizations gets the organizations for a given username and password.
