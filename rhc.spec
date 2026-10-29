@@ -32,6 +32,21 @@ BuildRequires:  systemd-rpm-macros
 BuildRequires:  selinux-policy-devel
 
 %if 0%{?with_rhcd_compat}
+# Shared scriptlet body; the argument selects the semanage action.
+%define rhcd_permissive() \
+    store_root=/var/lib/selinux; \
+    if [ -f /etc/selinux/semanage.conf ]; then \
+        configured=$(sed -n 's/^[[:space:]]*store-root[[:space:]]*=[[:space:]]*\([^[:space:]#]*\).*/\1/p' /etc/selinux/semanage.conf | tail -1); \
+        [ -n "$configured" ] && store_root=$configured; \
+    fi; \
+    if [ -d "$store_root/targeted/active" ]; then \
+        if [ -d /run/systemd/system ]; then \
+            /usr/sbin/semanage permissive --%1 rhcd_t || true; \
+        else \
+            /usr/sbin/semanage permissive --noreload --%1 rhcd_t || true; \
+        fi; \
+    fi
+
 # semanage is called in %post/%postun to manage the rhcd_t SELinux type.
 Requires(post): policycoreutils-python-utils
 %endif
@@ -202,18 +217,7 @@ fi
 # Honor store-root from semanage.conf: image-mode (bootc) uses /etc/selinux
 # because /var/lib/selinux is absent at build time (RHEL-259013). Skip when
 # no store exists so container installs stay silent (RHEL-138412).
-store_root=/var/lib/selinux
-if [ -f /etc/selinux/semanage.conf ]; then
-    configured=$(sed -n 's/^[[:space:]]*store-root[[:space:]]*=[[:space:]]*\([^[:space:]#]*\).*/\1/p' /etc/selinux/semanage.conf | tail -1)
-    [ -n "$configured" ] && store_root=$configured
-fi
-if [ -d "$store_root/targeted/active" ]; then
-    if [ -d /run/systemd/system ]; then
-        /usr/sbin/semanage permissive --add rhcd_t || true
-    else
-        /usr/sbin/semanage permissive --noreload --add rhcd_t || true
-    fi
-fi
+%rhcd_permissive add
 
 # Complete the config migration started in %pre: transform the backed-up
 # /etc/rhc/config.toml into a valid /etc/yggdrasil/config.toml.
@@ -237,18 +241,7 @@ fi
 %if 0%{?with_rhcd_compat}
 # Remove rhcd_t from the SELinux permissive list on full package removal.
 if [ $1 -eq 0 ]; then
-    store_root=/var/lib/selinux
-    if [ -f /etc/selinux/semanage.conf ]; then
-        configured=$(sed -n 's/^[[:space:]]*store-root[[:space:]]*=[[:space:]]*\([^[:space:]#]*\).*/\1/p' /etc/selinux/semanage.conf | tail -1)
-        [ -n "$configured" ] && store_root=$configured
-    fi
-    if [ -d "$store_root/targeted/active" ]; then
-        if [ -d /run/systemd/system ]; then
-            /usr/sbin/semanage permissive --delete rhcd_t || true
-        else
-            /usr/sbin/semanage permissive --noreload --delete rhcd_t || true
-        fi
-    fi
+    %rhcd_permissive delete
 fi
 %endif
 
