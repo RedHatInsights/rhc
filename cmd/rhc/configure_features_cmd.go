@@ -201,7 +201,16 @@ func featuresEnableAction(ctx context.Context, cmd *cli.Command) error {
 }
 
 // featuresEnableActionNotRegistered handles enabling a feature on a non-registered system.
+// A registered system takes featuresEnableActionRegistered instead, which does
+// not rewrite the registration target: that write belongs with Register.
 func featuresEnableActionNotRegistered(_ context.Context, _ *cli.Command, targetNames []string) error {
+	if err := operations.ApplyRHSMSettingsFromRHCConf(); err != nil {
+		return cli.Exit(
+			fmt.Sprintf("failed to update subscription-manager configuration: %v", err),
+			exitcode.Software,
+		)
+	}
+
 	cache, err := feature.LoadCache(ConnectFeaturesPrefsPath)
 	if err != nil {
 		return cli.Exit(fmt.Sprintf("failed to load feature preferences: %v", err), exitcode.Software)
