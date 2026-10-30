@@ -1,0 +1,25 @@
+interface com.redhat.rhsm.testing.content.profile
+
+type Metadata (
+    # The user agent string (e.g. "rhc/1.2.3")
+    user_agent: ?string,
+    # The correlation id
+    correlation_id: ?string,
+    # The locale string (e.g. en_US.UTF-8)
+    locale: ?string
+)
+
+# Any method in this interface can be used only in the situation, when the system is registered
+error SystemNotRegistered()
+
+# Candlepin server does not support uploading of profile
+error ProfileNotSupported()
+
+# Method for gathering and uploading combined rpm profile to candlepin server.
+# The combined profile will contain the list of installed rpms and the list of
+# enabled repositories (modules were removed from DNF5)
+method Send(
+    metadata: ?Metadata
+) -> (
+    success: bool
+)

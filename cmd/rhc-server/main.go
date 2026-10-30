@@ -20,6 +20,7 @@ import (
 	"github.com/redhatinsights/rhc/varlink/collectorapi"
 	"github.com/redhatinsights/rhc/varlink/contentapi"
 	"github.com/redhatinsights/rhc/varlink/overrideapi"
+	"github.com/redhatinsights/rhc/varlink/profileapi"
 	"github.com/redhatinsights/rhc/varlink/releaseapi"
 	"github.com/redhatinsights/rhc/varlink/rhsmapi"
 )
@@ -72,6 +73,7 @@ func run() error {
 	overrideapi.Handler{Backend: NewContentOverrideBackend()}.Register(registry)
 	releaseapi.Handler{Backend: NewComRedhatRhsmContentReleaseRHSMBackend()}.Register(registry)
 	contentapi.Handler{Backend: NewComRedhatRhsmContentBackend()}.Register(registry)
+	profileapi.Handler{Backend: NewComRedhatRhsmContentProfileBackend()}.Register(registry)
 
 	varlinkServer := &govarlink.Server{Handler: registry}
 
