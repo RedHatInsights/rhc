@@ -1,0 +1,95 @@
+name: security
+
+on:
+  pull_request:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - release-0.2
+
+permissions:
+  contents: read
+
+env:
+  GITLEAKS_VERSION: "8.30.1"
+  GITLEAKS_SHA256: "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
+  POUTINE_VERSION: "1.1.6"
+  POUTINE_SHA256: "abde716599a65608b023a69ed9316e5f083a7bca48612151c2720835883757ea"
+  ZIZMOR_VERSION: "1.31.1"
+  ZIZMOR_SHA256: "d185f726bdaf92df78273217dfdd24ebcd6b0ef48cf3ce776ff5762b6e138c99"
+
+jobs:
+  secrets:
+    name: secrets scan
+    runs-on: ubuntu-latest
+    steps:
+      # Full history so the first runs on main and this PR catch historical
+      # leaks. After that we can switch to a PR-scoped scan if the extra
+      # clone cost is not worth it.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install gitleaks
+        run: |
+          set -euo pipefail
+          archive="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -fsSL -o "${archive}" \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/${archive}"
+          echo "${GITLEAKS_SHA256}  ${archive}" | sha256sum -c -
+          tar -xzf "${archive}" gitleaks
+          sudo mv gitleaks /usr/local/bin/gitleaks
+
+      - name: Run gitleaks
+        run: gitleaks detect --source . --redact --verbose
+
+  poutine:
+    name: poutine
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install poutine
+        run: |
+          set -euo pipefail
+          archive="poutine_Linux_x86_64.tar.gz"
+          curl -fsSL -o "${archive}" \
+            "https://github.com/boostsecurityio/poutine/releases/download/v${POUTINE_VERSION}/${archive}"
+          echo "${POUTINE_SHA256}  ${archive}" | sha256sum -c -
+          tar -xzf "${archive}" poutine
+          sudo mv poutine /usr/local/bin/poutine
+
+      - name: Run poutine
+        run: >
+          poutine analyze_local
+          --skip github_action_from_unverified_creator_used
+          --fail-on-violation
+          .
+
+  zizmor:
+    name: zizmor
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install zizmor
+        run: |
+          set -euo pipefail
+          archive="zizmor-x86_64-unknown-linux-gnu.tar.gz"
+          curl -fsSL -o "${archive}" \
+            "https://github.com/zizmorcore/zizmor/releases/download/v${ZIZMOR_VERSION}/${archive}"
+          echo "${ZIZMOR_SHA256}  ${archive}" | sha256sum -c -
+          tar -xzf "${archive}" zizmor
+          sudo mv zizmor /usr/local/bin/zizmor
+
+      - name: Run zizmor
+        run: >
+          zizmor --offline --strict-collection --quiet --no-exit-codes
+          --min-severity=informational --format=github
+          .
