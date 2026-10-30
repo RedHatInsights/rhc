@@ -88,24 +88,26 @@ func (d DurationSeconds) String() string {
 	return time.Duration(d).String()
 }
 
-// Get reads the configuration file and returns a File structure.
-func Get(source Source) (File, error) {
+// Get reads the configuration file and returns a File, plus TOML metadata
+// so callers can tell an explicitly set key from an embedded default via
+// md.IsDefined(...).
+func Get(source Source) (File, toml.MetaData, error) {
 	data, err := source.Filesystem.Read(source.FilePath)
 	if err != nil {
-		return File{}, fmt.Errorf("read main configuration file: %w", err)
+		return File{}, toml.MetaData{}, fmt.Errorf("read main configuration file: %w", err)
 	}
 	return decode(data)
 }
 
-func decode(data []byte) (File, error) {
+func decode(data []byte) (File, toml.MetaData, error) {
 	var file File
 	md, err := toml.Decode(string(data), &file)
 	if err != nil {
-		return File{}, err
+		return File{}, toml.MetaData{}, err
 	}
 
 	if err := unknownKeys(md); err != nil {
-		return File{}, err
+		return File{}, toml.MetaData{}, err
 	}
 
 	applyEndpointDefaults(md, &file.API.Subscriptions, []string{"api", "subscriptions"}, defaultSubscriptionsURI)
@@ -126,7 +128,7 @@ func decode(data []byte) (File, error) {
 		file.HTTP.Timeout.Idle = DurationSeconds(120 * time.Second)
 	}
 
-	return file, nil
+	return file, md, nil
 }
 
 func unknownKeys(md toml.MetaData) error {

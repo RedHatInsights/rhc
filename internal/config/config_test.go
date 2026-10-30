@@ -24,9 +24,12 @@ func (f *fakeFS) Read(path string) ([]byte, error) {
 func TestGetReadsSource(t *testing.T) {
 	const path = "/etc/rhc/rhc.conf"
 	fs := &fakeFS{data: []byte("[compatibility]\ninterpret-legacy-configurations = false\n")}
-	file, err := Get(Source{Filesystem: fs, FilePath: path})
+	file, md, err := Get(Source{Filesystem: fs, FilePath: path})
 	if err != nil {
 		t.Fatalf("Get() error = %v", err)
+	}
+	if !md.IsDefined("compatibility", "interpret-legacy-configurations") {
+		t.Error("md.IsDefined(compatibility.interpret-legacy-configurations) = false, want true")
 	}
 	if fs.path != path {
 		t.Errorf("Read path = %q, want %q", fs.path, path)
@@ -41,7 +44,7 @@ func TestGetReadsSource(t *testing.T) {
 
 func TestGetWrapsReadError(t *testing.T) {
 	fs := &fakeFS{err: os.ErrNotExist}
-	_, err := Get(Source{Filesystem: fs, FilePath: "/etc/rhc/rhc.conf"})
+	_, _, err := Get(Source{Filesystem: fs, FilePath: "/etc/rhc/rhc.conf"})
 	if err == nil {
 		t.Fatal("Get() error = nil, want read error")
 	}
@@ -69,7 +72,7 @@ func TestDecodeUnknownKeys(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := decode([]byte(tt.input))
+			_, _, err := decode([]byte(tt.input))
 			if err == nil {
 				t.Fatal("decode() error = nil, want unknown key")
 			}
@@ -85,9 +88,12 @@ func TestDecodeUsesDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read rhc.conf: %v", err)
 	}
-	file, err := decode(config)
+	file, md, err := decode(config)
 	if err != nil {
 		t.Fatalf("decode() error = %v", err)
+	}
+	if md.IsDefined("api", "subscriptions", "uri") {
+		t.Error("md.IsDefined(api.subscriptions.uri) = true, want false for a fully commented file")
 	}
 
 	if !file.Compatibility.InterpretLegacy {
@@ -133,9 +139,12 @@ uri = "https://satellite.example/subscription"
 tls-verify = false
 ca-path = "/etc/rhsm/ca/katello.pem"
 `
-	file, err := decode([]byte(config))
+	file, md, err := decode([]byte(config))
 	if err != nil {
 		t.Fatalf("decode() error = %v", err)
+	}
+	if !md.IsDefined("api", "subscriptions", "uri") {
+		t.Error("md.IsDefined(api.subscriptions.uri) = false, want true when the key is set")
 	}
 
 	if file.Compatibility.InterpretLegacy {
@@ -165,7 +174,7 @@ ca-path = "/etc/rhsm/ca/katello.pem"
 }
 
 func TestDecodeInvalidTimeout(t *testing.T) {
-	_, err := decode([]byte("[http.timeout]\nconnect = \"30s\"\n"))
+	_, _, err := decode([]byte("[http.timeout]\nconnect = \"30s\"\n"))
 	if err == nil {
 		t.Fatal("decode() error = nil, want integer seconds")
 	}
