@@ -13,7 +13,7 @@ require (
 	github.com/jirihnidek/rhsm2 v0.0.0-20260901114510-13670718c1c2
 	github.com/pelletier/go-toml v1.9.5
 	github.com/urfave/cli-altsrc/v3 v3.1.0
-	github.com/urfave/cli-docs/v3 v3.1.0
+	github.com/urfave/cli-docs/v3 v3.2.0
 	github.com/urfave/cli/v3 v3.14.0
 	golang.org/x/sys v0.48.0
 	golang.org/x/term v0.46.0
