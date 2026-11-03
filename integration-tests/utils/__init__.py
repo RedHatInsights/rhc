@@ -132,23 +132,25 @@ def configure_proxy_rhsm(subman, test_config, auth_proxy=False):
             subman.config(server_proxy_user=proxy_user)
             subman.config(server_proxy_password=proxy_pass)
 
-            # Configure SELinux for auth proxy port
-            with suppress(FileNotFoundError, subprocess.CalledProcessError):
-                subprocess.run(
-                    [
-                        "semanage",
-                        "port",
-                        "-a",
-                        "-t",
-                        "http_cache_port_t",
-                        "-p",
-                        "tcp",
-                        proxy_port,
-                    ],
-                    check=True,
-                    capture_output=True,
-                    text=True,
-                )
+        # Label the proxy port as squid_port_t so SELinux allows rhc and
+        # insights-core processes to connect to it. The insights-core policy
+        # no longer permits connections to http_cache_port_t.
+        with suppress(FileNotFoundError, subprocess.CalledProcessError):
+            subprocess.run(
+                [
+                    "semanage",
+                    "port",
+                    "-a",
+                    "-t",
+                    "squid_port_t",
+                    "-p",
+                    "tcp",
+                    proxy_port,
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
 
         print(f"Proxy configuration completed for {service_name}")
         return proxy_url
