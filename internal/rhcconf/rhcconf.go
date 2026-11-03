@@ -50,9 +50,11 @@ type Proxy struct {
 
 // Config is rhc's fully resolved, effective configuration.
 type Config struct {
-	Proxy         Proxy
-	Subscriptions Endpoint
-	RPMContent    Endpoint
+	Proxy             Proxy
+	Subscriptions     Endpoint
+	RPMContent        Endpoint
+	InsightsIngress   Endpoint
+	InsightsInventory Endpoint
 }
 
 // Load reads rhc.conf and rhsm.conf and returns rhc's effective
@@ -104,8 +106,22 @@ func Resolve(file config.File, md toml.MetaData, rhsm *rhsmconf.Config) (Config,
 	if err != nil {
 		return Config{}, err
 	}
+	ingress, err := resolveInsightsEndpoint(file.API.Insights.Ingress, md, "ingress", subscriptions, rhsm)
+	if err != nil {
+		return Config{}, err
+	}
+	inventory, err := resolveInsightsEndpoint(file.API.Insights.Inventory, md, "inventory", subscriptions, rhsm)
+	if err != nil {
+		return Config{}, err
+	}
 
-	return Config{Proxy: proxy, Subscriptions: subscriptions, RPMContent: rpmContent}, nil
+	return Config{
+		Proxy:             proxy,
+		Subscriptions:     subscriptions,
+		RPMContent:        rpmContent,
+		InsightsIngress:   ingress,
+		InsightsInventory: inventory,
+	}, nil
 }
 
 // translation holds rhsm.conf's fields reshaped into rhc.conf's schema.
@@ -463,4 +479,8 @@ func (c Config) Log() {
 	slog.Debug("effective proxy config", "source", c.Proxy.Source, "uri", sanitizeURI(c.Proxy.URI))
 	slog.Debug("effective api.subscriptions", "source", c.Subscriptions.Source, "uri", sanitizeURI(c.Subscriptions.URI))
 	slog.Debug("effective api.rpm-content", "source", c.RPMContent.Source, "uri", sanitizeURI(c.RPMContent.URI))
+	slog.Debug("effective api.insights.ingress", "source", c.InsightsIngress.Source,
+		"uri", sanitizeURI(c.InsightsIngress.URI), "ca-path", c.InsightsIngress.CAPath)
+	slog.Debug("effective api.insights.inventory", "source", c.InsightsInventory.Source,
+		"uri", sanitizeURI(c.InsightsInventory.URI), "ca-path", c.InsightsInventory.CAPath)
 }
