@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -163,7 +164,10 @@ func RefreshContent(force bool, ipcSender *string, locale *string, correlationID
 
 	// Create client information from provided parameters
 	clientInfo := rhsm2.RequestMetadata{IPCSender: ipcSender, Locale: locale, CorrelationId: correlationID}
-	if err := rhsmClient.UpdateEntitlementCertificate(force, &clientInfo); err != nil {
+	// An up-to-date entitlement certificate is not a failure; the repo file is
+	// still regenerated below.
+	_, _, err = rhsmClient.UpdateEntitlementCertificate(force, &clientInfo)
+	if _, upToDate := errors.AsType[*rhsm2.EntitlementCertificateUpToDateError](err); err != nil && !upToDate {
 		return &ServerError{Message: err.Error()}
 	}
 
