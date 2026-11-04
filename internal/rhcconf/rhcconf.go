@@ -135,15 +135,27 @@ func translate(rhsm *rhsmconf.Config) translation {
 func validateURI(uri string) error {
 	u, err := url.Parse(uri)
 	if err != nil {
-		return fmt.Errorf("invalid URI %q: %w", uri, err)
+		return fmt.Errorf("invalid URI: %w", redactURLError(err))
 	}
 	if u.Scheme != "http" && u.Scheme != "https" {
-		return fmt.Errorf("URI %q must use the http or https scheme", uri)
+		return fmt.Errorf("URI %q must use the http or https scheme", u.Redacted())
 	}
 	if u.Host == "" {
-		return fmt.Errorf("URI %q is missing a host", uri)
+		return fmt.Errorf("URI %q is missing a host", u.Redacted())
 	}
 	return nil
+}
+
+// redactURLError strips the raw URL from a url.Parse failure. A url.Parse error
+// is a *url.Error whose Error() echoes the input verbatim, so a URI with
+// embedded credentials (user:password@host) would otherwise leak the password
+// into logs. Unwrapping to the inner reason keeps the diagnostic without it.
+func redactURLError(err error) error {
+	var uerr *url.Error
+	if errors.As(err, &uerr) {
+		return uerr.Err
+	}
+	return err
 }
 
 // validatePort confirms port is empty (no port) or a valid 16-bit TCP port
