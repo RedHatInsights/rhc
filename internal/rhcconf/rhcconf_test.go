@@ -767,9 +767,11 @@ func TestLog(t *testing.T) {
 	defer slog.SetDefault(prior)
 
 	cfg := Config{
-		Proxy:         Proxy{URI: "http://proxy.example.com:3128", Source: SourceRHSMConf},
-		Subscriptions: Endpoint{URI: "https://subscription.rhsm.redhat.com/subscription", Source: SourceDefault},
-		RPMContent:    Endpoint{URI: "https://cdn.redhat.com", Source: SourceRHCConf},
+		Proxy:             Proxy{URI: "http://proxy.example.com:3128", Source: SourceRHSMConf},
+		Subscriptions:     Endpoint{URI: "https://subscription.rhsm.redhat.com/subscription", Source: SourceDefault},
+		RPMContent:        Endpoint{URI: "https://cdn.redhat.com", Source: SourceRHCConf},
+		InsightsIngress:   Endpoint{URI: "https://cert.console.stage.redhat.com/api/ingress/v1/upload", Source: SourceRHSMConf, CAPath: "/etc/rhsm/ca/redhat-uep.pem"},
+		InsightsInventory: Endpoint{URI: "https://inventory.example.com/v1", Source: SourceRHCConf, CAPath: "/etc/rhsm/ca/katello.pem"},
 	}
 	cfg.Log()
 
@@ -778,6 +780,8 @@ func TestLog(t *testing.T) {
 		"effective proxy config", "source=rhsm.conf", "uri=http://proxy.example.com:3128",
 		"effective api.subscriptions", "source=default",
 		"effective api.rpm-content", "source=rhc.conf", "uri=https://cdn.redhat.com",
+		`msg="effective api.insights.ingress" source=rhsm.conf uri=https://cert.console.stage.redhat.com/api/ingress/v1/upload ca-path=/etc/rhsm/ca/redhat-uep.pem` + "\n",
+		`msg="effective api.insights.inventory" source=rhc.conf uri=https://inventory.example.com/v1 ca-path=/etc/rhsm/ca/katello.pem` + "\n",
 	} {
 		if !bytes.Contains(buf.Bytes(), []byte(want)) {
 			t.Errorf("Log() output missing %q, got:\n%s", want, out)
@@ -798,14 +802,16 @@ func TestLogDoesNotLeakCredentials(t *testing.T) {
 			Password: "proxypass",
 			Source:   SourceRHSMConf,
 		},
-		Subscriptions: Endpoint{URI: "https://admin:secret@satellite.example.com/rhsm", Source: SourceRHCConf},
-		RPMContent:    Endpoint{URI: "https://cdn.redhat.com", Source: SourceDefault},
+		Subscriptions:     Endpoint{URI: "https://admin:secret@satellite.example.com/rhsm", Source: SourceRHCConf},
+		RPMContent:        Endpoint{URI: "https://cdn.redhat.com", Source: SourceDefault},
+		InsightsIngress:   Endpoint{URI: "https://ingress-user:ingress-pass@ingress.example.com/upload", Source: SourceRHCConf},
+		InsightsInventory: Endpoint{URI: "https://inventory-user:inventory-pass@inventory.example.com/v1", Source: SourceRHCConf},
 	}
 	cfg.Log()
 
 	out := buf.String()
 	// Verify credentials are NOT in the output
-	for _, forbidden := range []string{"proxyuser", "proxypass", "admin", "secret"} {
+	for _, forbidden := range []string{"proxyuser", "proxypass", "admin", "secret", "ingress-user", "ingress-pass", "inventory-user", "inventory-pass"} {
 		if bytes.Contains(buf.Bytes(), []byte(forbidden)) {
 			t.Errorf("Log() output contains credential %q, got:\n%s", forbidden, out)
 		}
@@ -814,6 +820,8 @@ func TestLogDoesNotLeakCredentials(t *testing.T) {
 	for _, want := range []string{
 		"uri=http://proxy.example.com:3128",
 		"uri=https://satellite.example.com/rhsm",
+		"uri=https://ingress.example.com/upload",
+		"uri=https://inventory.example.com/v1",
 	} {
 		if !bytes.Contains(buf.Bytes(), []byte(want)) {
 			t.Errorf("Log() output missing %q, got:\n%s", want, out)
