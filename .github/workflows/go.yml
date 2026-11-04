@@ -18,12 +18,12 @@ jobs:
       - name: Updating ...
         run: sudo apt-get -qq update
 
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
       - name: Setup go
-        uses: actions/setup-go@v7
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: ${{ matrix.go }}
 
@@ -44,17 +44,18 @@ jobs:
     continue-on-error: true
     steps:
       - name: Check out code
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Set up Python
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
 
       - name: Set up Go
-        uses: actions/setup-go@v7
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: "stable"
 
@@ -76,10 +77,13 @@ jobs:
 
       - name: Run ITS selector
         id: selector
+        env:
+          BASE_REF: ${{ steps.refs.outputs.base }}
+          HEAD_REF: ${{ steps.refs.outputs.head }}
         run: |
           python scripts/its_select_tests.py \
-            --base "${{ steps.refs.outputs.base }}" \
-            --head "${{ steps.refs.outputs.head }}" \
+            --base "${BASE_REF}" \
+            --head "${HEAD_REF}" \
             --map-file "scripts/its_test_map.yml" \
             --output-json "selector-output.json" \
             --github-output "${GITHUB_OUTPUT}"
@@ -99,7 +103,7 @@ jobs:
           eval "${GO_CMD}"
 
       - name: Upload ITS compare artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: its-selector-output

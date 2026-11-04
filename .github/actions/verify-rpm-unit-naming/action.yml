@@ -11,8 +11,10 @@ runs:
   steps:
     - name: "Verify unit naming convention"
       shell: bash
+      env:
+        MANIFEST: ${{ inputs.manifest }}
       run: |
-        COLLECTOR_UNITS=$(grep '^/usr/lib/systemd/system/rhc-collector-' "${{ inputs.manifest }}" || true)
+        COLLECTOR_UNITS=$(grep '^/usr/lib/systemd/system/rhc-collector-' "${MANIFEST}" || true)
         if [ -z "${COLLECTOR_UNITS}" ]; then
           echo "FAIL  No rhc-collector-* units found in manifest"
           exit 1

@@ -11,10 +11,12 @@ runs:
   steps:
     - name: "Verify runtime paths are excluded"
       shell: bash
+      env:
+        MANIFEST: ${{ inputs.manifest }}
       run: |
         FAIL=0
 
-        CACHE_ENTRIES=$(grep '^/var/cache/rhc' "${{ inputs.manifest }}" || true)
+        CACHE_ENTRIES=$(grep '^/var/cache/rhc' "${MANIFEST}" || true)
         if [ -n "${CACHE_ENTRIES}" ]; then
           echo "FAIL  RPM must not own runtime cache paths under /var/cache/rhc/:"
           echo "${CACHE_ENTRIES}"
@@ -23,7 +25,7 @@ runs:
           echo "  OK  /var/cache/rhc/ entries correctly absent"
         fi
 
-        RUN_ENTRIES=$(grep '^/run/rhc/.' "${{ inputs.manifest }}" || true)
+        RUN_ENTRIES=$(grep '^/run/rhc/.' "${MANIFEST}" || true)
         if [ -n "${RUN_ENTRIES}" ]; then
           echo "FAIL  RPM must not own files under /run/rhc/:"
           echo "${RUN_ENTRIES}"

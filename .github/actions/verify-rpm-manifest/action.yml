@@ -11,6 +11,8 @@ runs:
   steps:
     - name: "Verify RPM manifest contents"
       shell: bash
+      env:
+        MANIFEST: ${{ inputs.manifest }}
       run: |
         EXPECTED_PATHS=(
           /usr/lib/rhc/collectors
@@ -23,7 +25,7 @@ runs:
 
         FAIL=0
         for P in "${EXPECTED_PATHS[@]}"; do
-          if grep -qx "${P}" "${{ inputs.manifest }}"; then
+          if grep -qx "${P}" "${MANIFEST}"; then
             echo "  OK  ${P}"
           else
             echo "FAIL  ${P} not found in manifest"
