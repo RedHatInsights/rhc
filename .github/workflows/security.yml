@@ -1,11 +1,7 @@
 name: security
 
 on:
-  workflow_dispatch:
   pull_request:
-    branches:
-      - main
-      - release-0.2
 
 permissions:
   contents: read
@@ -23,9 +19,8 @@ jobs:
     name: secrets scan
     runs-on: ubuntu-latest
     steps:
-      # Full history so the first runs on main and this PR catch historical
-      # leaks. After that we can switch to a PR-scoped scan if the extra
-      # clone cost is not worth it.
+      # Full clone: the pull request scan diffs against the merge base of
+      # the branch the change targets.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
@@ -41,8 +36,17 @@ jobs:
           tar -xzf "${archive}" gitleaks
           sudo mv gitleaks /usr/local/bin/gitleaks
 
+      # A pull request is scanned only for the commits it adds on top of its
+      # target branch: the scan range always runs from the merge base of
+      # that branch to the commit under test, so the history shared between
+      # the branches is never scanned twice.
       - name: Run gitleaks
-        run: gitleaks detect --source . --redact --verbose
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: >
+          gitleaks detect --source . --redact --verbose
+          --log-opts "--no-merges $BASE_SHA..$HEAD_SHA"
 
   poutine:
     name: poutine
