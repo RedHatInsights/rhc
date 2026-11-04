@@ -27,6 +27,8 @@ Source1:        %{archivename}-vendor.tar.bz2
 %if 0%{?fedora}
 Source2:        go-vendor-tools.toml
 %endif
+# Applied to the vendored sources in %prep; see the patch header for details.
+Patch0:         glebarez-go-sqlite-import-path.patch
 
 BuildRequires:  systemd-rpm-macros
 BuildRequires:  selinux-policy-devel

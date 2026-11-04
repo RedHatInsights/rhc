@@ -2,3 +2,11 @@
 
 [licensing]
 detector = "askalono"
+# The pure-Go SQLite stack (github.com/glebarez/go-sqlite, a fork of
+# modernc.org/sqlite) ships the SQLite public-domain dedication. It is a
+# grant that restricts nothing, has no SPDX identifier, and no SQLite code
+# is compiled in: the modernc.org/sqlite Go translation it describes is
+# covered by its own BSD-3-Clause LICENSE, which is detected normally.
+exclude_files = [
+    "vendor/github.com/glebarez/go-sqlite/SQLITE-LICENSE",
+]

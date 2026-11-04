@@ -1,0 +1,75 @@
+# Strip the vanity import comments from the vendored pure-Go SQLite driver.
+#
+# github.com/glebarez/go-sqlite is a fork of modernc.org/sqlite that kept
+# the parent's '// import "modernc.org/sqlite"' declaration. Module mode
+# ignores such comments, but Fedora's %gobuild compiles in GOPATH mode
+# (GO111MODULE=off), which enforces the declared import path and fails on
+# the mismatch with the directory the package actually lives in.
+#
+# TODO: drop this patch once upstream removes the import comments, or once
+# go-rpmdb registers the modernc.org/sqlite driver directly.
+--- a/vendor/github.com/glebarez/go-sqlite/mutex.go	2026-11-04 12:22:35.931818779 -0500
++++ b/vendor/github.com/glebarez/go-sqlite/mutex.go	2026-11-04 12:22:35.934516113 -0500
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package sqlite // import "modernc.org/sqlite"
++package sqlite
+ 
+ import (
+ 	"sync"
+--- a/vendor/github.com/glebarez/go-sqlite/norlimit.go	2026-11-04 12:22:35.931882915 -0500
++++ b/vendor/github.com/glebarez/go-sqlite/norlimit.go	2026-11-04 12:22:35.934776941 -0500
+@@ -5,6 +5,6 @@
+ //go:build windows
+ // +build windows
+ 
+-package sqlite // import "modernc.org/sqlite"
++package sqlite
+ 
+ func setMaxOpenFiles(n int) error { return nil }
+--- a/vendor/github.com/glebarez/go-sqlite/rlimit.go	2026-11-04 12:22:35.931951111 -0500
++++ b/vendor/github.com/glebarez/go-sqlite/rlimit.go	2026-11-04 12:22:35.934927153 -0500
+@@ -5,7 +5,7 @@
+ //go:build freebsd
+ // +build freebsd
+ 
+-package sqlite // import "modernc.org/sqlite"
++package sqlite
+ 
+ import (
+ 	"golang.org/x/sys/unix"
+--- a/vendor/github.com/glebarez/go-sqlite/rulimit.go	2026-11-04 12:22:35.932011780 -0500
++++ b/vendor/github.com/glebarez/go-sqlite/rulimit.go	2026-11-04 12:22:35.935064904 -0500
+@@ -5,7 +5,7 @@
+ //go:build linux || darwin || netbsd || openbsd
+ // +build linux darwin netbsd openbsd
+ 
+-package sqlite // import "modernc.org/sqlite"
++package sqlite
+ 
+ import (
+ 	"golang.org/x/sys/unix"
+--- a/vendor/github.com/glebarez/go-sqlite/sqlite.go	2026-11-04 12:22:35.932335879 -0500
++++ b/vendor/github.com/glebarez/go-sqlite/sqlite.go	2026-11-04 12:22:35.935267688 -0500
+@@ -4,7 +4,7 @@
+ 
+ //go:generate go run generator.go -full-path-comments
+ 
+-package sqlite // import "modernc.org/sqlite"
++package sqlite
+ 
+ import (
+ 	"context"
+--- a/vendor/github.com/glebarez/go-sqlite/sqlite_go18.go	2026-11-04 12:22:35.932432595 -0500
++++ b/vendor/github.com/glebarez/go-sqlite/sqlite_go18.go	2026-11-04 12:22:35.936088975 -0500
+@@ -5,7 +5,7 @@
+ //go:build go1.8
+ // +build go1.8
+ 
+-package sqlite // import "modernc.org/sqlite"
++package sqlite
+ 
+ import (
+ 	"context"

@@ -4,6 +4,7 @@ specfile_path: rhc.spec
 files_to_sync:
   - rhc.spec
   - .packit.yaml
+  - glebarez-go-sqlite-import-path.patch
 
 # Dependencies for SRPM creation (i.e., make archive* targets)
 srpm_build_deps:
