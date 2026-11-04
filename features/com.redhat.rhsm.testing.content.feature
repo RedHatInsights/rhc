@@ -21,13 +21,71 @@ Feature: The Varlink interface com.redhat.rhsm.testing.content
 
   Scenario: Refresh() method succeeds on registered system
     Given system is registered against candlepin server
-    When varlink method is called
+    When varlink method is called and error is expected
       | method  | interface                       | arguments          |
       | Refresh | com.redhat.rhsm.testing.content | '{"force": false}' |
-    Then varlink method returns
+    Then varlink error is raised
       """
-      {"success":true}
+      com.redhat.rhsm.testing.content.CertificateUpToDate
       """
+
+
+  Scenario: Refresh() method regenerates deleted redhat.repo file, when certificate is up to date
+    Given system is registered against candlepin server
+    Given entitlement certificate is installed
+    And redhat.repo file is deleted
+    When varlink method is called and error is expected
+      | method  | interface                       | arguments          |
+      | Refresh | com.redhat.rhsm.testing.content | '{"force": false}' |
+    Then varlink error is raised
+      """
+      com.redhat.rhsm.testing.content.CertificateUpToDate
+      """
+    And redhat.repo file exists
+    And entitlement certificate has still the same name and i-node
+
+
+  @fixture.redhat_repo_file_not_writable
+  Scenario: Refresh() method raises IOFailed error, when redhat.repo cannot be written and certificate is up to date
+    Given system is registered against candlepin server
+    Given entitlement certificate is installed
+    And redhat.repo file does not exist
+    When varlink method is called and error is expected
+      | method  | interface                       | arguments          |
+      | Refresh | com.redhat.rhsm.testing.content | '{"force": false}' |
+    Then varlink error is raised
+      """
+      com.redhat.rhsm.testing.content.IOFailed
+      """
+    And entitlement certificate has still the same name and i-node
+
+
+  @fixture.redhat_repo_file_not_writable
+  Scenario: Refresh() method raises IOFailed error, when redhat.repo cannot be written and certificate is force updated
+    Given system is registered against candlepin server
+    Given entitlement certificate is installed
+    And redhat.repo file does not exist
+    When varlink method is called and error is expected
+      | method  | interface                       | arguments         |
+      | Refresh | com.redhat.rhsm.testing.content | '{"force": true}' |
+    Then varlink error is raised
+      """
+      com.redhat.rhsm.testing.content.IOFailed
+      """
+
+
+# Skip this scenario, because this issue has to be fixed in rhsm2
+# https://github.com/jirihnidek/rhsm2/issues/117
+#  Scenario: Refresh() method succeeds on registered system and entitlement certificate is missing
+#    Given system is registered against candlepin server
+#    # This is for the case, when something or somebody has deleted entitlement certificate or key
+#    # The Refresh() method has to be able to regenerate given certificate and key
+#    And no entitlement certificate and key is installed
+#    When varlink method is called
+#      | method  | interface                       | arguments          |
+#      | Refresh | com.redhat.rhsm.testing.content | '{"force": false}' |
+#    Then method call was successful
+#    And method returned JSON compliant with 'com.redhat.rhsm.testing.content.Refresh.json' schema
 
 
   Scenario: Refresh() method succeeds on registered system after regenerating of entitlement certificate
@@ -42,10 +100,8 @@ Feature: The Varlink interface com.redhat.rhsm.testing.content
     When varlink method is called
       | method  | interface                       | arguments          |
       | Refresh | com.redhat.rhsm.testing.content | '{"force": false}' |
-    Then varlink method returns
-      """
-      {"success":true}
-      """
+    Then method call was successful
+    And method returned JSON compliant with 'com.redhat.rhsm.testing.content.Refresh.json' schema
     And entitlement certificate has different name and i-node
     And installed entitlement certificate contains 'BEGIN CERTIFICATE'
     And installed entitlement certificate contains 'BEGIN ENTITLEMENT DATA'
@@ -55,12 +111,12 @@ Feature: The Varlink interface com.redhat.rhsm.testing.content
   Scenario: Refresh() method succeeds on registered system with metadata
     Given system is registered against candlepin server
     Given entitlement certificate is installed
-    When varlink method is called
+    When varlink method is called and error is expected
       | method  | interface                       | arguments                                             |
       | Refresh | com.redhat.rhsm.testing.content | '{"force": false, "metadata": {"user_agent": "foo"}}' |
-    Then varlink method returns
+    Then varlink error is raised
       """
-      {"success":true}
+      com.redhat.rhsm.testing.content.CertificateUpToDate
       """
     And entitlement certificate has still the same name and i-node
 
@@ -71,10 +127,8 @@ Feature: The Varlink interface com.redhat.rhsm.testing.content
     When varlink method is called
       | method  | interface                       | arguments         |
       | Refresh | com.redhat.rhsm.testing.content | '{"force": true}' |
-    Then varlink method returns
-      """
-      {"success":true}
-      """
+    Then method call was successful
+    And method returned JSON compliant with 'com.redhat.rhsm.testing.content.Refresh.json' schema
     And entitlement certificate has still the same name and i-node
     And installed entitlement certificate contains 'BEGIN CERTIFICATE'
     And installed entitlement certificate contains 'BEGIN ENTITLEMENT DATA'
@@ -93,10 +147,8 @@ Feature: The Varlink interface com.redhat.rhsm.testing.content
     When varlink method is called
       | method  | interface                       | arguments          |
       | Refresh | com.redhat.rhsm.testing.content | '{"force": true}' |
-    Then varlink method returns
-      """
-      {"success":true}
-      """
+    Then method call was successful
+    And method returned JSON compliant with 'com.redhat.rhsm.testing.content.Refresh.json' schema
     And entitlement certificate has different name and i-node
     And installed entitlement certificate contains 'BEGIN CERTIFICATE'
     And installed entitlement certificate contains 'BEGIN ENTITLEMENT DATA'
@@ -106,19 +158,19 @@ Feature: The Varlink interface com.redhat.rhsm.testing.content
   Scenario: Refresh() called twice on a registered system succeeds both times
     Given system is registered against candlepin server
     Given entitlement certificate is installed
-    When varlink method is called
+    When varlink method is called and error is expected
       | method  | interface                       | arguments          |
       | Refresh | com.redhat.rhsm.testing.content | '{"force": false}' |
-    Then varlink method returns
+    Then varlink error is raised
       """
-      {"success":true}
+      com.redhat.rhsm.testing.content.CertificateUpToDate
       """
     And entitlement certificate has still the same name and i-node
-    And varlink method is called
+    And varlink method is called and error is expected
       | method  | interface                       | arguments          |
       | Refresh | com.redhat.rhsm.testing.content | '{"force": false}' |
-    Then varlink method returns
+    Then varlink error is raised
       """
-      {"success":true}
+      com.redhat.rhsm.testing.content.CertificateUpToDate
       """
     And entitlement certificate has still the same name and i-node
