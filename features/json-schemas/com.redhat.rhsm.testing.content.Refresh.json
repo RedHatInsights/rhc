@@ -1,0 +1,25 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "com.redhat.rhsm.testing.content.Refresh response",
+  "type": "object",
+  "properties": {
+    "result": {
+      "type": "object",
+      "properties": {
+        "certificate_path": {
+          "type": "string"
+        },
+        "key_path": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "certificate_path",
+        "key_path"
+      ]
+    }
+  },
+  "required": [
+    "result"
+  ]
+}

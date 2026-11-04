@@ -365,6 +365,9 @@ func NewComRedhatRhsmContentBackend() *ComRedhatRhsmContentBackend {
 // It refreshes the installed entitlement certificate, when needed, and regenerates
 // the redhat.repo file accordingly.
 func (c ComRedhatRhsmContentBackend) Refresh(in *contentapi.RefreshIn) (*contentapi.RefreshOut, error) {
+	var err error
+	var certFilePath, keyFilePath *string
+
 	registered, err := IsSystemRegistered()
 	if err != nil || !registered {
 		slog.Debug("System is not registered", "error", err)
@@ -372,14 +375,31 @@ func (c ComRedhatRhsmContentBackend) Refresh(in *contentapi.RefreshIn) (*content
 	}
 
 	if in.Metadata != nil {
-		err = RefreshContent(in.Force, in.Metadata.UserAgent, in.Metadata.Locale, in.Metadata.CorrelationId)
+		certFilePath, keyFilePath, err = RefreshContent(in.Force, in.Metadata.UserAgent, in.Metadata.Locale, in.Metadata.CorrelationId)
 	} else {
-		err = RefreshContent(in.Force, nil, nil, nil)
+		certFilePath, keyFilePath, err = RefreshContent(in.Force, nil, nil, nil)
 	}
+
 	if err != nil {
+		var entCertUpToDateError *rhsm2.EntitlementCertificateUpToDateError
+		if errors.As(err, &entCertUpToDateError) {
+			return nil, &contentapi.CertificateUpToDateError{Message: entCertUpToDateError.Error()}
+		}
+		slog.Error("Failed to refresh content", "error", err)
+		// Return the error as is: errors declared in the Varlink interface
+		// (e.g. contentapi.IOFailedError) have to be passed through unchanged,
+		// so that marshalError() can map them to the proper Varlink error name.
+		return nil, err
+	}
+
+	// Do not trust that the paths are always set on success
+	if certFilePath == nil || keyFilePath == nil {
+		err = fmt.Errorf("refresh of content succeeded, but path of entitlement certificate or key is unknown")
 		slog.Error("Failed to refresh content", "error", err)
 		return nil, err
 	}
 
-	return &contentapi.RefreshOut{Success: true}, nil
+	return &contentapi.RefreshOut{
+		Result: contentapi.RefreshResult{CertificatePath: *certFilePath, KeyPath: *keyFilePath},
+	}, nil
 }

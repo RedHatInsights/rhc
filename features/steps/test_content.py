@@ -7,7 +7,7 @@ import requests
 from behave import step
 import behave.runner
 
-from constants import ENTITLEMENT_CERT_DIR, RHSM_CONFIG_FILE
+from constants import ENTITLEMENT_CERT_DIR, RHSM_CONFIG_FILE, REDHAT_REPO_FILE
 
 
 @step("installed entitlement certificate contains '{string}'")
@@ -65,6 +65,53 @@ def step_impl(context: behave.runner.Context):
     url = f"https://{hostname}:{port}{prefix}/consumers/{consumer_uuid}/certificates?lazy_regen=false"
     response = requests.put(url, auth=('admin', 'admin'), verify=False)
     response.raise_for_status()
+
+
+@step("no entitlement certificate and key is installed")
+def step_impl(context: behave.runner.Context):
+    """
+    Remove any entitlement certificates and entitlement keys that are installed
+    :param context: behave context
+    :return: None
+    """
+    files = os.listdir(ENTITLEMENT_CERT_DIR)
+    for file_name in files:
+        # Remove all key and certificate files
+        if file_name.endswith(".pem"):
+            os.remove(os.path.join(ENTITLEMENT_CERT_DIR, file_name))
+
+
+@step("redhat.repo file is deleted")
+def step_impl(context: behave.runner.Context):
+    """
+    Remove the redhat.repo file to simulate the situation, when something
+    or somebody has deleted it
+    :param context: behave context
+    :return: None
+    """
+    if os.path.exists(REDHAT_REPO_FILE):
+        os.remove(REDHAT_REPO_FILE)
+    assert not os.path.exists(REDHAT_REPO_FILE), f"{REDHAT_REPO_FILE} still exists"
+
+
+@step("redhat.repo file exists")
+def step_impl(context: behave.runner.Context):
+    """
+    Check that the redhat.repo file exists
+    :param context: behave context
+    :return: None
+    """
+    assert os.path.isfile(REDHAT_REPO_FILE), f"{REDHAT_REPO_FILE} does not exist"
+
+
+@step("redhat.repo file does not exist")
+def step_impl(context: behave.runner.Context):
+    """
+    Check that the redhat.repo file exists and it is a file
+    :param context: behave context
+    :return: None
+    """
+    assert not os.path.isfile(REDHAT_REPO_FILE), f"{REDHAT_REPO_FILE} exists"
 
 
 @step("entitlement certificate is installed")

@@ -124,7 +124,7 @@ def step_impl(context: behave.runner.Context):
     assert context.cmd_exitcode == 0, f"Method call failed with exit code {context.cmd_exitcode}"
 
 
-@when("varlink method is called and error is expected")
+@step("varlink method is called and error is expected")
 def step_impl(context: behave.runner.Context):
     """
     Call a varlink method on a specified interface, when it is expected that error is returned.
