@@ -2,3 +2,7 @@
 
 [licensing]
 detector = "askalono"
+exclude_files = [
+    # varlink/go ships LICENSE containing Apache-2.0
+    "vendor/github.com/varlink/go/COPYRIGHT"
+]

@@ -5,23 +5,22 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"net"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"syscall"
 
-	"github.com/coreos/go-systemd/v22/activation"
-	govarlink "github.com/emersion/go-varlink"
 	"github.com/jirihnidek/rhsm2"
 	"github.com/redhatinsights/rhc/internal/util"
 	"github.com/redhatinsights/rhc/pkg/exitcode"
 	"github.com/redhatinsights/rhc/pkg/version"
-	"github.com/redhatinsights/rhc/varlink/collectorapi"
-	"github.com/redhatinsights/rhc/varlink/contentapi"
-	"github.com/redhatinsights/rhc/varlink/overrideapi"
-	"github.com/redhatinsights/rhc/varlink/releaseapi"
-	"github.com/redhatinsights/rhc/varlink/rhsmapi"
+	"github.com/varlink/go/varlink"
+
+	collectorapi "github.com/redhatinsights/rhc/varlink/collector"
+	rhsmapi "github.com/redhatinsights/rhc/varlink/rhsm/testing"
+	contentapi "github.com/redhatinsights/rhc/varlink/rhsm/testing/content"
+	overrideapi "github.com/redhatinsights/rhc/varlink/rhsm/testing/content/override"
+	releaseapi "github.com/redhatinsights/rhc/varlink/rhsm/testing/content/release"
 )
 
 const (
@@ -52,46 +51,67 @@ func main() {
 }
 
 func run() error {
-	registry := govarlink.NewRegistry(&govarlink.RegistryOptions{
-		Vendor:  "Red Hat",
-		Product: "rhc",
-		Version: version.Version,
-		URL:     "https://github.com/redhatinsights/rhc",
-	})
+	// Set up a context for the varlink service
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	service, err := varlink.NewService(
+		"Red Hat",
+		"rhc",
+		version.Version,
+		"https://github.com/redhatinsights/rhc",
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create varlink service: %w", err)
+	}
 
 	// Try to initialize the rhsm client. It will create the singleton instance and further
 	// calls of rhsm2.GetRHSMClient will return the same instance.
 	appName := AppName
-	_, err := rhsm2.GetRHSMClient(&appName, nil)
+	_, err = rhsm2.GetRHSMClient(&appName, nil)
 	if err != nil {
 		return fmt.Errorf("failed to initialize rhsm client: %w", err)
 	}
 
-	collectorapi.Handler{Backend: NewCollectorBackend()}.Register(registry)
-	rhsmapi.Handler{Backend: NewRHSMBackend()}.Register(registry)
-	overrideapi.Handler{Backend: NewContentOverrideBackend()}.Register(registry)
-	releaseapi.Handler{Backend: NewComRedhatRhsmContentReleaseRHSMBackend()}.Register(registry)
-	contentapi.Handler{Backend: NewComRedhatRhsmContentBackend()}.Register(registry)
+	if err := service.RegisterInterface(collectorapi.VarlinkNew(NewCollectorBackend())); err != nil {
+		return fmt.Errorf("failed to register collector interface: %w", err)
+	}
+	if err := service.RegisterInterface(rhsmapi.VarlinkNew(NewRHSMBackend())); err != nil {
+		return fmt.Errorf("failed to register rhsm interface: %w", err)
+	}
+	if err := service.RegisterInterface(overrideapi.VarlinkNew(NewContentOverrideBackend())); err != nil {
+		return fmt.Errorf("failed to register content override interface: %w", err)
+	}
+	if err := service.RegisterInterface(releaseapi.VarlinkNew(NewComRedhatRhsmContentReleaseRHSMBackend())); err != nil {
+		return fmt.Errorf("failed to register release interface: %w", err)
+	}
+	if err := service.RegisterInterface(contentapi.VarlinkNew(NewComRedhatRhsmContentBackend())); err != nil {
+		return fmt.Errorf("failed to register content interface: %w", err)
+	}
 
-	varlinkServer := &govarlink.Server{Handler: registry}
+	// Bind the service to the socket. When the server is started by systemd socket
+	// activation, varlink/go picks up the activated listener (the one named "varlink")
+	// instead of creating a new socket.
+	if err := ensureSocketDirectory(socketPath); err != nil {
+		return fmt.Errorf("failed to create socket directory: %w", err)
+	}
+	if err := service.Bind(ctx, "unix:"+socketPath); err != nil {
+		return fmt.Errorf("failed to bind varlink service: %w", err)
+	}
 
-	// Try to get listener from systemd socket activation first
-	listener, err := getListener()
-	if err != nil {
+	// When systemd socket activation is not used, then set the permissions of
+	// the newly created socket file.
+	listener, err := service.GetListener()
+	if err != nil || listener == nil {
 		return fmt.Errorf("failed to get listener: %w", err)
 	}
-	defer func() {
-		if err := listener.Close(); err != nil {
-			slog.Error("Error closing listener", "error", err)
-		}
-	}()
-
 	slog.Info("rhc-server starting", "version", version.Version)
 	slog.Info("Listening on socket", "address", listener.Addr())
-
-	// Set up a graceful shutdown
-	_, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	if _, err := os.Stat(socketPath); err == nil {
+		if err := os.Chmod(socketPath, socketPerms); err != nil {
+			return fmt.Errorf("failed to set socket permissions: %w", err)
+		}
+	}
 
 	// Set up a signal handler for graceful shutdown on SIGINT/SIGTERM
 	sigChan := make(chan os.Signal, signalChanBuffer)
@@ -100,7 +120,7 @@ func run() error {
 	// Run the server in a goroutine so we can handle signals concurrently
 	errChan := make(chan error, errorChanBuffer)
 	go func() {
-		errChan <- varlinkServer.Serve(listener)
+		errChan <- service.DoListen(ctx, 0)
 	}()
 
 	// Block until either:
@@ -114,6 +134,9 @@ func run() error {
 	case sig := <-sigChan:
 		slog.Info("Received signal, shutting down gracefully", "signal", sig)
 		cancel()
+		if err := service.Shutdown(); err != nil {
+			slog.Error("Error shutting down varlink service", "error", err)
+		}
 	}
 
 	slog.Info("rhc-server stopped")
@@ -193,50 +216,6 @@ func acquirePIDLock() (func(), error) {
 	return cleanup, nil
 }
 
-// getListener attempts to get a listener via systemd socket activation and falls back
-// to a unix socket if executed on its own.
-func getListener() (net.Listener, error) {
-	// Try systemd socket activation first
-	listener, err := getSocketActivatedListener()
-	if err != nil {
-		return nil, err
-	}
-	if listener != nil {
-		return listener, nil
-	}
-
-	// Fall back to creating our own unix socket
-	return getUnixSocketListener(socketPath)
-}
-
-// getSocketActivatedListener attempts to get a listener via systemd socket activation.
-func getSocketActivatedListener() (net.Listener, error) {
-	listeners, err := activation.ListenersWithNames()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get systemd listeners: %w", err)
-	}
-
-	if len(listeners) == 0 {
-		slog.Debug("Unable to find systemd listeners")
-		return nil, nil // No systemd socket available
-	}
-
-	// Look for the socket named "varlink" as per varlink spec
-	if varlinkListeners, ok := listeners["varlink"]; ok && len(varlinkListeners) > 0 {
-		for _, listener := range varlinkListeners {
-			if listener.Addr().Network() == "unix" {
-				slog.Info("Using systemd socket activation", "address", listener.Addr(), "name", "varlink")
-				return listener, nil
-			}
-			slog.Warn("Skipping non-unix listener found in varlink group", "network", listener.Addr().Network())
-			_ = listener.Close()
-		}
-		return nil, fmt.Errorf("no unix socket found within 'varlink' listeners")
-	}
-
-	return nil, fmt.Errorf("no socket named 'varlink' found in systemd listeners")
-}
-
 // ensureSocketDirectory creates the directory for the socket if it doesn't exist.
 func ensureSocketDirectory(path string) error {
 	dirPath := filepath.Dir(path)
@@ -244,35 +223,4 @@ func ensureSocketDirectory(path string) error {
 		return fmt.Errorf("failed to create socket directory: %w", err)
 	}
 	return nil
-}
-
-// getUnixSocketListener creates a unix socket at the specified path.
-func getUnixSocketListener(path string) (net.Listener, error) {
-	slog.Info("Creating unix socket", "path", path)
-
-	// Ensure the socket directory exists
-	if err := ensureSocketDirectory(path); err != nil {
-		return nil, err
-	}
-
-	// Remove the old socket file, if present. Since we already own the PID lock
-	// through acquirePIDLock() called in main(), no other instance we would be
-	// stealing a lock from is running.
-	if err := os.RemoveAll(path); err != nil {
-		return nil, fmt.Errorf("failed to remove existing socket: %w", err)
-	}
-
-	// Create the Varlink socket
-	listener, err := net.Listen("unix", path)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create unix socket: %w", err)
-	}
-
-	// Set socket permissions
-	if err := os.Chmod(path, socketPerms); err != nil {
-		_ = listener.Close()
-		return nil, fmt.Errorf("failed to set socket permissions: %w", err)
-	}
-
-	return listener, nil
 }
