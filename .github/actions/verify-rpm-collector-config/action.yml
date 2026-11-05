@@ -11,8 +11,10 @@ runs:
   steps:
     - name: "Verify minimal collector config"
       shell: bash
+      env:
+        RPM: ${{ inputs.rpm }}
       run: |
-        RPM_PATH="$(realpath "${{ inputs.rpm }}")"
+        RPM_PATH="$(realpath "${RPM}")"
         EXTRACT_DIR=$(mktemp -d)
         cd "${EXTRACT_DIR}"
         rpm2cpio "${RPM_PATH}" | cpio -idm 2>/dev/null

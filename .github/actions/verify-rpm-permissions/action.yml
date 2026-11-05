@@ -11,8 +11,10 @@ runs:
   steps:
     - name: "Verify file permissions"
       shell: bash
+      env:
+        RPM: ${{ inputs.rpm }}
       run: |
-        rpm -qp --dump "${{ inputs.rpm }}" > rpm_dump.txt
+        rpm -qp --dump "${RPM}" > rpm_dump.txt
 
         FAIL=0
 

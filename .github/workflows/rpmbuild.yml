@@ -24,7 +24,7 @@ jobs:
 
     runs-on: ubuntu-latest
     container:
-      image: ${{ matrix.image }}
+      image: ${{ matrix.image }} # zizmor: ignore[unpinned-images] intentionally tracks current Fedora stable/rawhide
 
     steps:
       - name: "Install basic packages for 'dnf builddep'"
@@ -33,7 +33,7 @@ jobs:
             git rpm-build go-vendor-tools go-rpm-macros
 
       - name: "Checkout repository"
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -72,37 +72,39 @@ jobs:
 
       - name: "Generate RPM manifest"
         id: manifest
+        env:
+          RPM: ${{ steps.find-rpm.outputs.rpm }}
         run: |
-          rpm -qlp "${{ steps.find-rpm.outputs.rpm }}" > manifest.txt
+          rpm -qlp "${RPM}" > manifest.txt
           echo "path=manifest.txt" >> "$GITHUB_OUTPUT"
 
       - name: "Verify RPM manifest"
-        uses: ./.github/actions/verify-rpm-manifest
+        uses: $/.github/actions/verify-rpm-manifest
         with:
           manifest: ${{ steps.manifest.outputs.path }}
 
       - name: "Verify RPM excludes runtime paths"
-        uses: ./.github/actions/verify-rpm-excludes-runtime
+        uses: $/.github/actions/verify-rpm-excludes-runtime
         with:
           manifest: ${{ steps.manifest.outputs.path }}
 
       - name: "Verify systemd unit naming"
-        uses: ./.github/actions/verify-rpm-unit-naming
+        uses: $/.github/actions/verify-rpm-unit-naming
         with:
           manifest: ${{ steps.manifest.outputs.path }}
 
       - name: "Verify RPM file permissions"
-        uses: ./.github/actions/verify-rpm-permissions
+        uses: $/.github/actions/verify-rpm-permissions
         with:
           rpm: ${{ steps.find-rpm.outputs.rpm }}
 
       - name: "Verify collector config identity"
-        uses: ./.github/actions/verify-rpm-collector-config
+        uses: $/.github/actions/verify-rpm-collector-config
         with:
           rpm: ${{ steps.find-rpm.outputs.rpm }}
 
       - name: "Upload RPM artifacts"
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: rpms-${{ matrix.slug }}
           path: rpms/
