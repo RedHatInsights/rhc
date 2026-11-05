@@ -136,7 +136,14 @@ Example response:
 
 # SOCKET ACTIVATION
 
-The **rhc-server.socket** systemd unit listens on **/run/rhc/com.redhat.rhc** and starts **rhc-server.service** on demand when a client connects. To enable socket activation:
+The **rhc-server.socket** systemd unit listens on **/run/rhc/com.redhat.rhc** and starts **rhc-server.service** on demand when a client connects.
+
+The **rhc-server** package enables and starts **rhc-server.socket** automatically, so socket activation works out of the box with no manual setup:
+
+- On **initial install**, the package preset enables the socket and the install scriptlet starts it immediately.
+- On **upgrade**, an already-enabled socket is started if it is not currently active. This also covers upgrades from older **rhc** versions that predate the **rhc-server** package: that package is installed fresh, the preset enables the socket, and the scriptlet starts it.
+
+If socket activation was previously disabled, it can be re-enabled manually:
 
 ```
 # systemctl enable --now rhc-server.socket

@@ -262,11 +262,19 @@ fi
 %post server
 %systemd_post rhc-server.socket
 
+# Runtime activation: start if enabled-but-not-active
+if [ -d /run/systemd/system ] \
+   && systemctl is-enabled rhc-server.socket >/dev/null 2>&1 \
+   && ! systemctl is-active rhc-server.socket >/dev/null 2>&1; then
+    systemctl start rhc-server.socket >/dev/null 2>&1 || true
+fi
+
 %preun server
 %systemd_preun rhc-server.socket rhc-server.service
 
 %postun server
 %systemd_postun_with_restart rhc-server.service
+%systemd_postun_with_restart rhc-server.socket
 
 %pre selinux
 %selinux_relabel_pre -s %{selinuxtype}

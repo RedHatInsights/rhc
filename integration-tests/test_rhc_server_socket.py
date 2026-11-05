@@ -82,6 +82,36 @@ def service_running():
         disable_and_stop_socket(RHC_SERVER_SOCKET)
 
 
+@pytest.mark.tier1
+def test_socket_enabled_by_default():
+    """
+    :id: d800a6b9-9965-4f05-a351-2d43e856f509
+    :title: Verify rhc-server.socket is enabled by default after installation
+    :reference: https://redhat.atlassian.net/browse/RHEL-298837
+    :description:
+        The rhc RPM enables and starts rhc-server.socket on first install so
+        that Varlink socket activation works without any manual setup. Verify
+        that, in the as-installed system, the socket is both enabled (survives
+        reboot) and active (listening now). This guards against regressions
+        where the preset reports ``preset: enabled`` but the enablement symlink
+        was never created, leaving the unit ``disabled``.
+    :tags: Tier 1
+    :steps:
+        1. Query ``systemctl is-enabled rhc-server.socket``
+        2. Query ``systemctl is-active rhc-server.socket``
+    :expectedresults:
+        1. The socket is enabled
+        2. The socket is active (listening)
+    """
+    assert is_unit_enabled(
+        RHC_SERVER_SOCKET
+    ), f"{RHC_SERVER_SOCKET} should be enabled by default after installation"
+
+    assert is_unit_active(
+        RHC_SERVER_SOCKET
+    ), f"{RHC_SERVER_SOCKET} should be active (listening) by default after installation"
+
+
 @pytest.mark.tier2
 def test_fd3_socket_activation(fd3_socket_setup):
     """
