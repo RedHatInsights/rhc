@@ -94,5 +94,5 @@ jobs:
       - name: Run zizmor
         run: >
           zizmor --offline --strict-collection --quiet
-          --min-severity=high --format=github
+          --min-severity=informational --format=github
           .
