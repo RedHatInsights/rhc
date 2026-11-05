@@ -73,19 +73,19 @@ func run() error {
 		return fmt.Errorf("failed to initialize rhsm client: %w", err)
 	}
 
-	if err := service.RegisterInterface(collectorapi.VarlinkNew(NewCollectorBackend())); err != nil {
+	if err := service.RegisterInterface(emptyParametersCompat{collectorapi.VarlinkNew(NewCollectorBackend())}); err != nil {
 		return fmt.Errorf("failed to register collector interface: %w", err)
 	}
-	if err := service.RegisterInterface(rhsmapi.VarlinkNew(NewRHSMBackend())); err != nil {
+	if err := service.RegisterInterface(emptyParametersCompat{rhsmapi.VarlinkNew(NewRHSMBackend())}); err != nil {
 		return fmt.Errorf("failed to register rhsm interface: %w", err)
 	}
-	if err := service.RegisterInterface(overrideapi.VarlinkNew(NewContentOverrideBackend())); err != nil {
+	if err := service.RegisterInterface(emptyParametersCompat{overrideapi.VarlinkNew(NewContentOverrideBackend())}); err != nil {
 		return fmt.Errorf("failed to register content override interface: %w", err)
 	}
-	if err := service.RegisterInterface(releaseapi.VarlinkNew(NewComRedhatRhsmContentReleaseRHSMBackend())); err != nil {
+	if err := service.RegisterInterface(emptyParametersCompat{releaseapi.VarlinkNew(NewComRedhatRhsmContentReleaseRHSMBackend())}); err != nil {
 		return fmt.Errorf("failed to register release interface: %w", err)
 	}
-	if err := service.RegisterInterface(contentapi.VarlinkNew(NewComRedhatRhsmContentBackend())); err != nil {
+	if err := service.RegisterInterface(emptyParametersCompat{contentapi.VarlinkNew(NewComRedhatRhsmContentBackend())}); err != nil {
 		return fmt.Errorf("failed to register content interface: %w", err)
 	}
 
