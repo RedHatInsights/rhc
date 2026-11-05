@@ -196,6 +196,18 @@ fi
 %systemd_post rhc-collector-com.redhat.minimal.timer
 %tmpfiles_create rhc.conf
 
+# Enable and start socket activation immediately on initial installation.
+if [ $1 -eq 1 ] && [ -d /run/systemd/system ]; then
+    systemctl enable --now rhc-server.socket >/dev/null 2>&1 || true
+fi
+
+# Runtime activation: start if enabled-but-not-active
+if [ -d /run/systemd/system ] \
+   && systemctl is-enabled rhc-server.socket >/dev/null 2>&1 \
+   && ! systemctl is-active rhc-server.socket >/dev/null 2>&1; then
+    systemctl start rhc-server.socket >/dev/null 2>&1 || true
+fi
+
 %if 0%{?with_rhcd_compat}
 # rhcd_t is the SELinux type used by the old rhcd daemon. Add it to the
 # permissive list so existing policies do not block yggdrasil on upgrade.
@@ -231,6 +243,7 @@ fi
 
 %postun
 %systemd_postun_with_restart rhc-canonical-facts.timer
+%systemd_postun_with_restart rhc-server.socket
 %systemd_postun_with_restart rhc-server.service
 %systemd_postun_with_restart rhc-collector-com.redhat.minimal.timer
 
