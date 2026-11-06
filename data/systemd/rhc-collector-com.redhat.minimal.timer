@@ -4,7 +4,8 @@ Documentation=https://github.com/RedHatInsights/rhc
 
 [Timer]
 OnCalendar=daily
-RandomizedDelaySec=4h
+RandomizedDelaySec=16h
+FixedRandomDelay=true
 
 # Run if the system was down
 Persistent=true
