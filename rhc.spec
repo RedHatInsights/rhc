@@ -48,6 +48,7 @@ BuildRequires:  askalono-cli
 BuildRequires:  /usr/bin/dbus-launch
 %endif
 
+Requires: %{name}-server = %{epoch}:%{version}-%{release}
 Requires: subscription-manager
 Requires: yggdrasil >= 0.4
 %if 0%{?rhel} && 0%{?rhel} < 11
@@ -61,6 +62,15 @@ Requires: ((%{name}-selinux >= %{version}-%{release}) if selinux-policy-%{selinu
 %description
 Client tool to register Fedora, CentOS Stream or Red Hat Enterprise Linux
 to Red Hat Subscription Management and Red Hat Lightspeed.
+
+%package server
+Summary:        Varlink service for Red Hat Subscription Management and data collectors
+# Before the split, the server binary, units and preset were owned by rhc.
+# Refuse to install alongside any older rhc that still ships those files.
+Conflicts:      %{name} < %{epoch}:%{version}-%{release}
+
+%description server
+Varlink service providing Red Hat Subscription Management and data collector APIs.
 
 %package selinux
 Summary:        SELinux policy for rhc-collector
@@ -192,7 +202,6 @@ fi
 
 %post
 %systemd_post rhc-canonical-facts.timer
-%systemd_post rhc-server.socket
 %systemd_post rhc-collector-com.redhat.minimal.timer
 %tmpfiles_create rhc.conf
 
@@ -226,12 +235,10 @@ fi
 
 %preun
 %systemd_preun rhc-canonical-facts.timer
-%systemd_preun rhc-server.socket rhc-server.service
 %systemd_preun rhc-collector-com.redhat.minimal.timer
 
 %postun
 %systemd_postun_with_restart rhc-canonical-facts.timer
-%systemd_postun_with_restart rhc-server.service
 %systemd_postun_with_restart rhc-collector-com.redhat.minimal.timer
 
 %if 0%{?with_rhcd_compat}
@@ -251,6 +258,15 @@ if [ $1 -eq 0 ]; then
     fi
 fi
 %endif
+
+%post server
+%systemd_post rhc-server.socket
+
+%preun server
+%systemd_preun rhc-server.socket rhc-server.service
+
+%postun server
+%systemd_postun_with_restart rhc-server.service
 
 %pre selinux
 %selinux_relabel_pre -s %{selinuxtype}
@@ -275,7 +291,6 @@ fi
 %files %{extra_files}
 # Binaries
 %{_bindir}/rhc
-%{_libexecdir}/%{name}/rhc-server
 %{_libexecdir}/%{name}/rhc-collector
 # Bash completion
 %{bash_completions_dir}/%{name}
@@ -283,13 +298,12 @@ fi
 %{_mandir}/man1/*
 # Systemd
 %{_unitdir}/rhc-canonical-facts.*
-%{_unitdir}/rhc-server.service
-%{_unitdir}/rhc-server.socket
 %{_unitdir}/rhc-collector-com.redhat.minimal.*
-%{_prefix}/lib/systemd/system-preset/50-rhc.preset
 # Configuration
 %attr(0755,root,root) %dir %{_sysconfdir}/%{name}/
 %config(noreplace) %attr(0640,root,root) %{_sysconfdir}/%{name}/rhc.conf
+# Package data directory
+%dir %{_prefix}/lib/%{name}/
 # Collector directories
 %dir %{_prefix}/lib/%{name}/collectors/
 %dir %{_libexecdir}/%{name}/collectors/
@@ -309,6 +323,14 @@ fi
 # Yggdrasil rhcd compatibility drop-in
 %{_unitdir}/yggdrasil.service.d/rhcd.conf
 %endif
+
+# Include bundled dependency licenses for standalone server installations.
+%files server %{extra_files}
+%dir %{_libexecdir}/%{name}
+%{_libexecdir}/%{name}/rhc-server
+%{_unitdir}/rhc-server.service
+%{_unitdir}/rhc-server.socket
+%{_prefix}/lib/systemd/system-preset/50-rhc.preset
 
 %files selinux
 %{_datadir}/selinux/packages/%{selinuxtype}/%{selinux_modulename}.pp.*

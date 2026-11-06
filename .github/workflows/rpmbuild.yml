@@ -78,6 +78,11 @@ jobs:
           rpm -qlp "${RPM}" > manifest.txt
           echo "path=manifest.txt" >> "$GITHUB_OUTPUT"
 
+      - name: "Verify rhc-server RPM"
+        run: |
+          rpm -qlp rpms/rhc-server-[0-9]*.rpm > server-manifest.txt
+          grep -Fx /usr/libexec/rhc/rhc-server server-manifest.txt
+
       - name: "Verify RPM manifest"
         uses: $/.github/actions/verify-rpm-manifest
         with:
