@@ -12,6 +12,18 @@ type Metadata struct {
 	Locale        *string `json:"locale,omitempty"`
 	UserAgent     *string `json:"user_agent,omitempty"`
 }
+type RefreshResult struct {
+	CertificatePath string `json:"certificate_path"`
+	KeyPath         string `json:"key_path"`
+}
+
+type CertificateUpToDateError struct {
+	Message string `json:"message"`
+}
+
+func (err *CertificateUpToDateError) Error() string {
+	return "varlink call failed: com.redhat.rhsm.testing.content.CertificateUpToDate"
+}
 
 type ContentNotManagedError struct{}
 
@@ -38,7 +50,7 @@ type RefreshIn struct {
 	Metadata *Metadata `json:"metadata,omitempty"`
 }
 type RefreshOut struct {
-	Success bool `json:"success"`
+	Result RefreshResult `json:"result"`
 }
 
 type Client struct {
@@ -52,6 +64,8 @@ func unmarshalError(err error) error {
 	}
 	var v error
 	switch verr.Name {
+	case "com.redhat.rhsm.testing.content.CertificateUpToDate":
+		v = new(CertificateUpToDateError)
 	case "com.redhat.rhsm.testing.content.ContentNotManaged":
 		v = new(ContentNotManagedError)
 	case "com.redhat.rhsm.testing.content.IOFailed":
@@ -86,6 +100,8 @@ type Handler struct {
 func marshalError(err error) error {
 	var name string
 	switch err.(type) {
+	case *CertificateUpToDateError:
+		name = "com.redhat.rhsm.testing.content.CertificateUpToDate"
 	case *ContentNotManagedError:
 		name = "com.redhat.rhsm.testing.content.ContentNotManaged"
 	case *IOFailedError:
@@ -126,7 +142,7 @@ func (h Handler) HandleVarlink(call *govarlink.ServerCall, req *govarlink.Server
 
 func (h Handler) Register(reg *govarlink.Registry) {
 	reg.Add(&govarlink.RegistryInterface{
-		Definition: "interface com.redhat.rhsm.testing.content\n\ntype Metadata (\n    # The user agent string (e.g. \"rhc/0.5.3\")\n    user_agent: ?string,\n    # The correlation id\n    correlation_id: ?string,\n    # The locale string (e.g. en_US.UTF-8)\n    locale: ?string\n)\n\n# Many methods in this interface can be used only in the situation, when the system is registered\nerror SystemNotRegistered()\n\n# This error is used, when rhsm is configured to not manage content\nerror ContentNotManaged()\n\n# This error is returned when a local file system operation fails\nerror IOFailed(message: string)\n\n# Try to refresh entitlement certificate, when needed, and update\n# redhat.repo file accordingly. The content (redhat.repo file) is\n# generated from the SCA entitlement certificate. When force is true,\n# the entitlement certificate is force recreated.\nmethod Refresh(\n    force: bool,\n    metadata: ?Metadata\n) -> (\n    success: bool\n)\n",
+		Definition: "interface com.redhat.rhsm.testing.content\n\ntype Metadata (\n    # The user agent string (e.g. \"rhc/0.5.3\")\n    user_agent: ?string,\n    # The correlation id\n    correlation_id: ?string,\n    # The locale string (e.g. en_US.UTF-8)\n    locale: ?string\n)\n\n# Many methods in this interface can be used only in the situation, when the system is registered\nerror SystemNotRegistered()\n\n# This error is used, when rhsm is configured to not manage content\nerror ContentNotManaged()\n\n# This error is returned when a local file system operation fails\nerror IOFailed(message: string)\n\n# When certificate is up to date\nerror CertificateUpToDate(message: string)\n\n# Result of Refresh() method\ntype RefreshResult (\n    # File path of entitlement certificate\n    certificate_path: string,\n    # File path of entitlement key\n    key_path: string\n)\n\n# Try to refresh entitlement certificate, when needed, and update\n# redhat.repo file accordingly. The content (redhat.repo file) is\n# generated from the SCA entitlement certificate. When force is true,\n# the entitlement certificate is force recreated. The method can\n# return CertificateUpToDate error, when installed entitlement\n# certificate is up-to-date\nmethod Refresh(\n    force: bool,\n    metadata: ?Metadata\n) -> (\n    result: RefreshResult\n)\n",
 		Name:       "com.redhat.rhsm.testing.content",
 	}, h)
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -154,22 +155,34 @@ func SetRelease(release string, ipcSender *string, locale *string, correlationID
 
 // RefreshContent tries to refresh the installed entitlement certificate, when needed,
 // and regenerate the redhat.repo file accordingly. When force is true, the entitlement
-// certificate is force recreated.
-func RefreshContent(force bool, ipcSender *string, locale *string, correlationID *string) error {
+// certificate is force recreated. The redhat.repo file is regenerated even when
+// the entitlement certificate is up to date; in that case
+// *rhsm2.EntitlementCertificateUpToDateError is returned after successful regeneration.
+func RefreshContent(force bool, ipcSender *string, locale *string, correlationID *string) (
+	certFilePath *string,
+	keyFilePath *string,
+	err error) {
 	rhsmClient, err := rhsm2.GetRHSMClient(nil, nil)
 	if err != nil {
-		return &ClientError{Message: err.Error()}
+		return nil, nil, &ClientError{Message: err.Error()}
 	}
 
 	// Create client information from provided parameters
 	clientInfo := rhsm2.RequestMetadata{IPCSender: ipcSender, Locale: locale, CorrelationId: correlationID}
-	if err := rhsmClient.UpdateEntitlementCertificate(force, &clientInfo); err != nil {
-		return &ServerError{Message: err.Error()}
+	certFilePath, keyFilePath, err = rhsmClient.UpdateEntitlementCertificate(force, &clientInfo)
+	if err != nil {
+		var entCertUpToDateError *rhsm2.EntitlementCertificateUpToDateError
+		if !errors.As(err, &entCertUpToDateError) {
+			return certFilePath, keyFilePath, err
+		}
 	}
 
-	if err := rhsmClient.GenerateRepoFileFromInstalledEntitlementCerts(); err != nil {
-		return &contentapi.IOFailedError{Message: fmt.Sprintf("failed to generate redhat.repo file: %s", err)}
+	// The certificate is up to date, but the redhat.repo file still has to be
+	// regenerated, because it could be modified or deleted in the meantime.
+	if genErr := rhsmClient.GenerateRepoFileFromInstalledEntitlementCerts(); genErr != nil {
+		return nil, nil, &contentapi.IOFailedError{Message: fmt.Sprintf("failed to generate redhat.repo file: %s", genErr)}
 	}
 
-	return nil
+	// err is either nil or *rhsm2.EntitlementCertificateUpToDateError here
+	return certFilePath, keyFilePath, err
 }
