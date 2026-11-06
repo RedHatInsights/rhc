@@ -107,52 +107,68 @@ func CanonicalFactsFromMap(m map[string]interface{}) (*CanonicalFacts, error) {
 	return &facts, nil
 }
 
+// factSources holds filesystem paths used when collecting canonical facts.
+type factSources struct {
+	insightsIDPath string
+	machineIDPath  string
+	biosUUIDPath   string
+	consumerCert   string
+}
+
+var defaultFactSources = factSources{
+	insightsIDPath: "/etc/insights-client/machine-id",
+	machineIDPath:  "/etc/machine-id",
+	biosUUIDPath:   "/sys/devices/virtual/dmi/id/product_uuid",
+	consumerCert:   "/etc/pki/consumer/cert.pem",
+}
+
 // GetCanonicalFacts attempts to construct a CanonicalFacts struct by collecting
-// data from the localhost.
+// data from the localhost. Collection is best-effort: if an individual fact
+// cannot be read, that field is left empty and remaining facts are still
+// collected (CCT-2684).
 func GetCanonicalFacts() (*CanonicalFacts, error) {
-	var facts CanonicalFacts
+	return getCanonicalFacts(defaultFactSources)
+}
 
-	var err error
-	facts.InsightsID, err = readFile("/etc/insights-client/machine-id")
-	if err != nil && !os.IsNotExist(err) {
-		return nil, err
+// getCanonicalFacts collects canonical facts using the provided source paths.
+// Errors from individual collectors are ignored so partial results are returned.
+func getCanonicalFacts(sources factSources) (*CanonicalFacts, error) {
+	facts := &CanonicalFacts{
+		IPAddresses:  []string{},
+		MACAddresses: []string{},
 	}
 
-	machineID, err := readFile("/etc/machine-id")
-	if err != nil {
-		return nil, err
-	}
-	facts.MachineID, err = toUUIDv4(machineID)
-	if err != nil {
-		return nil, err
+	if insightsID, err := readFile(sources.insightsIDPath); err == nil {
+		facts.InsightsID = insightsID
 	}
 
-	facts.BIOSUUID, err = readFile("/sys/devices/virtual/dmi/id/product_uuid")
-	if err != nil && !os.IsNotExist(err) {
-		return nil, err
+	if machineID, err := readFile(sources.machineIDPath); err == nil {
+		if id, err := toUUIDv4(machineID); err == nil {
+			facts.MachineID = id
+		}
 	}
 
-	facts.SubscriptionManagerID, err = readCert("/etc/pki/consumer/cert.pem")
-	if err != nil {
-		return nil, err
+	if biosUUID, err := readFile(sources.biosUUIDPath); err == nil {
+		facts.BIOSUUID = biosUUID
 	}
 
-	facts.IPAddresses, err = collectIPAddresses()
-	if err != nil {
-		return nil, err
+	if subscriptionManagerID, err := readCert(sources.consumerCert); err == nil {
+		facts.SubscriptionManagerID = subscriptionManagerID
 	}
 
-	facts.FQDN, err = os.Hostname()
-	if err != nil {
-		return nil, err
+	if ipAddresses, err := collectIPAddresses(); err == nil {
+		facts.IPAddresses = ipAddresses
 	}
 
-	facts.MACAddresses, err = collectMACAddresses()
-	if err != nil {
-		return nil, err
+	if fqdn, err := os.Hostname(); err == nil {
+		facts.FQDN = fqdn
 	}
 
-	return &facts, nil
+	if macAddresses, err := collectMACAddresses(); err == nil {
+		facts.MACAddresses = macAddresses
+	}
+
+	return facts, nil
 }
 
 // readFile reads the contents of filename into a string, trims whitespace,
