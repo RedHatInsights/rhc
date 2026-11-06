@@ -9,8 +9,8 @@ go.mod @RedHatInsights/csi-client-tools
 go.sum @RedHatInsights/csi-client-tools
 
 # Void team owns the RHSM Varlink API, Null team owns the rhc-collector Varlink API
-varlink/ @RedHatInsights/csi-client-tools-void
-varlink/collectorapi/ @RedHatInsights/csi-client-tools-null
+varlink/rhsm/ @RedHatInsights/csi-client-tools-void
+varlink/collector/ @RedHatInsights/csi-client-tools-null
 
 # Void team owns RHSM feature flags and RHSM-specific server code
 features/ @RedHatInsights/csi-client-tools-void

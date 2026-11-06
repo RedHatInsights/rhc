@@ -6,7 +6,7 @@ import (
 
 	"github.com/redhatinsights/rhc/internal/collector"
 	"github.com/redhatinsights/rhc/internal/systemd"
-	"github.com/redhatinsights/rhc/varlink/collectorapi"
+	collectorapi "github.com/redhatinsights/rhc/varlink/collector"
 )
 
 // buildCollectorInfo constructs a CollectorInfo struct for the given collector ID.
@@ -22,8 +22,8 @@ func buildCollectorInfo(id string) (*collectorapi.CollectorInfo, error) {
 	info := buildBasicCollectorInfo(id, config)
 
 	// Enrich with timing data (last run and next run)
-	setLastRunTime(info)
-	setNextRunTime(info)
+	setLast_runTime(info)
+	setNext_runTime(info)
 
 	return info, nil
 }
@@ -31,11 +31,11 @@ func buildCollectorInfo(id string) (*collectorapi.CollectorInfo, error) {
 // buildBasicCollectorInfo constructs the basic CollectorInfo fields from config.
 func buildBasicCollectorInfo(id string, config collector.Config) *collectorapi.CollectorInfo {
 	info := &collectorapi.CollectorInfo{
-		Id:          id,
-		Name:        config.Name,
-		ConfigPath:  filepath.Join(collector.ConfigDir, id+".toml"),
-		ServiceName: config.Service,
-		TimerName:   config.Timer,
+		Id:           id,
+		Name:         config.Name,
+		Config_path:  filepath.Join(collector.ConfigDir, id+".toml"),
+		Service_name: config.Service,
+		Timer_name:   config.Timer,
 	}
 
 	// Set feature field (nil for non-analytics features, shown as "-")
@@ -47,25 +47,25 @@ func buildBasicCollectorInfo(id string, config collector.Config) *collectorapi.C
 	return info
 }
 
-// setLastRunTime sets the last run time from the timer cache if available.
-func setLastRunTime(info *collectorapi.CollectorInfo) {
+// setLast_runTime sets the last run time from the timer cache if available.
+func setLast_runTime(info *collectorapi.CollectorInfo) {
 	timer, err := collector.ReadTimerCache(info.Id)
 	if err == nil && !timer.LastFinished.IsZero() {
-		lastRun := int(timer.LastFinished.Unix())
-		info.LastRun = &lastRun
+		lastRun := int64(timer.LastFinished.Unix())
+		info.Last_run = &lastRun
 	} else if err != nil {
 		slog.Debug("Failed to read timer cache", "id", info.Id, "error", err)
 	}
 }
 
-// setNextRunTime sets the next run time from systemd timer if available.
-func setNextRunTime(info *collectorapi.CollectorInfo) {
-	timerInfo, err := systemd.GetTimerInfo(info.TimerName)
+// setNext_runTime sets the next run time from systemd timer if available.
+func setNext_runTime(info *collectorapi.CollectorInfo) {
+	timerInfo, err := systemd.GetTimerInfo(info.Timer_name)
 	if err == nil && timerInfo.Next > 0 {
 		// Convert from microseconds to seconds
-		nextRun := int(timerInfo.Next / 1_000_000)
-		info.NextRun = &nextRun
+		nextRun := int64(timerInfo.Next / 1_000_000)
+		info.Next_run = &nextRun
 	} else if err != nil {
-		slog.Debug("Failed to get timer info from systemd", "timer", info.TimerName, "error", err)
+		slog.Debug("Failed to get timer info from systemd", "timer", info.Timer_name, "error", err)
 	}
 }

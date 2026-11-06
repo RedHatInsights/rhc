@@ -6,24 +6,22 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"net"
 	"os"
 	"strings"
 	"syscall"
 
-	"github.com/emersion/go-varlink"
-
 	"github.com/redhatinsights/rhc/internal/collector"
 	"github.com/redhatinsights/rhc/pkg/exitcode"
-	"github.com/redhatinsights/rhc/varlink/collectorapi"
+	collectorapi "github.com/redhatinsights/rhc/varlink/collector"
 	"github.com/urfave/cli/v3"
+	"github.com/varlink/go/varlink"
 )
 
 const rhcServerSocket = "/run/rhc/com.redhat.rhc"
 
 // newCollectorClient creates a varlink client for the collector API.
-func newCollectorClient() (*collectorapi.Client, func(), error) {
-	conn, err := net.Dial("unix", rhcServerSocket)
+func newCollectorClient() (*varlink.Connection, func(), error) {
+	varlinkConnection, err := varlink.NewConnection(context.Background(), "unix:"+rhcServerSocket)
 	if err != nil {
 		slog.Error("failed to connect to rhc-server", "error", err)
 		if errors.Is(err, os.ErrNotExist) || errors.Is(err, syscall.ECONNREFUSED) {
@@ -31,16 +29,12 @@ func newCollectorClient() (*collectorapi.Client, func(), error) {
 		}
 		return nil, nil, err
 	}
-	varlinkClient := varlink.NewClient(conn)
-	client := &collectorapi.Client{Client: varlinkClient}
 	cleanup := func() {
-		err = varlinkClient.Close()
-		if err != nil {
+		if err := varlinkConnection.Close(); err != nil {
 			slog.Debug("failed to close varlink client", "error", err)
-			return
 		}
 	}
-	return client, cleanup, nil
+	return varlinkConnection, cleanup, nil
 }
 
 // collectorIDShellComplete provides shell completion for commands that accept a collector ID
@@ -74,11 +68,11 @@ func collectorInfoAction(ctx context.Context, cmd *cli.Command) error {
 		return cli.Exit(fmt.Sprintf("failed to connect to rhc-server: %v", err), exitcode.Unavailable)
 	}
 	defer cleanup()
-	response, err := client.Info(&collectorapi.InfoIn{Id: cmd.Args().First()})
+	info, err := collectorapi.Info().Call(ctx, client, cmd.Args().First())
 	if err != nil {
 		return cli.Exit(fmt.Sprintf("failed to get collector info: %v", err), exitcode.Err)
 	}
-	printCollectorInfo(&response.Info)
+	printCollectorInfo(&info)
 	return nil
 }
 
@@ -97,14 +91,14 @@ func collectorListAction(ctx context.Context, cmd *cli.Command) error {
 	}
 	defer cleanup()
 
-	response, err := client.List(&collectorapi.ListIn{})
+	collectors, err := collectorapi.List().Call(ctx, client)
 	if err != nil {
 		slog.Debug("failed to list collectors", "error", err)
 		return cli.Exit("No data collectors available.", exitcode.Err)
 	}
 
 	if isOutputMachineReadable() {
-		collectorEntries := collectorListJSONEntries(response.Collectors)
+		collectorEntries := collectorListJSONEntries(collectors)
 		jsonData, err := json.Marshal(collectorEntries)
 		if err != nil {
 			return cli.Exit(fmt.Sprintf("failed to marshal collectors: %v", err), exitcode.Err)
@@ -114,7 +108,7 @@ func collectorListAction(ctx context.Context, cmd *cli.Command) error {
 	}
 
 	var rows [][]string
-	for _, info := range response.Collectors {
+	for _, info := range collectors {
 		rows = append(rows, []string{info.Id, info.Name})
 	}
 
@@ -138,15 +132,15 @@ func collectorTimersAction(ctx context.Context, cmd *cli.Command) error {
 	}
 	defer cleanup()
 
-	response, err := client.List(&collectorapi.ListIn{})
+	collectors, err := collectorapi.List().Call(ctx, client)
 	if err != nil {
 		slog.Debug("failed to list collectors for timers", "error", err)
 		return cli.Exit("No data collectors available.", exitcode.Err)
 	}
 
 	var infos []*collectorapi.CollectorInfo
-	for i := range response.Collectors {
-		infos = append(infos, &response.Collectors[i])
+	for i := range collectors {
+		infos = append(infos, &collectors[i])
 	}
 
 	printCollectorTimers(infos)

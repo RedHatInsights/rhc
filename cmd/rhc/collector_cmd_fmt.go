@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/redhatinsights/rhc/varlink/collectorapi"
+	collectorapi "github.com/redhatinsights/rhc/varlink/collector"
 )
 
 const timeFormat = "Mon 2006-01-02 15:04 MST"
@@ -31,9 +31,9 @@ func collectorListJSONEntries(infos []collectorapi.CollectorInfo) []collectorLis
 // collectorTimersJSON is the JSON representation of a single collector
 // entry in "rhc collector timers --format json" output.
 type collectorTimersJSON struct {
-	Id      string `json:"id"`
-	LastRun *int   `json:"last_run"`
-	NextRun *int   `json:"next_run"`
+	Id       string `json:"id"`
+	Last_run *int64 `json:"last_run"`
+	Next_run *int64 `json:"next_run"`
 }
 
 // collectorInfoJSON is the JSON representation of "rhc collector info
@@ -43,11 +43,11 @@ type collectorTimersJSON struct {
 type collectorInfoJSON struct {
 	Name        string  `json:"name"`
 	Feature     *string `json:"feature"`
-	LastRun     *int    `json:"last_run"`
-	NextRun     *int    `json:"next_run"`
+	Last_run    *int64  `json:"last_run"`
+	Next_run    *int64  `json:"next_run"`
 	ConfigPath  string  `json:"config_path"`
 	ServiceName string  `json:"service_name"`
-	TimerName   string  `json:"timer_name"`
+	Timer_name  string  `json:"timer_name"`
 }
 
 // formatRelativeTime converts a duration into a human-readable relative time string.
@@ -97,11 +97,11 @@ func printCollectorInfo(info *collectorapi.CollectorInfo) {
 		printMachineReadable(collectorInfoJSON{
 			Name:        info.Name,
 			Feature:     info.Feature,
-			LastRun:     info.LastRun,
-			NextRun:     info.NextRun,
-			ConfigPath:  info.ConfigPath,
-			ServiceName: info.ServiceName,
-			TimerName:   info.TimerName,
+			Last_run:    info.Last_run,
+			Next_run:    info.Next_run,
+			ConfigPath:  info.Config_path,
+			ServiceName: info.Service_name,
+			Timer_name:  info.Timer_name,
 		})
 		return
 	}
@@ -113,24 +113,24 @@ func printCollectorInfo(info *collectorapi.CollectorInfo) {
 	}
 	fmt.Printf("Feature:   %s\n\n", feature)
 
-	if info.LastRun != nil {
-		lastRunTime := time.Unix(int64(*info.LastRun), 0)
+	if info.Last_run != nil {
+		lastRunTime := time.Unix(*info.Last_run, 0)
 		relativeTime := formatRelativeTime(time.Since(lastRunTime))
 		fmt.Printf("Last run:  %s (%s ago)\n", lastRunTime.Format(timeFormat), relativeTime)
 	} else {
 		fmt.Printf("Last run:  -\n")
 	}
-	if info.NextRun != nil {
-		nextRunTime := time.Unix(int64(*info.NextRun), 0)
+	if info.Next_run != nil {
+		nextRunTime := time.Unix(*info.Next_run, 0)
 		relativeTime := formatRelativeTime(time.Until(nextRunTime))
 		fmt.Printf("Next run:  %s (%s)\n\n", nextRunTime.Format(timeFormat), relativeTime)
 	} else {
 		fmt.Printf("Next run:  -\n\n")
 	}
 
-	fmt.Printf("Config:   %s\n", info.ConfigPath)
-	fmt.Printf("Service:  %s\n", info.ServiceName)
-	fmt.Printf("Timer:    %s\n", info.TimerName)
+	fmt.Printf("Config:   %s\n", info.Config_path)
+	fmt.Printf("Service:  %s\n", info.Service_name)
+	fmt.Printf("Timer:    %s\n", info.Timer_name)
 }
 
 // PrintCollectorTimers formats multiple CollectorInfo structs into a table showing timing information.
@@ -141,9 +141,9 @@ func printCollectorTimers(infos []*collectorapi.CollectorInfo) {
 		collectorEntries := make([]collectorTimersJSON, 0, len(infos))
 		for _, info := range infos {
 			collectorEntries = append(collectorEntries, collectorTimersJSON{
-				Id:      info.Id,
-				LastRun: info.LastRun,
-				NextRun: info.NextRun,
+				Id:       info.Id,
+				Last_run: info.Last_run,
+				Next_run: info.Next_run,
 			})
 		}
 		printMachineReadable(collectorEntries)
@@ -158,13 +158,13 @@ func printCollectorTimers(infos []*collectorapi.CollectorInfo) {
 	var rows [][]string
 	for _, info := range infos {
 		lastRun := "-"
-		if info.LastRun != nil {
-			lastRunTime := time.Unix(int64(*info.LastRun), 0)
+		if info.Last_run != nil {
+			lastRunTime := time.Unix(*info.Last_run, 0)
 			lastRun = formatRelativeTime(time.Since(lastRunTime))
 		}
 		nextRun := "-"
-		if info.NextRun != nil {
-			nextRunTime := time.Unix(int64(*info.NextRun), 0)
+		if info.Next_run != nil {
+			nextRunTime := time.Unix(*info.Next_run, 0)
 			nextRun = formatRelativeTime(time.Until(nextRunTime))
 		}
 		rows = append(rows, []string{info.Id, lastRun, nextRun})

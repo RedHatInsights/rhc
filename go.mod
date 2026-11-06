@@ -6,7 +6,6 @@ require (
 	github.com/BurntSushi/toml v1.6.0
 	github.com/briandowns/spinner v1.23.2
 	github.com/coreos/go-systemd/v22 v22.7.0
-	github.com/emersion/go-varlink v0.1.1-0.20260122150447-9c0e29254dd5
 	github.com/godbus/dbus/v5 v5.2.4
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
@@ -15,6 +14,7 @@ require (
 	github.com/urfave/cli-altsrc/v3 v3.1.0
 	github.com/urfave/cli-docs/v3 v3.2.0
 	github.com/urfave/cli/v3 v3.14.0
+	github.com/varlink/go v0.4.0
 	golang.org/x/sys v0.48.0
 	golang.org/x/term v0.46.0
 	gopkg.in/ini.v1 v1.67.3
