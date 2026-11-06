@@ -79,6 +79,38 @@ def test_rhc_collector_writes_timer_cache(collector_config):
 
 
 @pytest.mark.tier2
+def test_minimal_collector_timer_randomization():
+    """
+    :id: 13248d22-5fd8-4aa2-9aac-dd81d71ce33a
+    :title: Verify minimal collector timer spreads uploads over sixteen hours
+    :description:
+        Verify systemd loads a sixteen-hour randomization window and a fixed
+        per-host delay from the packaged minimal collector timer.
+    :tags: Tier 2
+    :steps:
+        1. Query the minimal collector timer's effective systemd properties
+        2. Check the randomization window and fixed-delay setting
+    :expectedresults:
+        1. systemctl show succeeds
+        2. RandomizedDelayUSec is 16h and FixedRandomDelay is yes
+    """
+    result = subprocess.run(
+        [
+            "systemctl", "show", MINIMAL_TIMER_UNIT,
+            "--property=RandomizedDelayUSec",
+            "--property=FixedRandomDelay",
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    properties = dict(line.split("=", 1) for line in result.stdout.splitlines())
+
+    assert properties["RandomizedDelayUSec"] == "16h"
+    assert properties["FixedRandomDelay"] == "yes"
+
+
+@pytest.mark.tier2
 def test_collector_enable_disable_via_cli(rhc, minimal_collector_timer_disabled):
     """
     :id: d0e1f2a3-b4c5-6789-0abc-def012345678
