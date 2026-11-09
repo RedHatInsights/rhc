@@ -12,7 +12,7 @@
 %global selinux_policy_version 42.1.8
 
 %global goipath         github.com/redhatinsights/rhc
-Version:                0.3.15
+Version:                0.3.16
 
 %gometa
 
