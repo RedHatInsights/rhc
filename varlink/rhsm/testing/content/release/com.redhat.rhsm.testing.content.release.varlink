@@ -30,6 +30,12 @@ error NoInstalledProductCertificateMatchesOsRelease(
     not_matching_tags: []string
 )
 
+# Generic error related to the client connection, when the RHSM client cannot be initialized
+error InvalidClientConnection(message: string)
+
+# Generic error related to the server response, when the server is not available
+error FailedServerResponse(message: string)
+
 # Get release from the candlepin server. This method does not have any side effects.
 # It only returns the release. If application wants to set the release to releasever file,
 # then it should use SetRelease method. When system is not registered, then error SystemNotRegistered

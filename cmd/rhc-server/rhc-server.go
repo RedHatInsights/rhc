@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,14 +10,14 @@ import (
 
 	"github.com/jirihnidek/rhsm2"
 	"github.com/redhatinsights/rhc/internal/collector"
-	"github.com/redhatinsights/rhc/varlink/collectorapi"
-	"github.com/redhatinsights/rhc/varlink/contentapi"
-	"github.com/redhatinsights/rhc/varlink/overrideapi"
-	"github.com/redhatinsights/rhc/varlink/releaseapi"
-	"github.com/redhatinsights/rhc/varlink/rhsmapi"
+	collectorapi "github.com/redhatinsights/rhc/varlink/collector"
+	rhsmapi "github.com/redhatinsights/rhc/varlink/rhsm/testing"
+	contentapi "github.com/redhatinsights/rhc/varlink/rhsm/testing/content"
+	overrideapi "github.com/redhatinsights/rhc/varlink/rhsm/testing/content/override"
+	releaseapi "github.com/redhatinsights/rhc/varlink/rhsm/testing/content/release"
 )
 
-// CollectorBackend implements the collectorapi.Backend interface.
+// CollectorBackend implements the collectorapi.comredhatrhccollectorInterface interface.
 type CollectorBackend struct{}
 
 // NewCollectorBackend creates a new CollectorBackend instance.
@@ -26,11 +27,12 @@ func NewCollectorBackend() *CollectorBackend {
 
 // List implements the List method of the collector API.
 // Returns a list of all available collectors with full details.
-func (b *CollectorBackend) List(_ *collectorapi.ListIn) (*collectorapi.ListOut, error) {
+func (b *CollectorBackend) List(ctx context.Context, c collectorapi.VarlinkCall) error {
 	// Get list of collector IDs
 	collectorIDs, err := collector.GetCollectors()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get collectors: %w", err)
+		slog.Error("Failed to get collectors", "error", err)
+		return fmt.Errorf("failed to get collectors: %w", err)
 	}
 
 	// Build the list of collectors with full details
@@ -44,30 +46,26 @@ func (b *CollectorBackend) List(_ *collectorapi.ListIn) (*collectorapi.ListOut, 
 		collectors = append(collectors, *info)
 	}
 
-	return &collectorapi.ListOut{Collectors: collectors}, nil
+	return c.ReplyList(ctx, collectors)
 }
 
 // Info implements the Info method of the collector API.
 // Returns detailed information about a specific collector including timing and configuration.
-func (b *CollectorBackend) Info(in *collectorapi.InfoIn) (*collectorapi.InfoOut, error) {
+func (b *CollectorBackend) Info(ctx context.Context, c collectorapi.VarlinkCall, id string) error {
 	// Validate input parameter
-	if _, err := collector.ValidateID(in.Id); err != nil {
-		return nil, &collectorapi.InvalidParameterError{
-			Parameter: "id",
-		}
+	if _, err := collector.ValidateID(id); err != nil {
+		return c.ReplyInvalidParameter(ctx, "id")
 	}
 
-	info, err := buildCollectorInfo(in.Id)
+	info, err := buildCollectorInfo(id)
 	if err != nil {
-		return nil, &collectorapi.NoSuchCollectorError{
-			Id: in.Id,
-		}
+		return c.ReplyNoSuchCollector(ctx, id)
 	}
 
-	return &collectorapi.InfoOut{Info: *info}, nil
+	return c.ReplyInfo(ctx, *info)
 }
 
-// RHSMBackend implements the rhsmapi.Backend interface.
+// RHSMBackend implements the rhsmapi.comredhatrhsmtestingInterface interface.
 type RHSMBackend struct{}
 
 // NewRHSMBackend creates a new RHSMBackend instance.
@@ -76,14 +74,14 @@ func NewRHSMBackend() *RHSMBackend {
 }
 
 // Ping checks the status of the RHSM server.
-func (b *RHSMBackend) Ping(in *rhsmapi.PingIn) (*rhsmapi.PingOut, error) {
+func (b *RHSMBackend) Ping(ctx context.Context, c rhsmapi.VarlinkCall, metadata *rhsmapi.Metadata) error {
 	var rhsmServerStatus *rhsm2.RHSMStatus
 	var err error
-	if in.Metadata != nil {
+	if metadata != nil {
 		rhsmServerStatus, err = GetStatus(
-			in.Metadata.UserAgent,
-			in.Metadata.Locale,
-			in.Metadata.CorrelationId,
+			metadata.User_agent,
+			metadata.Locale,
+			metadata.Correlation_id,
 		)
 	} else {
 		rhsmServerStatus, err = GetStatus(nil, nil, nil)
@@ -93,34 +91,35 @@ func (b *RHSMBackend) Ping(in *rhsmapi.PingIn) (*rhsmapi.PingOut, error) {
 		var typeServerErr *ServerError
 		switch {
 		case errors.As(err, &typeClientErr):
-			return nil, &rhsmapi.InvalidClientConnectionError{Message: typeClientErr.Message}
+			return c.ReplyInvalidClientConnection(ctx, typeClientErr.Message)
 		case errors.As(err, &typeServerErr):
-			return nil, &rhsmapi.FailedServerResponseError{Message: typeServerErr.Message}
+			return c.ReplyFailedServerResponse(ctx, typeServerErr.Message)
 		default:
 			slog.Error("Failed to get RHSM status", "error", err)
-			return nil, err
+			return c.ReplyFailedServerResponse(ctx, "failed to get status of the RHSM server")
 		}
 	}
 	status, err := json.Marshal(rhsmServerStatus)
 	if err != nil {
-		return nil, &rhsmapi.FailedServerResponseError{Message: err.Error()}
+		slog.Error("Failed to marshal RHSM server status", "error", err)
+		return c.ReplyFailedServerResponse(ctx, "failed to marshal status of the RHSM server")
 	}
-	return &rhsmapi.PingOut{Status: status}, nil
+	return c.ReplyPing(ctx, status)
 }
 
 // IsRegistered checks if the system is registered with RHSM.
-func (b *RHSMBackend) IsRegistered(in *rhsmapi.IsRegisteredIn) (*rhsmapi.IsRegisteredOut, error) {
+func (b *RHSMBackend) IsRegistered(ctx context.Context, c rhsmapi.VarlinkCall) error {
 	registered, err := IsSystemRegistered()
 	if err != nil {
 		// When it is not possible to determine registration status, then log the reason
 		// and return false
 		slog.Debug("Failed to determine registration status", "error", err)
-		return &rhsmapi.IsRegisteredOut{Registered: false}, nil
+		return c.ReplyIsRegistered(ctx, false)
 	}
-	return &rhsmapi.IsRegisteredOut{Registered: registered}, nil
+	return c.ReplyIsRegistered(ctx, registered)
 }
 
-// ContentOverrideBackend implements the overrideapi.Backend interface.
+// ContentOverrideBackend implements the overrideapi.comredhatrhsmtestingcontentoverrideInterface interface.
 type ContentOverrideBackend struct{}
 
 // NewContentOverrideBackend creates a new ContentOverrideBackend instance.
@@ -129,35 +128,35 @@ func NewContentOverrideBackend() *ContentOverrideBackend {
 }
 
 // Download fetches content overrides from the candlepin server.
-func (b *ContentOverrideBackend) Download(in *overrideapi.DownloadIn) (*overrideapi.DownloadOut, error) {
+func (b *ContentOverrideBackend) Download(ctx context.Context, c overrideapi.VarlinkCall, metadata *overrideapi.Metadata) error {
 	registered, err := IsSystemRegistered()
 	if err != nil || !registered {
 		slog.Debug("System is not registered", "error", err)
-		return nil, &overrideapi.SystemNotRegisteredError{}
+		return c.ReplySystemNotRegistered(ctx)
 	}
 
 	var overrides []rhsm2.ContentOverride
 
-	if in.Metadata != nil {
+	if metadata != nil {
 		overrides, err = GetContentOverrides(
-			in.Metadata.UserAgent,
-			in.Metadata.Locale,
-			in.Metadata.CorrelationId,
+			metadata.User_agent,
+			metadata.Locale,
+			metadata.Correlation_id,
 		)
 	} else {
 		overrides, err = GetContentOverrides(nil, nil, nil)
 	}
 	if err != nil {
 		slog.Error("Failed to download content overrides", "error", err)
-		return nil, err
+		return replyRHSMError(ctx, &c, err)
 	}
 
 	result := make([]overrideapi.ContentOverride, 0, len(overrides))
 	for _, o := range overrides {
 		co := overrideapi.ContentOverride{
-			ContentLabel: o.ContentLabel,
-			Name:         o.Name,
-			Value:        o.Value,
+			Content_label: o.ContentLabel,
+			Name:          o.Name,
+			Value:         o.Value,
 		}
 		if o.Created != "" {
 			created := o.Created
@@ -170,16 +169,16 @@ func (b *ContentOverrideBackend) Download(in *overrideapi.DownloadIn) (*override
 		result = append(result, co)
 	}
 
-	return &overrideapi.DownloadOut{ContentOverrides: result}, nil
+	return c.ReplyDownload(ctx, result)
 }
 
 // WriteContentOverrides writes the given content overrides to the local DNF5 repo override file.
-func (b *ContentOverrideBackend) WriteContentOverrides(in *overrideapi.WriteContentOverridesIn) (*overrideapi.WriteContentOverridesOut, error) {
-	overrides := make([]rhsm2.ContentOverride, 0, len(in.ContentOverrides))
-	for _, co := range in.ContentOverrides {
+func (b *ContentOverrideBackend) WriteContentOverrides(ctx context.Context, c overrideapi.VarlinkCall, contentOverrides []overrideapi.ContentOverride) error {
+	overrides := make([]rhsm2.ContentOverride, 0, len(contentOverrides))
+	for _, co := range contentOverrides {
 		overrides = append(overrides,
 			rhsm2.ContentOverride{
-				ContentLabel: co.ContentLabel,
+				ContentLabel: co.Content_label,
 				Name:         co.Name,
 				Value:        co.Value,
 			},
@@ -188,38 +187,43 @@ func (b *ContentOverrideBackend) WriteContentOverrides(in *overrideapi.WriteCont
 
 	if err := WriteLocalContentOverrides(overrides); err != nil {
 		slog.Error("Failed to write content overrides to local DNF5 repo override file", "error", err)
-		return nil, err
+		var ioErr *IOError
+		if errors.As(err, &ioErr) {
+			return c.ReplyIOFailed(ctx, ioErr.Message)
+		}
+		return err
 	}
 
-	return &overrideapi.WriteContentOverridesOut{Success: true}, nil
+	return c.ReplyWriteContentOverrides(ctx, true)
 }
 
 // Upload reads local DNF5 repo overrides and sends them to the candlepin server.
-func (b *ContentOverrideBackend) Upload(in *overrideapi.UploadIn) (*overrideapi.UploadOut, error) {
+func (b *ContentOverrideBackend) Upload(ctx context.Context, c overrideapi.VarlinkCall, metadata *overrideapi.Metadata) error {
 	registered, err := IsSystemRegistered()
 	if err != nil || !registered {
 		slog.Debug("System is not registered", "error", err)
-		return nil, &overrideapi.SystemNotRegisteredError{}
+		return c.ReplySystemNotRegistered(ctx)
 	}
 
-	if in.Metadata != nil {
+	if metadata != nil {
 		err = UploadContentOverrides(
-			in.Metadata.UserAgent,
-			in.Metadata.Locale,
-			in.Metadata.CorrelationId,
+			metadata.User_agent,
+			metadata.Locale,
+			metadata.Correlation_id,
 		)
 	} else {
 		err = UploadContentOverrides(nil, nil, nil)
 	}
 	if err != nil {
 		slog.Error("Failed to upload content overrides", "error", err)
-		return nil, err
+		return replyRHSMError(ctx, &c, err)
 	}
 
-	return &overrideapi.UploadOut{Success: true}, nil
+	return c.ReplyUpload(ctx, true)
 }
 
-// ComRedhatRhsmContentReleaseBackend implements the interface for the com.redhat.rhsm.content.release.varlink
+// ComRedhatRhsmContentReleaseBackend implements the releaseapi.comredhatrhsmtestingcontentreleaseInterface interface
+// for the com.redhat.rhsm.testing.content.release.varlink
 type ComRedhatRhsmContentReleaseBackend struct{}
 
 // NewComRedhatRhsmContentReleaseRHSMBackend creates a new ComRedhatRhsmContentReleaseBackend instance.
@@ -231,42 +235,42 @@ func NewComRedhatRhsmContentReleaseRHSMBackend() *ComRedhatRhsmContentReleaseBac
 // This method downloads the release from the server and returns it. It does not have any side effects.
 // The release is not written to disk. If the client application wants to write the release to disk, then
 // another Varlink method SetRelease() should be used for this purpose.
-func (c ComRedhatRhsmContentReleaseBackend) Download(in *releaseapi.DownloadIn) (*releaseapi.DownloadOut, error) {
+func (b ComRedhatRhsmContentReleaseBackend) Download(ctx context.Context, c releaseapi.VarlinkCall, metadata *releaseapi.Metadata) error {
 	registered, err := IsSystemRegistered()
 	if err != nil || !registered {
 		slog.Debug("System is not registered", "error", err)
-		return nil, &releaseapi.SystemNotRegisteredError{}
+		return c.ReplySystemNotRegistered(ctx)
 	}
 
 	var release *string
-	if in.Metadata != nil {
+	if metadata != nil {
 		release, err = DownloadRelease(
-			in.Metadata.UserAgent,
-			in.Metadata.Locale,
-			in.Metadata.CorrelationId,
+			metadata.User_agent,
+			metadata.Locale,
+			metadata.Correlation_id,
 		)
 	} else {
 		release, err = DownloadRelease(nil, nil, nil)
 	}
 
 	if err != nil {
-		return nil, err
+		return replyRHSMError(ctx, &c, err)
 	}
 
-	return &releaseapi.DownloadOut{Release: *release}, nil
+	return c.ReplyDownload(ctx, *release)
 }
 
 // GetAvailableReleases retrieves a list of available releases and sorts them alphabetically.
-func (c ComRedhatRhsmContentReleaseBackend) GetAvailableReleases(in *releaseapi.GetAvailableReleasesIn) (*releaseapi.GetAvailableReleasesOut, error) {
+func (b ComRedhatRhsmContentReleaseBackend) GetAvailableReleases(ctx context.Context, c releaseapi.VarlinkCall, metadata *releaseapi.Metadata) error {
 	registered, err := IsSystemRegistered()
 	if err != nil || !registered {
 		slog.Debug("System is not registered", "error", err)
-		return nil, &releaseapi.SystemNotRegisteredError{}
+		return c.ReplySystemNotRegistered(ctx)
 	}
 
 	var releases map[string]struct{}
-	if in.Metadata != nil {
-		releases, err = GetAvailableReleases(in.Metadata.UserAgent, in.Metadata.Locale, in.Metadata.CorrelationId)
+	if metadata != nil {
+		releases, err = GetAvailableReleases(metadata.User_agent, metadata.Locale, metadata.Correlation_id)
 	} else {
 		releases, err = GetAvailableReleases(nil, nil, nil)
 	}
@@ -277,16 +281,17 @@ func (c ComRedhatRhsmContentReleaseBackend) GetAvailableReleases(in *releaseapi.
 		var noInstalledProductCertMatchesOsReleaseError *rhsm2.NoInstalledProductCertMatchesOsReleaseError
 		switch {
 		case errors.As(err, &noProductCertInstalledError):
-			return nil, &releaseapi.NoProductCertificateInstalledError{}
+			return c.ReplyNoProductCertificateInstalled(ctx)
 		case errors.As(err, &noEntitlementCertInstalledError):
-			return nil, &releaseapi.NoEntitlementCertificateInstalledError{}
+			return c.ReplyNoEntitlementCertificateInstalled(ctx)
 		case errors.As(err, &noInstalledProductCertMatchesOsReleaseError):
-			return nil, &releaseapi.NoInstalledProductCertificateMatchesOsReleaseError{
-				OsRelease:       noInstalledProductCertMatchesOsReleaseError.OsReleaseTag,
-				NotMatchingTags: noInstalledProductCertMatchesOsReleaseError.NotMatchingTags,
-			}
+			return c.ReplyNoInstalledProductCertificateMatchesOsRelease(
+				ctx,
+				noInstalledProductCertMatchesOsReleaseError.OsReleaseTag,
+				noInstalledProductCertMatchesOsReleaseError.NotMatchingTags,
+			)
 		default:
-			return nil, err
+			return replyRHSMError(ctx, &c, err)
 		}
 	}
 
@@ -298,62 +303,63 @@ func (c ComRedhatRhsmContentReleaseBackend) GetAvailableReleases(in *releaseapi.
 	}
 	slices.Sort(releaseList)
 
-	return &releaseapi.GetAvailableReleasesOut{Releases: releaseList}, nil
+	return c.ReplyGetAvailableReleases(ctx, releaseList)
 }
 
 // GetCurrentRelease returns the current release.
-func (c ComRedhatRhsmContentReleaseBackend) GetCurrentRelease(in *releaseapi.GetCurrentReleaseIn) (*releaseapi.GetCurrentReleaseOut, error) {
+func (b ComRedhatRhsmContentReleaseBackend) GetCurrentRelease(ctx context.Context, c releaseapi.VarlinkCall) error {
 	rhsmClient, err := rhsm2.GetRHSMClient(nil, nil)
 	if err != nil {
-		return nil, &ClientError{Message: err.Error()}
+		return replyRHSMError(ctx, &c, &ClientError{Message: err.Error()})
 	}
 
 	release, err := rhsmClient.GetDnfVarsRelease()
 	if err != nil {
-		return nil, &ServerError{Message: err.Error()}
+		return replyRHSMError(ctx, &c, &ServerError{Message: err.Error()})
 	}
 
 	// When release is empty string, return nil pointer
 	if release == "" {
-		return &releaseapi.GetCurrentReleaseOut{Release: nil}, nil
+		return c.ReplyGetCurrentRelease(ctx, nil)
 	}
 
-	return &releaseapi.GetCurrentReleaseOut{Release: &release}, nil
+	return c.ReplyGetCurrentRelease(ctx, &release)
 }
 
 // SetRelease sets the current release and it tries to send release to the candlepin server.
 // Sending of release to the candlepin server is done asynchronously.
-func (c ComRedhatRhsmContentReleaseBackend) SetRelease(in *releaseapi.SetReleaseIn) (*releaseapi.SetReleaseOut, error) {
+func (b ComRedhatRhsmContentReleaseBackend) SetRelease(ctx context.Context, c releaseapi.VarlinkCall, release string, metadata *releaseapi.Metadata) error {
 	var err error
-	if in.Metadata != nil {
-		err = SetRelease(in.Release, in.Metadata.UserAgent, in.Metadata.Locale, in.Metadata.CorrelationId)
+	if metadata != nil {
+		err = SetRelease(release, metadata.User_agent, metadata.Locale, metadata.Correlation_id)
 	} else {
-		err = SetRelease(in.Release, nil, nil, nil)
+		err = SetRelease(release, nil, nil, nil)
 	}
 	if err != nil {
-		return nil, &ServerError{Message: err.Error()}
+		return replyRHSMError(ctx, &c, &ServerError{Message: err.Error()})
 	}
 
-	return &releaseapi.SetReleaseOut{Success: true}, nil
+	return c.ReplySetRelease(ctx, true)
 }
 
 // UnsetRelease unsets the current release and it tries to send release to the candlepin server.
 // Unsetting the release is done asynchronously.
-func (c ComRedhatRhsmContentReleaseBackend) UnsetRelease(in *releaseapi.UnsetReleaseIn) (*releaseapi.UnsetReleaseOut, error) {
+func (b ComRedhatRhsmContentReleaseBackend) UnsetRelease(ctx context.Context, c releaseapi.VarlinkCall, metadata *releaseapi.Metadata) error {
 	var err error
-	if in.Metadata != nil {
-		err = SetRelease("", in.Metadata.UserAgent, in.Metadata.Locale, in.Metadata.CorrelationId)
+	if metadata != nil {
+		err = SetRelease("", metadata.User_agent, metadata.Locale, metadata.Correlation_id)
 	} else {
 		err = SetRelease("", nil, nil, nil)
 	}
 	if err != nil {
-		return nil, &ServerError{Message: err.Error()}
+		return replyRHSMError(ctx, &c, &ServerError{Message: err.Error()})
 	}
 
-	return &releaseapi.UnsetReleaseOut{Success: true}, nil
+	return c.ReplyUnsetRelease(ctx, true)
 }
 
-// ComRedhatRhsmContentBackend implements the interface for the com.redhat.rhsm.content.varlink
+// ComRedhatRhsmContentBackend implements the contentapi.comredhatrhsmtestingcontentInterface interface
+// for the com.redhat.rhsm.testing.content.varlink
 type ComRedhatRhsmContentBackend struct{}
 
 // NewComRedhatRhsmContentBackend creates a new ComRedhatRhsmContentBackend instance.
@@ -364,22 +370,26 @@ func NewComRedhatRhsmContentBackend() *ComRedhatRhsmContentBackend {
 // Refresh implements the interface for the com.redhat.rhsm.testing.content.varlink.
 // It refreshes the installed entitlement certificate, when needed, and regenerates
 // the redhat.repo file accordingly.
-func (c ComRedhatRhsmContentBackend) Refresh(in *contentapi.RefreshIn) (*contentapi.RefreshOut, error) {
+func (b ComRedhatRhsmContentBackend) Refresh(ctx context.Context, c contentapi.VarlinkCall, force bool, metadata *contentapi.Metadata) error {
 	registered, err := IsSystemRegistered()
 	if err != nil || !registered {
 		slog.Debug("System is not registered", "error", err)
-		return nil, &contentapi.SystemNotRegisteredError{}
+		return c.ReplySystemNotRegistered(ctx)
 	}
 
-	if in.Metadata != nil {
-		err = RefreshContent(in.Force, in.Metadata.UserAgent, in.Metadata.Locale, in.Metadata.CorrelationId)
+	if metadata != nil {
+		err = RefreshContent(force, metadata.User_agent, metadata.Locale, metadata.Correlation_id)
 	} else {
-		err = RefreshContent(in.Force, nil, nil, nil)
+		err = RefreshContent(force, nil, nil, nil)
 	}
 	if err != nil {
 		slog.Error("Failed to refresh content", "error", err)
-		return nil, err
+		var ioErr *IOError
+		if errors.As(err, &ioErr) {
+			return c.ReplyIOFailed(ctx, ioErr.Message)
+		}
+		return replyRHSMError(ctx, &c, err)
 	}
 
-	return &contentapi.RefreshOut{Success: true}, nil
+	return c.ReplyRefresh(ctx, true)
 }

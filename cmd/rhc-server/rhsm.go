@@ -1,13 +1,14 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 
 	"github.com/jirihnidek/rhsm2"
-	"github.com/redhatinsights/rhc/varlink/contentapi"
-	"github.com/redhatinsights/rhc/varlink/overrideapi"
 )
 
 type ClientError struct {
@@ -23,6 +24,41 @@ type ServerError struct {
 }
 
 func (e *ServerError) Error() string {
+	return e.Message
+}
+
+// rhsmErrorReplier is implemented by the generated VarlinkCall types of the
+// RHSM-related interfaces that declare the InvalidClientConnection and
+// FailedServerResponse errors.
+type rhsmErrorReplier interface {
+	ReplyInvalidClientConnection(ctx context.Context, message string) error
+	ReplyFailedServerResponse(ctx context.Context, message string) error
+}
+
+// replyRHSMError translates an error returned by the RHSM backends into the
+// corresponding varlink error reply. Handlers must reply instead of returning
+// an error, because a returned error is not forwarded to the varlink client by
+// the library: it only terminates the connection.
+func replyRHSMError(ctx context.Context, c rhsmErrorReplier, err error) error {
+	var typeClientErr *ClientError
+	var typeServerErr *ServerError
+	switch {
+	case errors.As(err, &typeClientErr):
+		return c.ReplyInvalidClientConnection(ctx, typeClientErr.Message)
+	case errors.As(err, &typeServerErr):
+		return c.ReplyFailedServerResponse(ctx, typeServerErr.Message)
+	default:
+		slog.Error("Unexpected error from RHSM backend", "error", err)
+		return c.ReplyFailedServerResponse(ctx, "internal rhc-server error")
+	}
+}
+
+// IOError represents a failure of a local file system operation.
+type IOError struct {
+	Message string
+}
+
+func (e *IOError) Error() string {
 	return e.Message
 }
 
@@ -103,10 +139,10 @@ func UploadContentOverrides(ipcSender *string, locale *string, correlationID *st
 func WriteLocalContentOverrides(overrides []rhsm2.ContentOverride) error {
 	dir := filepath.Dir(rhsm2.Dnf5RedHatReposOverrideFilePath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
-		return &overrideapi.IOFailedError{Message: fmt.Sprintf("failed to create override directory %s: %s", dir, err)}
+		return &IOError{Message: fmt.Sprintf("failed to create override directory %s: %s", dir, err)}
 	}
 	if err := rhsm2.WriteDnf5RepoOverrides(overrides, rhsm2.Dnf5RedHatReposOverrideFilePath); err != nil {
-		return &overrideapi.IOFailedError{Message: fmt.Sprintf("failed to write content overrides to local file: %s", err)}
+		return &IOError{Message: fmt.Sprintf("failed to write content overrides to local file: %s", err)}
 	}
 	return nil
 }
@@ -168,7 +204,7 @@ func RefreshContent(force bool, ipcSender *string, locale *string, correlationID
 	}
 
 	if err := rhsmClient.GenerateRepoFileFromInstalledEntitlementCerts(); err != nil {
-		return &contentapi.IOFailedError{Message: fmt.Sprintf("failed to generate redhat.repo file: %s", err)}
+		return &IOError{Message: fmt.Sprintf("failed to generate redhat.repo file: %s", err)}
 	}
 
 	return nil
