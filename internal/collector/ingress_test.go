@@ -94,9 +94,7 @@ func TestSendUploadRequest(t *testing.T) {
 
 func TestCreateUploadRequest(t *testing.T) {
 	testConfig := ServiceConfig{
-		URL:            "https://test.example.com/upload",
-		ClientCertPath: "/test/cert.pem",
-		ClientKeyPath:  "/test/key.pem",
+		URL: "https://test.example.com/upload",
 	}
 
 	tests := []struct {

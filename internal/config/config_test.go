@@ -69,6 +69,11 @@ func TestDecodeUnknownKeys(t *testing.T) {
 			input:   "[http.timeout]\nnot-a-timeout = 1\n",
 			wantKey: "http.timeout.not-a-timeout",
 		},
+		{
+			name:    "client certificate path",
+			input:   "[api.insights.ingress]\ncert-path = \"/etc/pki/custom/cert.pem\"\n",
+			wantKey: "api.insights.ingress.cert-path",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -93,6 +93,12 @@ allow rhc_collector_t self:fifo_file rw_fifo_file_perms;
 list_dirs_pattern(rhc_collector_t, rhc_collector_conf_t, rhc_collector_conf_t)
 read_files_pattern(rhc_collector_t, rhc_collector_conf_t, rhc_collector_conf_t)
 
+# --- Effective configuration: /etc/rhc/rhc.conf + /etc/rhsm/rhsm.conf ------
+# rhcconf.Get() resolves the ingress endpoint, client cert/key, and temp
+# directory from rhc.conf (etc_t) merged with rhsm.conf (rhsmcertd_config_t).
+files_read_etc_files(rhc_collector_t)
+rhsmcertd_read_config_files(rhc_collector_t)
+
 # --- Timer cache: /var/cache/rhc/collectors/*.json -------------------------
 # WriteTimerCache -> writeTimerToFile
 manage_dirs_pattern(rhc_collector_t, rhc_cache_t, rhc_cache_t)
