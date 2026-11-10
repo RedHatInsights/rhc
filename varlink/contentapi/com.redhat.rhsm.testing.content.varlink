@@ -18,13 +18,26 @@ error ContentNotManaged()
 # This error is returned when a local file system operation fails
 error IOFailed(message: string)
 
+# When certificate is up to date
+error CertificateUpToDate(message: string)
+
+# Result of Refresh() method
+type RefreshResult (
+    # File path of entitlement certificate
+    certificate_path: string,
+    # File path of entitlement key
+    key_path: string
+)
+
 # Try to refresh entitlement certificate, when needed, and update
 # redhat.repo file accordingly. The content (redhat.repo file) is
 # generated from the SCA entitlement certificate. When force is true,
-# the entitlement certificate is force recreated.
+# the entitlement certificate is force recreated. The method can
+# return CertificateUpToDate error, when installed entitlement
+# certificate is up-to-date
 method Refresh(
     force: bool,
     metadata: ?Metadata
 ) -> (
-    success: bool
+    result: RefreshResult
 )

@@ -16,7 +16,7 @@ from behave import fixture
 import behave.runner
 
 from steps.constants import DNF5_REPOS_OVERRIDE_DIR, DNF5_REDHAT_REPOS_OVERRIDE_FILE, \
-    DEFAULT_PRODUCT_CERT_DIR, PRODUCT_CERT_DIR
+    DEFAULT_PRODUCT_CERT_DIR, PRODUCT_CERT_DIR, REDHAT_REPO_FILE
 
 
 @fixture
@@ -47,6 +47,36 @@ def no_redhat_dnf5_override_installed(context):
         shutil.move(context.redhat_repo_override_backup, DNF5_REDHAT_REPOS_OVERRIDE_FILE)
     elif os.path.exists(DNF5_REDHAT_REPOS_OVERRIDE_FILE):
         os.remove(DNF5_REDHAT_REPOS_OVERRIDE_FILE)
+
+
+@fixture
+def redhat_repo_file_not_writable(context: behave.runner.Context):
+    """
+    Make it impossible to write the redhat.repo file, even for root, by
+    replacing it with an empty directory of the same name. Any attempt
+    to (re)generate redhat.repo then fails with EISDIR. The original
+    redhat.repo file is moved to a backup location, and it is restored
+    on teardown.
+
+    Activated via the @fixture.redhat_repo_file_not_writable tag
+    in feature files.
+    :param context: behave context
+    :return: path of the redhat.repo file
+    """
+    context.redhat_repo_backup = None
+    if os.path.lexists(REDHAT_REPO_FILE):
+        context.redhat_repo_backup = REDHAT_REPO_FILE + ".behave-backup"
+        shutil.move(REDHAT_REPO_FILE, context.redhat_repo_backup)
+    os.mkdir(REDHAT_REPO_FILE)
+
+    yield REDHAT_REPO_FILE
+
+    if os.path.isdir(REDHAT_REPO_FILE) and not os.path.islink(REDHAT_REPO_FILE):
+        shutil.rmtree(REDHAT_REPO_FILE)
+    if context.redhat_repo_backup and os.path.lexists(context.redhat_repo_backup):
+        if os.path.lexists(REDHAT_REPO_FILE):
+            os.remove(REDHAT_REPO_FILE)
+        shutil.move(context.redhat_repo_backup, REDHAT_REPO_FILE)
 
 
 def backup_product_certs(source_dir, backup_dir):
@@ -175,6 +205,7 @@ def default_product_cert_is_installed(context: behave.runner.Context):
 
 fixture_registry = {
     "fixture.no_redhat_dnf5_override_installed": no_redhat_dnf5_override_installed,
+    "fixture.redhat_repo_file_not_writable": redhat_repo_file_not_writable,
     "fixture.no_default_product_cert_installed": no_default_product_cert_installed,
     "fixture.no_product_cert_installed": no_product_cert_installed,
     "fixture.default_product_cert_is_installed": default_product_cert_is_installed
