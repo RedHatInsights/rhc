@@ -3,10 +3,12 @@ package rhcconf
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"log/slog"
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/BurntSushi/toml"
 	"github.com/google/go-cmp/cmp"
@@ -77,6 +79,59 @@ func decodeRHCConf(t *testing.T, content string) (config.File, toml.MetaData) {
 		t.Fatalf("decoding test rhc.conf fragment: %v", err)
 	}
 	return file, md
+}
+
+// TestSampleRHCConfPreservesCollectorDefaults verifies that a fully commented
+// rhc.conf plus a stock hosted rhsm.conf keeps the ingress URL, consumer
+// identity cert/key paths, and temp directory that rhc-collector previously
+// hardcoded.
+func TestSampleRHCConfPreservesCollectorDefaults(t *testing.T) {
+	sample, err := os.ReadFile("../../data/config/rhc.conf")
+	if err != nil {
+		t.Fatalf("read sample rhc.conf: %v", err)
+	}
+	file, md := decodeRHCConf(t, string(sample))
+	got, err := Resolve(file, md, hostedRHSM)
+	if err != nil {
+		t.Fatalf("Resolve() error = %v", err)
+	}
+	if gotURI, want := got.InsightsIngress.URI, "https://cert.console.redhat.com/api/ingress/v1/upload"; gotURI != want {
+		t.Errorf("InsightsIngress.URI = %q, want %q", gotURI, want)
+	}
+	if gotTmp, want := got.CollectorTmpDir, "/var/tmp"; gotTmp != want {
+		t.Errorf("CollectorTmpDir = %q, want %q", gotTmp, want)
+	}
+	for _, tc := range []struct {
+		name string
+		got  time.Duration
+		want time.Duration
+	}{
+		{"connect", got.HTTPTimeouts.Connect, 30 * time.Second},
+		{"request", got.HTTPTimeouts.Request, 180 * time.Second},
+		{"idle", got.HTTPTimeouts.Idle, 120 * time.Second},
+	} {
+		if tc.got != tc.want {
+			t.Errorf("HTTPTimeouts.%s = %v, want %v", tc.name, tc.got, tc.want)
+		}
+	}
+}
+
+// TestExplicitIngressURIIsCollectorUploadTarget verifies that an explicit
+// [api.insights.ingress] uri in rhc.conf becomes the effective ingress URI,
+// which is the URL rhc-collector uploads to.
+func TestExplicitIngressURIIsCollectorUploadTarget(t *testing.T) {
+	const uri = "https://ingress.example.com/api/ingress/v1/upload"
+	file, md := decodeRHCConf(t, fmt.Sprintf("[api.insights.ingress]\nuri = %q\n", uri))
+	got, err := Resolve(file, md, hostedRHSM)
+	if err != nil {
+		t.Fatalf("Resolve() error = %v", err)
+	}
+	if got.InsightsIngress.URI != uri {
+		t.Errorf("InsightsIngress.URI = %q, want %q", got.InsightsIngress.URI, uri)
+	}
+	if got.InsightsIngress.Source != SourceRHCConf {
+		t.Errorf("InsightsIngress.Source = %v, want %v", got.InsightsIngress.Source, SourceRHCConf)
+	}
 }
 
 func TestResolveSubscriptionsURIOverride(t *testing.T) {
@@ -780,7 +835,7 @@ func TestLog(t *testing.T) {
 		"effective proxy config", "source=rhsm.conf", "uri=http://proxy.example.com:3128",
 		"effective api.subscriptions", "source=default",
 		"effective api.rpm-content", "source=rhc.conf", "uri=https://cdn.redhat.com",
-		`msg="effective api.insights.ingress" source=rhsm.conf uri=https://cert.console.stage.redhat.com/api/ingress/v1/upload ca-path=/etc/rhsm/ca/redhat-uep.pem` + "\n",
+		`msg="effective api.insights.ingress" source=rhsm.conf uri=https://cert.console.stage.redhat.com/api/ingress/v1/upload tls-verify=false ca-path=/etc/rhsm/ca/redhat-uep.pem cert-path=/etc/pki/consumer/cert.pem key-path=/etc/pki/consumer/key.pem` + "\n",
 		`msg="effective api.insights.inventory" source=rhc.conf uri=https://inventory.example.com/v1 ca-path=/etc/rhsm/ca/katello.pem` + "\n",
 	} {
 		if !bytes.Contains(buf.Bytes(), []byte(want)) {

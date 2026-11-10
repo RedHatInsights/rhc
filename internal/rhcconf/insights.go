@@ -11,6 +11,14 @@ import (
 	"github.com/redhatinsights/rhc/internal/rhsmconf"
 )
 
+// The Insights endpoints authenticate with the consumer identity certificate
+// managed by subscription-manager.They are fixed constants rather than configurable
+// fields.
+const (
+	ConsumerCertPath = "/etc/pki/consumer/cert.pem"
+	ConsumerKeyPath  = "/etc/pki/consumer/key.pem"
+)
+
 // resolveInsightsEndpoint derives an unset URI from the effective registration
 // host. TLS verification is independent of subscriptions; only Satellite's
 // default CA comes from the resolved rhsm.repo_ca_cert.
