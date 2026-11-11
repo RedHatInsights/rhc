@@ -1,0 +1,50 @@
+name: DCO
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  dco:
+    name: DCO check
+    runs-on: ubuntu-latest
+    steps:
+      # Full clone: the pull request commits are checked against the tip of
+      # the branch the change targets.
+      - name: Check out code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      # Every commit must carry a Signed-off-by trailer matching its author or
+      # committer, as described in CONTRIBUTING.md.
+      - name: Check Signed-off-by trailers
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+
+          failed=0
+          while read -r commit; do
+            message=$(git log -1 --format=%B "${commit}")
+            signoffs=$(grep -iE '^Signed-off-by: ' <<< "${message}" \
+              | sed -nE 's/.*<([^<>]+)>.*/\1/p' \
+              | tr '[:upper:]' '[:lower:]' | sort -u || true)
+            identities=$(git log -1 --format='%ae%n%ce' "${commit}" \
+              | tr '[:upper:]' '[:lower:]' | sort -u)
+
+            if [ -z "$(comm -12 <(echo "${identities}") <(echo "${signoffs}"))" ]; then
+              echo "::error::Commit ${commit} is missing a Signed-off-by trailer from its author or committer"
+              git log -1 --format='    %h %s' "${commit}"
+              failed=1
+            fi
+          done < <(git rev-list --no-merges "${BASE_SHA}..${HEAD_SHA}")
+
+          if [ "${failed}" -ne 0 ]; then
+            echo "All commits must be signed off, see CONTRIBUTING.md."
+            exit 1
+          fi
