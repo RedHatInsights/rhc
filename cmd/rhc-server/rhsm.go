@@ -186,3 +186,43 @@ func RefreshContent(force bool, ipcSender *string, locale *string, correlationID
 	// err is either nil or *rhsm2.EntitlementCertificateUpToDateError here
 	return certFilePath, keyFilePath, err
 }
+
+// SendProfile gathers and uploads the combined RPM profile (installed RPMs and
+// enabled repositories) to the candlepin server synchronously. It is meant for
+// callers that need the result of the upload, like the dnf5 plugin implementing
+// "dnf upload-profile".
+//
+// A *rhsm2.ProfileNotSupportedError is returned unchanged so the Varlink
+// backend can distinguish "server does not support profile upload" from a
+// generic failure; all other failures are wrapped as a ServerError.
+func SendProfile(ipcSender *string, locale *string, correlationID *string) error {
+	rhsmClient, err := rhsm2.GetRHSMClient(nil, nil)
+	if err != nil {
+		return &ClientError{Message: err.Error()}
+	}
+
+	clientInfo := rhsm2.RequestMetadata{IPCSender: ipcSender, Locale: locale, CorrelationId: correlationID}
+	if err := rhsmClient.SendPackageProfile(false, &clientInfo); err != nil {
+		if _, ok := errors.AsType[*rhsm2.ProfileNotSupportedError](err); ok {
+			return err
+		}
+		return &ServerError{Message: err.Error()}
+	}
+
+	return nil
+}
+
+// SendProfileAsync starts the gathering and uploading of the combined RPM
+// profile in the background and returns as soon as the upload is started; the
+// result of the upload is only logged by rhsm2. It is meant for callers that
+// must not be blocked by the upload, like the rhsm libdnf5 plugin uploading
+// the profile at the end of a transaction.
+func SendProfileAsync(ipcSender *string, locale *string, correlationID *string) error {
+	rhsmClient, err := rhsm2.GetRHSMClient(nil, nil)
+	if err != nil {
+		return &ClientError{Message: err.Error()}
+	}
+
+	clientInfo := rhsm2.RequestMetadata{IPCSender: ipcSender, Locale: locale, CorrelationId: correlationID}
+	return rhsmClient.SendPackageProfile(true, &clientInfo)
+}
