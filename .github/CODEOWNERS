@@ -8,6 +8,10 @@
 go.mod @RedHatInsights/csi-client-tools
 go.sum @RedHatInsights/csi-client-tools
 
+# The rhc-server entrypoint is owned by both teams
+cmd/rhc-server/main.go @RedHatInsights/csi-client-tools
+cmd/rhc-server/rhc-server.go @RedHatInsights/csi-client-tools
+
 # Void team owns the RHSM Varlink API, Null team owns the rhc-collector Varlink API
 varlink/ @RedHatInsights/csi-client-tools-void
 varlink/collectorapi/ @RedHatInsights/csi-client-tools-null
