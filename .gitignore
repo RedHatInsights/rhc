@@ -12,8 +12,8 @@ rhc.spec
 /RPMS
 /SOURCES
 /SRPMS
-settings.toml
-.secrets.toml
+*settings.toml*
+*secrets.toml*
 /rhc*.tar.*
 /vendor/
 /artifacts/
@@ -21,3 +21,6 @@ __pycache__/
 /selinux/*.pp
 /selinux/*.mod
 /selinux/tmp/
+.gomodcache/
+.codegraph/
+.env*
