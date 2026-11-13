@@ -21,6 +21,7 @@ Feature: The Varlink interface com.redhat.rhsm.testing.content
 
   Scenario: Refresh() method succeeds on registered system
     Given system is registered against candlepin server
+    Given entitlement certificate is installed
     When varlink method is called and error is expected
       | method  | interface                       | arguments          |
       | Refresh | com.redhat.rhsm.testing.content | '{"force": false}' |
@@ -28,6 +29,8 @@ Feature: The Varlink interface com.redhat.rhsm.testing.content
       """
       com.redhat.rhsm.testing.content.CertificateUpToDate
       """
+    And the varlink up-to-date error contains the path to the existing entitlement certificate
+    And entitlement certificate has still the same name and i-node
 
 
   Scenario: Refresh() method regenerates deleted redhat.repo file, when certificate is up to date
@@ -41,6 +44,7 @@ Feature: The Varlink interface com.redhat.rhsm.testing.content
       """
       com.redhat.rhsm.testing.content.CertificateUpToDate
       """
+    And the varlink up-to-date error contains the path to the existing entitlement certificate
     And redhat.repo file exists
     And entitlement certificate has still the same name and i-node
 
@@ -118,6 +122,7 @@ Feature: The Varlink interface com.redhat.rhsm.testing.content
       """
       com.redhat.rhsm.testing.content.CertificateUpToDate
       """
+    And the varlink up-to-date error contains the path to the existing entitlement certificate
     And entitlement certificate has still the same name and i-node
 
 
@@ -165,6 +170,7 @@ Feature: The Varlink interface com.redhat.rhsm.testing.content
       """
       com.redhat.rhsm.testing.content.CertificateUpToDate
       """
+    And the varlink up-to-date error contains the path to the existing entitlement certificate
     And entitlement certificate has still the same name and i-node
     And varlink method is called and error is expected
       | method  | interface                       | arguments          |
@@ -173,4 +179,5 @@ Feature: The Varlink interface com.redhat.rhsm.testing.content
       """
       com.redhat.rhsm.testing.content.CertificateUpToDate
       """
+    And the varlink up-to-date error contains the path to the existing entitlement certificate
     And entitlement certificate has still the same name and i-node
