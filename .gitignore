@@ -12,8 +12,12 @@ rhc.spec
 /RPMS
 /SOURCES
 /SRPMS
-settings.toml
-.secrets.toml
+# settings.toml is a downloaded, sanitized test artifact (no secrets) and
+# must never be committed; secrets belong in PYTEST_CLIENT_TOOLS_* env vars
+# or a git-ignored .secrets.toml. The glob also covers the settings.toml.bak
+# backup test.sh makes before downloading a replacement.
+*settings.toml*
+*secrets.toml*
 /rhc*.tar.*
 /vendor/
 /artifacts/
