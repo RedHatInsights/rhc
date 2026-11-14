@@ -145,14 +145,27 @@ python3 -m venv venv
 pip install --upgrade pip
 pip install -r integration-tests/requirements.txt
 
-# If SETTINGS_URL is set (most likely in .testing-farm.yaml), download the settings
-# file from the provided URL. Back up any existing settings.toml before downloading.
+# If SETTINGS_URL is set (most likely in .testing-farm.yaml), download the
+# sanitized settings file (non-secret values only) from the provided URL.
+# Back up any existing settings.toml before downloading. Secrets are expected
+# as PYTEST_CLIENT_TOOLS_* environment variables (see TESTING.md).
 if [[ -v SETTINGS_URL ]]; then
   [ -f ./settings.toml ] && mv ./settings.toml ./settings.toml.bak
   if ! curl -f "$SETTINGS_URL" -o ./settings.toml; then
     echo "ERROR: Failed to download settings from: $SETTINGS_URL" >&2
     exit 1
   fi
+fi
+
+# The sanitized settings file provides candlepin.username without the
+# password, and pytest-client-tools requires a password (or activation keys)
+# whenever a username is set. For the containerized candlepin
+# (ENV_FOR_DYNACONF=testing) fall back to the container's well-known
+# credentials; credentials for real environments must be supplied through
+# PYTEST_CLIENT_TOOLS_* environment variables.
+if [[ "${ENV_FOR_DYNACONF:-}" = "testing" ]]; then
+  export PYTEST_CLIENT_TOOLS_CANDLEPIN__USERNAME="${PYTEST_CLIENT_TOOLS_CANDLEPIN__USERNAME:-admin}"
+  export PYTEST_CLIENT_TOOLS_CANDLEPIN__PASSWORD="${PYTEST_CLIENT_TOOLS_CANDLEPIN__PASSWORD:-admin}"
 fi
 
 pytest --junit-xml=./junit.xml -v integration-tests

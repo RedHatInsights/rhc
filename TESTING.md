@@ -25,34 +25,59 @@ sudo pip install -r integration-tests/requirements.txt
 Configuration of Testing Environment
 ------------------------------------
 
-Then you will have to create configuration file `settings.toml` for your testing. You
-will have to replace credentials with your own credentials.
+`pytest-client-tools` reads its configuration from a `settings.toml` file that
+is **not** part of this repository. CI downloads a sanitized copy (non-secret
+values only) from the URL in the `SETTINGS_URL` environment variable (see
+`.testing-farm.yaml`); `systemtest/tests/integration/test.sh` stores it next to
+the tests before running them. For local runs you can create the file yourself
+— it is git-ignored — but it must not contain real secrets.
 
-```toml
-[production]
-candlepin.host = "subscription.rhsm.redhat.com"
-candlepin.port =  443
-candlepin.prefix = "/subscription"
-candlepin.insecure = false
-candlepin.username =  "YOUR_USERNAME"
-candlepin.password = "YOUR_SECRET_PASSWORD"
-candlepin.activation_keys = ["YOR_ACTIVATION_KEY"]
-candlepin.org = "YOUR_RORGANIZATION_ID"
+Secret values are provided through environment variables understood by
+`pytest-client-tools`:
 
-# # Following options are optional.
-# insights.legacy_upload = false
-# insights.host_details = "/var/lib/insights/host-details.json"
-# auth_proxy.host = "YOUR.PROXY.SERVER.USING.AUTHENTICATION.COM"
-# auth_proxy.port = 3127
-# auth_proxy.username = "YOUR_PROXY_USERNAME"
-# auth_proxy.password = "YOUR_PROXY_PASSWORD"
-# noauth_proxy.host = "YOUR.PROXY.SERVER.NO-AUTHENTICATION"
-# noauth_proxy.port = 3129
+| Setting | Environment variable |
+| ------- | -------------------- |
+| `candlepin.username` | `PYTEST_CLIENT_TOOLS_CANDLEPIN__USERNAME` |
+| `candlepin.password` | `PYTEST_CLIENT_TOOLS_CANDLEPIN__PASSWORD` |
+| `candlepin.activation_keys` | `PYTEST_CLIENT_TOOLS_CANDLEPIN__ACTIVATION_KEYS` |
+| `auth_proxy.username` | `PYTEST_CLIENT_TOOLS_AUTH_PROXY__USERNAME` |
+| `auth_proxy.password` | `PYTEST_CLIENT_TOOLS_AUTH_PROXY__PASSWORD` |
+| `service_account.client_secret` | `PYTEST_CLIENT_TOOLS_SERVICE_ACCOUNT__CLIENT_SECRET` |
+
+The naming rule is `PYTEST_CLIENT_TOOLS_<SECTION>__<KEY>` for nested settings
+(each `.` in the dotted path becomes `__`, uppercased) and
+`PYTEST_CLIENT_TOOLS_<KEY>` for top-level settings. Values are parsed as TOML:
+`8443` becomes an integer, `true` a boolean, and `["key1", "key2"]` a list. To
+force a numeric string, quote it, e.g. `'"12345"'`.
+
+`ENV_FOR_DYNACONF` selects which section of `settings.toml` is used
+(`default`, `stage`, `prod`, `satellite*`, `testing`, `local`, ...). Sections
+inherit keys they omit from the `default` section, so environment variables
+only need to carry the secrets of the selected environment.
+
+The precedence is: environment variables > `.secrets.toml` (git-ignored) >
+`settings.toml`. Because the sanitized settings file carries
+`candlepin.username` without the password, a password (or activation keys)
+must always be supplied through the environment when running against a real
+candlepin — `pytest-client-tools` refuses to start otherwise. For example, to
+run the tests against stage:
+
+```
+export ENV_FOR_DYNACONF=stage
+export PYTEST_CLIENT_TOOLS_CANDLEPIN__USERNAME=...
+export PYTEST_CLIENT_TOOLS_CANDLEPIN__PASSWORD=...
+export PYTEST_CLIENT_TOOLS_CANDLEPIN__ACTIVATION_KEYS='["..."]'
 ```
 
-Previous example of configuration file will use production candlepin server.
-You can have more section in this configuration file. Another section could be for
-example for some Satellite server.
+For local overrides (including whole custom sections) use a git-ignored
+`.secrets.toml` file.
+
+The `[testing]` section targets the containerized Candlepin used by CI. Its
+container credentials are not part of the sanitized settings file either;
+`systemtest/tests/integration/test.sh` exports the well-known container
+values when `ENV_FOR_DYNACONF=testing` and no explicit credentials are set.
+For the multi-org container mode, also set
+`PYTEST_CLIENT_TOOLS_CANDLEPIN__MULTI_ORG__USERNAME`/`__PASSWORD`.
 
 ### Local Candlepin
 
@@ -66,8 +91,9 @@ $ podman run -d --name candlepin \
 ```
 
 When local candlepin is deployed, then you have to do two things. First, you have
-to add configuration to your `settings.toml` file exactly like this to use your
-local candlepin:
+to add a `[local]` section to your `.secrets.toml` file exactly like this to use
+your local candlepin (a `.secrets.toml` section overrides the downloaded
+`settings.toml` and is git-ignored):
 
 ```toml
 [local]
