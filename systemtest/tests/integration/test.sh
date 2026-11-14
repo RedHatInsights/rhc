@@ -144,15 +144,47 @@ python3 -m venv venv
 . venv/bin/activate
 pip install --upgrade pip
 pip install -r integration-tests/requirements.txt
+# Re-assert the dynaconf security floor (CVE-2026-33154, SSTI in the
+# @jinja resolver, fixed in 3.2.13). The authoritative constraint lives in
+# integration-tests/requirements.txt, and pytest-client-tools declares the
+# same floor in its own metadata, so even a requirements file restored
+# from a pre-pin release tag (PIN_TESTS_TO_RPM=1) already resolves it;
+# this line is a belt-and-braces re-assertion so the floor cannot regress
+# if those upstream constraints are ever dropped. dynaconf 3.2.13
+# requires python >= 3.8; EL8 guests (python 3.6, still gated through the
+# release branches) stay on the 3.1.x line instead.
+pip install 'dynaconf>=3.2.13,<4; python_version >= "3.8"' 'dynaconf>=3.1.5,<3.2; python_version < "3.8"'
 
-# If SETTINGS_URL is set (most likely in .testing-farm.yaml), download the settings
-# file from the provided URL. Back up any existing settings.toml before downloading.
+# If SETTINGS_URL is set (most likely in .testing-farm.yaml), download the
+# sanitized settings file (non-secret values only) from the provided URL.
+# Back up any existing settings.toml before downloading. Secrets are expected
+# as PYTEST_CLIENT_TOOLS_* environment variables (see TESTING.md).
 if [[ -v SETTINGS_URL ]]; then
   [ -f ./settings.toml ] && mv ./settings.toml ./settings.toml.bak
   if ! curl -f "$SETTINGS_URL" -o ./settings.toml; then
     echo "ERROR: Failed to download settings from: $SETTINGS_URL" >&2
     exit 1
   fi
+  # Strict mode: an @vault: sentinel that cannot be resolved fails
+  # loudly at config load instead of degrading into a missing key and a
+  # skipped run. Runs without SETTINGS_URL (containerized, manual) are
+  # unaffected.
+  export PYTEST_CLIENT_TOOLS_VAULT_REQUIRED=1
+fi
+
+# The sanitized settings file provides candlepin.username without the
+# password, and pytest-client-tools requires a password whenever a
+# username is set (activation keys alone do not satisfy that check). For
+# the containerized candlepin (ENV_FOR_DYNACONF=testing) fall back to the
+# container's well-known credentials; credentials for real environments
+# must be supplied through PYTEST_CLIENT_TOOLS_* environment variables.
+if [[ "${ENV_FOR_DYNACONF:-}" = "testing" ]]; then
+  # Suppress tracing: Testing Farm masks only the values it injected
+  # itself, so an operator-supplied real password must not reach the log.
+  set +x
+  export PYTEST_CLIENT_TOOLS_CANDLEPIN__USERNAME="${PYTEST_CLIENT_TOOLS_CANDLEPIN__USERNAME:-admin}"
+  export PYTEST_CLIENT_TOOLS_CANDLEPIN__PASSWORD="${PYTEST_CLIENT_TOOLS_CANDLEPIN__PASSWORD:-admin}"
+  set -x
 fi
 
 pytest --junit-xml=./junit.xml -v integration-tests

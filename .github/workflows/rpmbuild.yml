@@ -6,6 +6,16 @@ on:
       - main
   workflow_dispatch:
   workflow_call:
+    inputs:
+      pin_golang:
+        description: >-
+          Build the RPMs with golang 1.27.3 from Koji. Workaround for the
+          candlepin container ML-DSA TLS incompatibility of golang >= 1.27.4
+          (https://go.dev/issue/82536); needed when the RPMs are used to run
+          the containerized integration tests.
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -47,6 +57,24 @@ jobs:
       - name: "Install required packages"
         run: |
           dnf --setopt install_weak_deps=False builddep -y rhc.spec
+
+      - name: "Pin golang to 1.27.3 (candlepin TLS compatibility)"
+        if: ${{ inputs.pin_golang }}
+        # golang >= 1.27.4 omits ML-DSA from the TLS signature_algorithms_cert
+        # extension (https://go.dev/issue/82536), and the candlepin test
+        # container presents an ML-DSA-65 certificate with no RSA fallback, so
+        # every TLS handshake with it fails. Build with golang 1.27.3 from Koji
+        # until this is resolved upstream; remove this step once a fixed
+        # golang is available.
+        run: |
+          FEDORA_RELEASE="$(rpm -E %fedora)"
+          ARCH="$(rpm -E %_arch)"
+          KOJI_BASE="https://kojipkgs.fedoraproject.org/packages/golang/1.27.3/1.fc${FEDORA_RELEASE}"
+          dnf install -y --setopt install_weak_deps=False \
+            "${KOJI_BASE}/${ARCH}/golang-1.27.3-1.fc${FEDORA_RELEASE}.${ARCH}.rpm" \
+            "${KOJI_BASE}/${ARCH}/golang-bin-1.27.3-1.fc${FEDORA_RELEASE}.${ARCH}.rpm" \
+            "${KOJI_BASE}/noarch/golang-src-1.27.3-1.fc${FEDORA_RELEASE}.noarch.rpm"
+          go version
 
       - name: "Build RPM artifacts"
         run: |
