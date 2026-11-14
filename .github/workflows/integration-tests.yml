@@ -10,6 +10,11 @@ permissions:
 jobs:
   build-rpms:
     uses: $/.github/workflows/rpmbuild.yml
+    with:
+      # golang >= 1.27.4 cannot complete a TLS handshake with the candlepin
+      # test container's ML-DSA certificate (see the pin step in
+      # rpmbuild.yml), so build the RPMs for these tests with golang 1.27.3.
+      pin_golang: true
 
   integration-tests:
     name: "Integration Tests (${{ matrix.name }})"
