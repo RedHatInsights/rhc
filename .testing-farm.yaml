@@ -1,20 +1,65 @@
 version: 1
 
-# SETTINGS_URL is delivered as an encrypted Testing Farm secret below, so the
-# location of the served configuration is not advertised in plain text. The
-# decrypted value is the URL of a sanitized (secret-free) settings.toml;
-# credential values never appear in that file — they are delivered separately
-# as Testing Farm secrets (PYTEST_CLIENT_TOOLS_* environment variables
-# override same-named keys from the downloaded file; those blobs are added to
-# this same map by the sync job at cutover). Gating pipelines pass the same
-# URL at request time.
+# PILOT BRANCH (cct-3159/pilot-vault) — CCT-3155 guest-pull pilot. TEMPORARY:
+# delete after the pilot; never merge into main. It differs from
+# cct-3159/remove-settings-url only in this file (four encrypted-blob slots)
+# — integration-tests/requirements.txt matches the base branch (the
+# @vault: sentinel loader is on PCT main, PR #70 merged).
 #
-# To regenerate this entry:
-#   testing-farm encrypt <url> --git-url https://github.com/RedHatInsights/rhc
-# (authenticates with the team token; keep entries scalar — the sync job's
-# layout validation requires it).
+# SETTINGS_URL is delivered as an encrypted Testing Farm secret below, so the
+# location of the served configuration is not advertised in plain text. For
+# the pilot it is re-pointed at the staged sentinel file
+# (settings.vault.toml): non-secret values plus "@vault:<path>:<key>"
+# sentinels in the credential slots, resolved on the guest at config-load
+# time by the pytest-client-tools loader via AppRole login against
+# VAULT_ADDR. Credential values never appear in the served file. Gating
+# pipelines pass the same class of URL at request time.
+#
+# LAYOUT NOTE: the secrets map sits directly under `environments` (the flat
+# form TF's repo-config parser reads — gluetool-modules InRepoConfig). A
+# nested `environments.default.secrets` map is silently IGNORED by Testing
+# Farm (pydantic drops the unknown `default` key; discovered in the first
+# pilot run). Entries may be scalars or lists of per-token ciphertexts; the
+# parser accepts both.
+#
+# To regenerate an entry, authenticate with the team token
+# (TESTING_FARM_API_TOKEN environment variable only — the CLI refuses it as
+# an option) and encrypt for THIS repository; capture the CLI stdout through
+# `| jq -r .` (the output is JSON-quoted) and paste the
+# "<token-id>,<ciphertext>" string verbatim as the scalar value:
+#
+#   testing-farm encrypt <value> --git-url https://github.com/RedHatInsights/rhc | jq -r .
+#
 # See: https://docs.testing-farm.io/Testing%20Farm/0.1/test-request.html#secrets-in-repo-config
 environments:
-  default:
-    secrets:
-      SETTINGS_URL: "f59f9cfd-119c-40db-a0e5-c4e9ef277da5,DGwWgUV5+TaLhkTpLugf4cdzHLQKARYcNywu1774ocsuseobjUcqhafdoiXtKDOdvZrVGVSJtAe/+YpYJOyTL3+u35ZMhzd3EOUwVdXZRjOuArI1jkQ8ueA8OTeoSaK3CcoaKDQLepVAaSvk8xDh+in4zPWDQDIV4BEXH6wIU5e6/XSHdf5CNOyG5g+bM4Fddbd5zDdQP0T8PoqbCwUHtLlNzpwiaD5PAkDcwQY0E/VqQAz3ic0g4HbySuTS1eV8qYKl0d6yL4QG7ZVdiPUYA/H5Dp4AjWZhVX74ePV9jq9vECWfEqn7BOEs4iYQBVUdKuEpWeJNfZCDhboEBAMuxCQZTZzAzLl4+0SqbGGFJVi56KtSpOLCnqYu+0l4RV6sa5pRTUYqnqHOk24LQ01/NjAdo+a1aIAskNt2ArLBtIWphAlkXtWuTmdvnZg+DHvjK4GDBAUS0TvvVbDA8qspNQVXiZg/vBNDWxvFmeHnv5ExfEr9XNLZ5ef3ApB7J4owACFZIUiDU7tHv59NMQQ9yWCYFYgpTLc3RZ9OMPx6WWkMASY5K5z2WkoN2T4OnFdZxOWcO8MZfHlsLf95T/R59K2CPc3DOfpl9pcN1PD3kgnZXkUAn9z6hfdq0llE6lU2Erp8kG/88Lteb5l0/w+Y0/WczYTRMn68cem9bPdhF84="
+  secrets:
+    # URL of the staged sentinel settings file (non-secret literal; the
+    # exact value lives in the owner's pilot procedure, not in this repo).
+    # Regenerate:
+    #   testing-farm encrypt <staged-vault-settings-url> \
+    #     --git-url https://github.com/RedHatInsights/rhc
+    # Pre-pilot value (sanitized-settings URL; restored on pilot rollback):
+    # SETTINGS_URL: "f59f9cfd-119c-40db-a0e5-c4e9ef277da5,DGwWgUV5+TaLhkTpLugf4cdzHLQKARYcNywu1774ocsuseobjUcqhafdoiXtKDOdvZrVGVSJtAe/+YpYJOyTL3+u35ZMhzd3EOUwVdXZRjOuArI1jkQ8ueA8OTeoSaK3CcoaKDQLepVAaSvk8xDh+in4zPWDQDIV4BEXH6wIU5e6/XSHdf5CNOyG5g+bM4Fddbd5zDdQP0T8PoqbCwUHtLlNzpwiaD5PAkDcwQY0E/VqQAz3ic0g4HbySuTS1eV8qYKl0d6yL4QG7ZVdiPUYA/H5Dp4AjWZhVX74ePV9jq9vECWfEqn7BOEs4iYQBVUdKuEpWeJNfZCDhboEBAMuxCQZTZzAzLl4+0SqbGGFJVi56KtSpOLCnqYu+0l4RV6sa5pRTUYqnqHOk24LQ01/NjAdo+a1aIAskNt2ArLBtIWphAlkXtWuTmdvnZg+DHvjK4GDBAUS0TvvVbDA8qspNQVXiZg/vBNDWxvFmeHnv5ExfEr9XNLZ5ef3ApB7J4owACFZIUiDU7tHv59NMQQ9yWCYFYgpTLc3RZ9OMPx6WWkMASY5K5z2WkoN2T4OnFdZxOWcO8MZfHlsLf95T/R59K2CPc3DOfpl9pcN1PD3kgnZXkUAn9z6hfdq0llE6lU2Erp8kG/88Lteb5l0/w+Y0/WczYTRMn68cem9bPdhF84="
+    SETTINGS_URL: "f59f9cfd-119c-40db-a0e5-c4e9ef277da5,e0Pxhu0e1fFuRWcDROaBjwReit1Yr9jaE1raZP8MPvAiRwdDYfWCNfZXgYCKnKPqaMhdJI+WoHxAgMsbsJfayIkKIjEvQT6Bx2EzAIsu6EevA6OGEvZwb5a5rFFW6GW6M4TWozujJTg3/COlOzS6IyHKgQOCfhRRXXf+jvg0XfKvh1UXO/v/tMwM5k0py0N/88h9QRj/HGaTQSRJm4lneRdFAln6dlj/U2MraddSxMqLEPzW++cvRzetkR9riugwGy87gKSjF2uhl/F7frpTuwPHcOtuc0AAxRf7YNjx+kVeAxc7H/RgDDlDDHrRI9pbHUwo8Kg3/Odql4X7CIO9q09M9VGBHyYbTPeInEOCGPzdFqQiTickBBbPjRNb6dZIGYkuRuw+yHz68VFcF+/y5nDJoEB935QxUhM9QfvzVWa6pY5Q8SIC8EHdgcfKCdJqqDKGB3xgFC1sATAPa1d+b3ve1T82/RP8dwH8ge5zBXNB3JtGucMSD2nh4R164Ehk4zaT3bOEEPR+S2x+yQOrJJ7XScuqDaesd8NcckZs4KyVq7yyJkddr4XEkgqvKgXEmiFCLNyk0fSB2ZOlCSDhcpolEzmvX3WrQ1AJXSv8dht34pTUHbr/dYs/vYhuDy0dwK2kI45MMkP7HYOCa503Qg/8oCdxd5fs79l+lUHY3CQ="
+    # Address of the Vault server the guest-side loader logs in to
+    # (non-secret literal; exact value lives in the owner's pilot
+    # procedure, not in this repo). Regenerate:
+    #   testing-farm encrypt <vault-address> \
+    #     --git-url https://github.com/RedHatInsights/rhc
+    VAULT_ADDR: "f59f9cfd-119c-40db-a0e5-c4e9ef277da5,WlCqYKG4fLxpYXMtiHF8LdILBTPhqzrah1/ylTAfpSAk65brx0+lT3sDB5xXaeEwfzTS0J5VmA5xElyZ8TX8U97q5exOlQj1s4bj8+lbPv+CJPCH4fMIx0Pt8jSjC2BjgTuY4MLcsA+erQgCO5/fyhtaa9D5XyjAzza1icKBE1ypVmsbktyfEtJLH/orIk6+falbMrKUB+AtAsSNgL+fWGYwY4enGlTobyYSo7NQk6LptabgPVCHlYefR/DlypSAfDSeqNuX02gza0Wa84EmplELoREKG8o/f/RqWvPLoofrbiAugNb3kYJE/a7Ly5xFg0kg6WDEEkFs0tawJ1YKISr5XS7ZG3qdwT3HgK0efdit7fuz3z4bJWvS3eGUbKVHtf+zpxPkniWA3i0o+4B/6impNBQh1Md0vhsC7yTwUvSy3qtxG4XAZ6ybyXfCW13m9bIyKQ+W2rGsj8ZSeXTiO4Hhd3dIKdjrMiioTbdjOrCHPbnkB7jUpzgcrr12xmkLEOfeDFh7vob+w1CVEasBg8k3yUo6bi6Uq+G9uPZeWezo69zNpcEUdWLXnh+ueA2eawS7WwMImQQzz+XvctJJ5fZLbByt6vRfZ38VSBeEQd2M5crhDeH7kTj1gkg08XuhFA9ODEkZdclSZJMPUx59fn2cQpSZRzeIXeT9atdFPWM="
+    # AppRole role_id consumed by the guest-side loader (value lives in
+    # Vault; never in this repo, even as a comment). Regenerate:
+    #   ROLE_ID=$(vault kv get -format=json apps/cct-ci/approle/role-id \
+    #     | jq -r .data.data.value)
+    #   testing-farm encrypt "$ROLE_ID" \
+    #     --git-url https://github.com/RedHatInsights/rhc
+    #   unset ROLE_ID
+    VAULT_ROLE_ID: "f59f9cfd-119c-40db-a0e5-c4e9ef277da5,AmZI9cdgm31vIJkmXZRDdrqhJwiwaHT/URwyW33qFfNWD2GSfnqsnTelmg5zaOEKtBmJGp6ESWol0ZmeGIZo8+JEWUstsLSM5rffHehKb7QpZwFOlkkIFWqTKDal906yZVnog858PWjDE3DwGO+5pEGI1WfvR323dN0SajmmUKGD9BAJqfldZqdjDbzjdQ1Y0F433/8ehbFf8T7iGL3hPmdZnnhlVW39ZymXTdh2d5PeSG+QhnBjTzTI0SBY2+zzNCfVWnqFckDZqQs9q1qSEwD8Z7qVthX9WFPQZkeLBDWjDm5QXD6oTikyA1qzv6kEqqdU3r9T0iN1mOTCi72O68MLpqblLMMHMyV+HBPoVYKn0PAQeTljMIUMquec90ezraHYNKwZxLbEzdrgB+agpgFNUobdPga3AXVnxUw7NCPZtRKumxlVwsUX6YlEw518X1EeVOlOIVl0DkKUSU4YmmNBFy4bCrCqZKpu36ghHpNmf8sTSpaRt70p74JqDbAkgkrrPUa++JBVIsfSAn30sv/LNQbhKkpyC9CEzosuJo4ZMiRUYbKCDH3aSUD/8AZzrCEfxMlTOwLvHQjhVHQYfLUu21TjA9ReWUpJVrLPLX5V3oXLoXM3MNhmb9eBQZEOyUTyn7yEDkSkfpYIMAngNQOqSE2X3I3+y3eUTZRezME="
+    # AppRole secret_id dedicated to this repo (value lives in Vault;
+    # never in this repo, even as a comment). Regenerate:
+    #   SECRET_ID=$(vault kv get -format=json apps/cct-ci/approle/secret-id-rhc \
+    #     | jq -r .data.data.value)
+    #   testing-farm encrypt "$SECRET_ID" \
+    #     --git-url https://github.com/RedHatInsights/rhc
+    #   unset SECRET_ID
+    VAULT_SECRET_ID: "f59f9cfd-119c-40db-a0e5-c4e9ef277da5,CBVS65SCxVN18mRhJHTlH/mgWrD8um+yjv5+5lIxl0HRBVkEcjC7lTz3k+5q1bgd+iL/havKyUg3dLncrIpIxERF1/FhgyVZkGaJY9fBNXRaSj/IKTd48mWtehJ1IKf9uQUCFf21G1LZbD7vgxaK+irZGwyXO+GDkkSvsUcof1b3Xq0LJErUAtPp2hai1qV3xtAIIkO2Aj/gIO2+GyKDawUOhiHW0j2pOu7TNn5GRbjNkONbFyIQquJg/acaRJYJfa/ekubfdIVjRcJokzASdYrY92BTQXb04jCWTuupoiq4FNYtkK5LaipQ8Pns6HxpvArJ3JgR2ZIkDeeeKJvcMeSuq8ERWYURFDu77e/URgq/6TfLNz77QaE3LZP6xgjvrgQ/AJ5dAOUaycp/VjCFWk0syQS5dRZ+PbPdppyljiL10rMKhed5g6faokoHgK8TwMKlVpzoWhQpbwNItDXyx6EIKfOHdQJ0C5CtIBbiAVmu+94J3XGg5Jq6vyeWuM+x7eU+xBhI5FxLT7vWueE47E8/5eXUo5ATSY4yigxWEO1JUmJkjFbCgsp/zPxhu1kZVYl75I/X0/PaDGPB81oozm/TEjIBPvjsUbOxDuXEMB7QITopNhQ8pHX8Gar5bRnENrXK43zc64syr/KPtQqA1c8BIhzEmoo5fGG+j2fctAk="
