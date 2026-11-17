@@ -63,6 +63,35 @@ def load_proxy_settings() -> tuple[str, str, str]:
     return host, str(port), proxy_url
 
 
+def label_proxy_port(port: str) -> None:
+    """Label the proxy port as squid_port_t so confined clients can connect."""
+    common = ["-t", "squid_port_t", "-p", "tcp", str(port)]
+    try:
+        result = subprocess.run(
+            ["semanage", "port", "-a"] + common,
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode == 0:
+            return
+        combined = (result.stdout or "") + (result.stderr or "")
+        if "already defined" not in combined.lower():
+            result.check_returncode()  # unexpected failure — surface it
+        subprocess.run(
+            ["semanage", "port", "-m"] + common,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    except FileNotFoundError:
+        print("semanage not available; skipping SELinux proxy port labeling.")
+    except subprocess.CalledProcessError as exc:
+        # Non-fatal so provisioning still completes, but loud enough to
+        # diagnose from the logs.
+        stderr = (exc.stderr or "").strip()
+        print(f"Could not label proxy port as squid_port_t: {stderr or exc}")
+
+
 def update_rhsm_conf(host: str, port: str):
     """Update /etc/rhsm/rhsm.conf with proxy settings."""
     if not RHSM_CONF.exists():
@@ -130,6 +159,7 @@ def main() -> int:
 
     try:
         host, port, proxy_url = load_proxy_settings()
+        label_proxy_port(port)
         update_rhsm_conf(host, port)
         update_insights_conf(proxy_url)
         configure_yggdrasil_service(proxy_url)
