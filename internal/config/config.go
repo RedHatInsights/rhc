@@ -15,6 +15,10 @@ const (
 	defaultRPMContentURI    = "https://cdn.redhat.com"
 	defaultIngressURI       = "https://cert.console.redhat.com/api/ingress/v1/upload"
 	defaultInventoryURI     = "https://cert.console.redhat.com/api/inventory/v1/hosts"
+
+	// DefaultCollectorTmpDir is the parent directory under which
+	// rhc-collector creates its private working directories.
+	DefaultCollectorTmpDir = "/var/tmp"
 )
 
 type Source struct {
@@ -26,6 +30,11 @@ type File struct {
 	Compatibility Compatibility `toml:"compatibility"`
 	HTTP          HTTP          `toml:"http"`
 	API           API           `toml:"api"`
+	Collector     Collector     `toml:"collector"`
+}
+
+type Collector struct {
+	TmpDir string `toml:"tmp-dir"`
 }
 
 type Compatibility struct {
@@ -127,6 +136,9 @@ func decode(data []byte) (File, toml.MetaData, error) {
 	if !md.IsDefined("http", "timeout", "idle") {
 		file.HTTP.Timeout.Idle = DurationSeconds(120 * time.Second)
 	}
+	if !md.IsDefined("collector", "tmp-dir") {
+		file.Collector.TmpDir = DefaultCollectorTmpDir
+	}
 
 	return file, md, nil
 }
@@ -163,6 +175,8 @@ func unknownKeys(md toml.MetaData) error {
 		"api.insights.inventory.uri":        {},
 		"api.insights.inventory.tls-verify": {},
 		"api.insights.inventory.ca-path":    {},
+		"collector":                         {},
+		"collector.tmp-dir":                 {},
 	}
 	for _, key := range md.Keys() {
 		name := key.String()
