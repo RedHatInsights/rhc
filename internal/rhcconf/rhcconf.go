@@ -12,10 +12,12 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/BurntSushi/toml"
 
 	"github.com/redhatinsights/rhc/internal/config"
+	httpapi "github.com/redhatinsights/rhc/internal/http"
 	"github.com/redhatinsights/rhc/internal/rhsmconf"
 )
 
@@ -55,6 +57,8 @@ type Config struct {
 	RPMContent        Endpoint
 	InsightsIngress   Endpoint
 	InsightsInventory Endpoint
+	CollectorTmpDir   string
+	HTTPTimeouts      httpapi.Timeouts
 }
 
 // Load reads rhc.conf and rhsm.conf and returns rhc's effective
@@ -121,6 +125,12 @@ func Resolve(file config.File, md toml.MetaData, rhsm *rhsmconf.Config) (Config,
 		RPMContent:        rpmContent,
 		InsightsIngress:   ingress,
 		InsightsInventory: inventory,
+		CollectorTmpDir:   file.Collector.TmpDir,
+		HTTPTimeouts: httpapi.Timeouts{
+			Connect: time.Duration(file.HTTP.Timeout.Connect),
+			Request: time.Duration(file.HTTP.Timeout.Request),
+			Idle:    time.Duration(file.HTTP.Timeout.Idle),
+		},
 	}, nil
 }
 
@@ -480,7 +490,12 @@ func (c Config) Log() {
 	slog.Debug("effective api.subscriptions", "source", c.Subscriptions.Source, "uri", sanitizeURI(c.Subscriptions.URI))
 	slog.Debug("effective api.rpm-content", "source", c.RPMContent.Source, "uri", sanitizeURI(c.RPMContent.URI))
 	slog.Debug("effective api.insights.ingress", "source", c.InsightsIngress.Source,
-		"uri", sanitizeURI(c.InsightsIngress.URI), "ca-path", c.InsightsIngress.CAPath)
+		"uri", sanitizeURI(c.InsightsIngress.URI), "tls-verify", c.InsightsIngress.TLSVerify,
+		"ca-path", c.InsightsIngress.CAPath,
+		"cert-path", ConsumerCertPath, "key-path", ConsumerKeyPath)
 	slog.Debug("effective api.insights.inventory", "source", c.InsightsInventory.Source,
 		"uri", sanitizeURI(c.InsightsInventory.URI), "ca-path", c.InsightsInventory.CAPath)
+	slog.Debug("effective collector config", "tmp-dir", c.CollectorTmpDir)
+	slog.Debug("effective http timeouts", "connect", c.HTTPTimeouts.Connect,
+		"request", c.HTTPTimeouts.Request, "idle", c.HTTPTimeouts.Idle)
 }

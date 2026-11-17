@@ -10,17 +10,11 @@ import (
 	"time"
 
 	"github.com/redhatinsights/rhc/internal/collector"
+	conf "github.com/redhatinsights/rhc/internal/config"
 	httpapi "github.com/redhatinsights/rhc/internal/http"
 	"github.com/redhatinsights/rhc/pkg/exitcode"
+	"github.com/redhatinsights/rhc/pkg/rhcconf"
 	"github.com/redhatinsights/rhc/pkg/version"
-)
-
-// FIXME: Make these configurable (use the values from "rhc configure")
-const (
-	ingressUrl         = "https://cert.console.redhat.com/api/ingress/v1/upload"
-	clientCertPath     = "/etc/pki/consumer/cert.pem"
-	clientKeyPath      = "/etc/pki/consumer/key.pem"
-	collectorTmpParent = "/var/tmp"
 )
 
 func main() {
@@ -53,7 +47,19 @@ func run(collectorId, command string) error {
 		return err
 	}
 
-	tmpDir, err := createTmpDir()
+	// Load the effective configuration (rhc.conf merged with rhsm.conf and
+	// embedded defaults) for the temp directory and ingress upload endpoint.
+	// It will fall back to the default temp directory so the collector still
+	// runs and records its timer cache.
+	rhcCfg, cfgErr := rhcconf.Get()
+	tmpParent := conf.DefaultCollectorTmpDir
+	if cfgErr != nil {
+		slog.Error("failed to load effective configuration", "error", cfgErr)
+	} else {
+		tmpParent = rhcCfg.CollectorTmpDir
+	}
+
+	tmpDir, err := createTmpDir(tmpParent)
 	if err != nil {
 		return err
 	}
@@ -64,22 +70,34 @@ func run(collectorId, command string) error {
 		return fmt.Errorf("failed to create collector working directory: %w", err)
 	}
 
+	// executeCollector records the timer cache regardless of the collector's
+	// exit status, it should be run before any config error is returned.
 	if err = executeCollector(config, workDir); err != nil {
 		return err
+	}
+	if cfgErr != nil {
+		return fmt.Errorf("failed to load effective configuration: %w", cfgErr)
 	}
 	archivePath, err := getArchivePath(workDir, tmpDir)
 	if err != nil {
 		return err
 	}
-	if err = uploadArchive(archivePath, config); err != nil {
+	serviceConfig := collector.ServiceConfig{
+		URL:        rhcCfg.InsightsIngress.URI,
+		CACertPath: rhcCfg.InsightsIngress.CAPath,
+		TLSVerify:  rhcCfg.InsightsIngress.TLSVerify,
+		Timeouts:   rhcCfg.HTTPTimeouts,
+	}
+	if err = uploadArchive(archivePath, config, serviceConfig); err != nil {
 		return err
 	}
 	return nil
 }
 
-// createTmpDir creates a private temporary directory for a collector run.
-func createTmpDir() (string, error) {
-	tmpDir, err := os.MkdirTemp(collectorTmpParent, "rhc-")
+// createTmpDir creates a private temporary directory for a collector run under
+// tmpParent.
+func createTmpDir(tmpParent string) (string, error) {
+	tmpDir, err := os.MkdirTemp(tmpParent, "rhc-")
 	if err != nil {
 		slog.Error("failed to create a temporary directory", "error", err)
 		return "", fmt.Errorf("failed to create temporary directory: %w", err)
@@ -165,15 +183,10 @@ func getArchivePath(workDir, outputDir string) (string, error) {
 
 // uploadArchive uploads the created archive to Red Hat Hybrid Cloud Console.
 // Returns an error if the upload fails.
-func uploadArchive(archivePath string, collectorConfig collector.Config) error {
+func uploadArchive(archivePath string, collectorConfig collector.Config, serviceConfig collector.ServiceConfig) error {
 	archive := collector.ArchiveDto{
 		Path:        archivePath,
 		ContentType: collectorConfig.ContentType,
-	}
-	serviceConfig := collector.ServiceConfig{
-		URL:            ingressUrl,
-		ClientCertPath: clientCertPath,
-		ClientKeyPath:  clientKeyPath,
 	}
 	userAgent := httpapi.GetUserAgent("rhc-collector", version.Version, collectorConfig.ID)
 	if err := collector.UploadArchive(archive, serviceConfig, userAgent); err != nil {
