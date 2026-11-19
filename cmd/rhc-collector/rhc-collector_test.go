@@ -11,7 +11,8 @@ import (
 )
 
 func TestCreateTmpDir(t *testing.T) {
-	tmpDir, err := createTmpDir()
+	parent := t.TempDir()
+	tmpDir, err := createTmpDir(parent)
 	if err != nil {
 		t.Fatalf("createTmpDir() unexpected error: %v", err)
 	}
@@ -21,8 +22,8 @@ func TestCreateTmpDir(t *testing.T) {
 		}
 	})
 
-	if filepath.Dir(tmpDir) != collectorTmpParent {
-		t.Errorf("createTmpDir() = %q, want parent %q", tmpDir, collectorTmpParent)
+	if filepath.Dir(tmpDir) != parent {
+		t.Errorf("createTmpDir() = %q, want parent %q", tmpDir, parent)
 	}
 	if !strings.HasPrefix(filepath.Base(tmpDir), "rhc-") {
 		t.Errorf("createTmpDir() = %q, want name beginning with %q", tmpDir, "rhc-")
@@ -195,17 +196,20 @@ func TestUploadArchive(t *testing.T) {
 		Name:        "Test Collector",
 		ContentType: "application/vnd.redhat.advisor.collection",
 	}
+	testServiceConfig := collector.ServiceConfig{
+		URL: "https://cert.console.redhat.com/api/ingress/v1/upload",
+	}
 
 	// FIXME What is this testing, without any asserts?
 	t.Run("upload with valid parameters", func(t *testing.T) {
 		archivePath := getArchivePathFromTmpDir(t)
-		err := uploadArchive(archivePath, testConfig)
+		err := uploadArchive(archivePath, testConfig, testServiceConfig)
 		t.Logf("UploadArchive() result: %v", err)
 	})
 
 	t.Run("upload with nonexistent archive", func(t *testing.T) {
 		nonexistentArchive := "/nonexistent/archive.tar.xz"
-		err := uploadArchive(nonexistentArchive, testConfig)
+		err := uploadArchive(nonexistentArchive, testConfig, testServiceConfig)
 		if err == nil {
 			t.Error("uploadArchive() expected error for nonexistent archive")
 		}
@@ -218,7 +222,7 @@ func TestUploadArchive(t *testing.T) {
 			Name:        "Test Collector",
 			ContentType: "",
 		}
-		err := uploadArchive(archivePath, emptyContentTypeConfig)
+		err := uploadArchive(archivePath, emptyContentTypeConfig, testServiceConfig)
 		if err == nil {
 			t.Error("uploadArchive() expected error for empty content type")
 		}

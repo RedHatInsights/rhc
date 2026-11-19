@@ -16,6 +16,7 @@ import (
 	"strings"
 
 	httpapi "github.com/redhatinsights/rhc/internal/http"
+	"github.com/redhatinsights/rhc/internal/rhcconf"
 )
 
 const maxResponseBodySize = 1024
@@ -28,14 +29,22 @@ type ArchiveDto struct {
 	ContentType string
 }
 
+// systemCAPath is the sentinel ca-path value that selects the system trust
+// store instead of an explicit CA bundle.
+const systemCAPath = "system"
+
 // ServiceConfig represents the configuration for an upload service endpoint.
 type ServiceConfig struct {
 	// URL is the endpoint where archive will be uploaded.
 	URL string
-	// ClientCertPath is the file path to the identity certificate.
-	ClientCertPath string
-	// ClientKeyPath is the file path to the private key associated with identity certificate.
-	ClientKeyPath string
+	// CACertPath is the CA bundle used to verify the server's TLS certificate.
+	// Empty or "system" selects the system trust store; otherwise it is a path
+	// to a PEM file or a directory of *.pem files to add to the trust store.
+	CACertPath string
+	// TLSVerify controls whether the server's TLS certificate is verified.
+	TLSVerify bool
+	// Timeouts are the HTTP timeouts applied to the upload client.
+	Timeouts httpapi.Timeouts
 }
 
 // UploadArchive uploads an archive file to the Red Hat Hybrid Cloud Console.
@@ -53,7 +62,7 @@ func UploadArchive(archive ArchiveDto, config ServiceConfig, userAgent string) e
 	if err != nil {
 		return err
 	}
-	client := httpapi.NewHTTPClient(tlsConfig)
+	client := httpapi.NewHTTPClient(tlsConfig, config.Timeouts)
 	req, err := createUploadRequest(formData, config, userAgent)
 	if err != nil {
 		return err
@@ -66,20 +75,72 @@ func UploadArchive(archive ArchiveDto, config ServiceConfig, userAgent string) e
 	return nil
 }
 
-// loadClientCertificate loads X.509 client certificates from the provided service configuration.
-// Returns an error if files cannot be read or parsed.
+// loadClientCertificate builds the TLS configuration for the upload: the client
+// identity certificate plus the server trust store and verification policy
+// resolved from the service configuration.
 func loadClientCertificate(config ServiceConfig) (*tls.Config, error) {
-	cert, err := tls.LoadX509KeyPair(config.ClientCertPath, config.ClientKeyPath)
+	cert, err := tls.LoadX509KeyPair(rhcconf.ConsumerCertPath, rhcconf.ConsumerKeyPath)
 	if err != nil {
 		slog.Error("Failed to load client certificate", "error", err)
-		return nil, fmt.Errorf("failed to load client certificate from %s and %s: %w", config.ClientCertPath, config.ClientKeyPath, err)
+		return nil, fmt.Errorf("failed to load client certificate from %s and %s: %w", rhcconf.ConsumerCertPath, rhcconf.ConsumerKeyPath, err)
 	}
+	return buildTLSConfig(cert, config)
+}
+
+// buildTLSConfig assembles the TLS configuration from the client identity
+// certificate and the server trust store and verification policy in config.
+func buildTLSConfig(cert tls.Certificate, config ServiceConfig) (*tls.Config, error) {
 	pool, err := x509.SystemCertPool()
 	if err != nil {
 		slog.Error("Failed to load system certificate pool", "error", err)
 		return nil, fmt.Errorf("failed to load system certificates: %w", err)
 	}
-	return &tls.Config{RootCAs: pool, Certificates: []tls.Certificate{cert}}, nil
+	// An explicit CA path is added to the system trust store so a Satellite's
+	// self-signed CA is trusted alongside it.
+	if config.CACertPath != "" && config.CACertPath != systemCAPath {
+		if err := addCACerts(pool, config.CACertPath); err != nil {
+			return nil, err
+		}
+	}
+	return &tls.Config{
+		RootCAs:            pool,
+		Certificates:       []tls.Certificate{cert},
+		InsecureSkipVerify: !config.TLSVerify,
+	}, nil
+}
+
+// addCACerts adds the PEM certificate(s) at caPath to pool. caPath may be a
+// single PEM file or a directory, in which case every *.pem file in it is added.
+func addCACerts(pool *x509.CertPool, caPath string) error {
+	info, err := os.Stat(caPath)
+	if err != nil {
+		return fmt.Errorf("failed to access CA path %s: %w", caPath, err)
+	}
+
+	var files []string
+	if info.IsDir() {
+		matches, err := filepath.Glob(filepath.Join(caPath, "*.pem"))
+		if err != nil {
+			return fmt.Errorf("failed to list CA directory %s: %w", caPath, err)
+		}
+		if len(matches) == 0 {
+			return fmt.Errorf("no *.pem files found in CA directory %s", caPath)
+		}
+		files = matches
+	} else {
+		files = []string{caPath}
+	}
+
+	for _, file := range files {
+		pem, err := os.ReadFile(file)
+		if err != nil {
+			return fmt.Errorf("failed to read CA file %s: %w", file, err)
+		}
+		if !pool.AppendCertsFromPEM(pem) {
+			return fmt.Errorf("no valid certificates found in CA file %s", file)
+		}
+	}
+	return nil
 }
 
 // validateArchive validates the archiveDto fields.
