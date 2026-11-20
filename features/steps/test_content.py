@@ -195,3 +195,21 @@ def step_impl(context: behave.runner.Context):
 
     if context.entitlement_cert_inode != ent_cert_inode:
         raise Exception(f"Entitlement certificate i-node has changed from {context.entitlement_cert_inode} to {ent_cert_inode}")
+
+
+@step("the varlink up-to-date error contains the path to the existing entitlement certificate")
+def step_impl(context: behave.runner.Context):
+    """
+    Check if the varlink error contains the path to the existing entitlement certificate
+    :param context: behave context
+    :return: None
+    """
+    error_message = context.cmd_stderr
+    error_body = context.cmd_stdout
+    if not error_message:
+        raise Exception("Varlink error message not found")
+    result = json.loads(error_body)
+    if "certificate_path" not in result:
+        raise Exception("'certificate_path' not found in varlink error")
+    if context.entitlement_cert_path != result["certificate_path"]:
+        raise Exception(f"Entitlement certificate path has changed from {context.entitlement_cert_path} to {result['certificate_path']}")

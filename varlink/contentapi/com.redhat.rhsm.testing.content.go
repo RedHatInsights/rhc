@@ -18,7 +18,7 @@ type RefreshResult struct {
 }
 
 type CertificateUpToDateError struct {
-	Message string `json:"message"`
+	CertificatePath string `json:"certificate_path"`
 }
 
 func (err *CertificateUpToDateError) Error() string {
@@ -142,7 +142,7 @@ func (h Handler) HandleVarlink(call *govarlink.ServerCall, req *govarlink.Server
 
 func (h Handler) Register(reg *govarlink.Registry) {
 	reg.Add(&govarlink.RegistryInterface{
-		Definition: "interface com.redhat.rhsm.testing.content\n\ntype Metadata (\n    # The user agent string (e.g. \"rhc/0.5.3\")\n    user_agent: ?string,\n    # The correlation id\n    correlation_id: ?string,\n    # The locale string (e.g. en_US.UTF-8)\n    locale: ?string\n)\n\n# Many methods in this interface can be used only in the situation, when the system is registered\nerror SystemNotRegistered()\n\n# This error is used, when rhsm is configured to not manage content\nerror ContentNotManaged()\n\n# This error is returned when a local file system operation fails\nerror IOFailed(message: string)\n\n# When certificate is up to date\nerror CertificateUpToDate(message: string)\n\n# Result of Refresh() method\ntype RefreshResult (\n    # File path of entitlement certificate\n    certificate_path: string,\n    # File path of entitlement key\n    key_path: string\n)\n\n# Try to refresh entitlement certificate, when needed, and update\n# redhat.repo file accordingly. The content (redhat.repo file) is\n# generated from the SCA entitlement certificate. When force is true,\n# the entitlement certificate is force recreated. The method can\n# return CertificateUpToDate error, when installed entitlement\n# certificate is up-to-date\nmethod Refresh(\n    force: bool,\n    metadata: ?Metadata\n) -> (\n    result: RefreshResult\n)\n",
+		Definition: "interface com.redhat.rhsm.testing.content\n\ntype Metadata (\n    # The user agent string (e.g. \"rhc/0.5.3\")\n    user_agent: ?string,\n    # The correlation id\n    correlation_id: ?string,\n    # The locale string (e.g. en_US.UTF-8)\n    locale: ?string\n)\n\n# Many methods in this interface can be used only in the situation, when the system is registered\nerror SystemNotRegistered()\n\n# This error is used, when rhsm is configured to not manage content\nerror ContentNotManaged()\n\n# This error is returned when a local file system operation fails\nerror IOFailed(message: string)\n\n# When certificate is up to date\nerror CertificateUpToDate(certificate_path: string)\n\n# Result of Refresh() method\ntype RefreshResult (\n    # File path of entitlement certificate\n    certificate_path: string,\n    # File path of entitlement key\n    key_path: string\n)\n\n# Try to refresh entitlement certificate, when needed, and update\n# redhat.repo file accordingly. The content (redhat.repo file) is\n# generated from the SCA entitlement certificate. When force is true,\n# the entitlement certificate is force recreated. The method can\n# return CertificateUpToDate error, when installed entitlement\n# certificate is up-to-date\nmethod Refresh(\n    force: bool,\n    metadata: ?Metadata\n) -> (\n    result: RefreshResult\n)\n",
 		Name:       "com.redhat.rhsm.testing.content",
 	}, h)
 }

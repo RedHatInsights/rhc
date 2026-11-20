@@ -19,7 +19,7 @@ error ContentNotManaged()
 error IOFailed(message: string)
 
 # When certificate is up to date
-error CertificateUpToDate(message: string)
+error CertificateUpToDate(certificate_path: string)
 
 # Result of Refresh() method
 type RefreshResult (

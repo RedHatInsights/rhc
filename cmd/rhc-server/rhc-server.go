@@ -382,9 +382,8 @@ func (c ComRedhatRhsmContentBackend) Refresh(in *contentapi.RefreshIn) (*content
 	}
 
 	if err != nil {
-		var entCertUpToDateError *rhsm2.EntitlementCertificateUpToDateError
-		if errors.As(err, &entCertUpToDateError) {
-			return nil, &contentapi.CertificateUpToDateError{Message: entCertUpToDateError.Error()}
+		if entCertUpToDateError, ok := errors.AsType[*rhsm2.EntitlementCertificateUpToDateError](err); ok {
+			return nil, &contentapi.CertificateUpToDateError{CertificatePath: entCertUpToDateError.EntitlementCertificateFilePath}
 		}
 		slog.Error("Failed to refresh content", "error", err)
 		// Return the error as is: errors declared in the Varlink interface
