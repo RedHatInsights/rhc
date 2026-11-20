@@ -5,10 +5,8 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"os/signal"
 	"strconv"
 	"strings"
-	"syscall"
 
 	"github.com/pelletier/go-toml"
 	altsrc "github.com/urfave/cli-altsrc/v3"
@@ -460,10 +458,7 @@ func main() {
 	app.After = afterAction
 	app.ExitErrHandler = exitErrHandler
 
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
-
-	if err := app.Run(ctx, os.Args); err != nil {
+	if err := app.Run(context.Background(), os.Args); err != nil {
 		slog.Error(err.Error())
 	}
 }
