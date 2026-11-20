@@ -25,34 +25,110 @@ sudo pip install -r integration-tests/requirements.txt
 Configuration of Testing Environment
 ------------------------------------
 
-Then you will have to create configuration file `settings.toml` for your testing. You
-will have to replace credentials with your own credentials.
+`pytest-client-tools` reads its configuration from a `settings.toml` file that
+is **not** part of this repository. CI downloads a sanitized copy (non-secret
+values only) from the URL in the `SETTINGS_URL` environment variable (see
+`.testing-farm.yaml`); `systemtest/tests/integration/test.sh` stores it next to
+the tests before running them. For local runs you can create the file yourself
+— it is git-ignored — but it must not contain real secrets.
 
-```toml
-[production]
-candlepin.host = "subscription.rhsm.redhat.com"
-candlepin.port =  443
-candlepin.prefix = "/subscription"
-candlepin.insecure = false
-candlepin.username =  "YOUR_USERNAME"
-candlepin.password = "YOUR_SECRET_PASSWORD"
-candlepin.activation_keys = ["YOR_ACTIVATION_KEY"]
-candlepin.org = "YOUR_RORGANIZATION_ID"
+Secret values are provided through environment variables understood by
+`pytest-client-tools`:
 
-# # Following options are optional.
-# insights.legacy_upload = false
-# insights.host_details = "/var/lib/insights/host-details.json"
-# auth_proxy.host = "YOUR.PROXY.SERVER.USING.AUTHENTICATION.COM"
-# auth_proxy.port = 3127
-# auth_proxy.username = "YOUR_PROXY_USERNAME"
-# auth_proxy.password = "YOUR_PROXY_PASSWORD"
-# noauth_proxy.host = "YOUR.PROXY.SERVER.NO-AUTHENTICATION"
-# noauth_proxy.port = 3129
+| Setting | Environment variable |
+| ------- | -------------------- |
+| `candlepin.username` | `PYTEST_CLIENT_TOOLS_CANDLEPIN__USERNAME` |
+| `candlepin.password` | `PYTEST_CLIENT_TOOLS_CANDLEPIN__PASSWORD` |
+| `candlepin.activation_keys` | `PYTEST_CLIENT_TOOLS_CANDLEPIN__ACTIVATION_KEYS` |
+| `auth_proxy.username` | `PYTEST_CLIENT_TOOLS_AUTH_PROXY__USERNAME` |
+| `auth_proxy.password` | `PYTEST_CLIENT_TOOLS_AUTH_PROXY__PASSWORD` |
+| `service_account.client_secret` | `PYTEST_CLIENT_TOOLS_SERVICE_ACCOUNT__CLIENT_SECRET` |
+
+The naming rule is `PYTEST_CLIENT_TOOLS_<SECTION>__<KEY>` for nested settings
+(each `.` in the dotted path becomes `__`, uppercased) and
+`PYTEST_CLIENT_TOOLS_<KEY>` for top-level settings. Values are parsed as TOML:
+`8443` becomes an integer, `true` a boolean, and `["key1", "key2"]` a list.
+Quoting a value (e.g. `'"12345"'`) forces a string on dynaconf >= 3.3
+(verified on 3.3.5); on 3.2.x and 3.1.x the value stays numeric. The
+requirements floor is 3.2.13 for python >= 3.8 — a floor, not a pin:
+the RHEL 10 run installs 3.3.5.
+The portable rule: pass values with the intended type as TOML in
+`settings.toml` / `.secrets.toml`, and do not rely on quoting an
+environment variable for type.
+
+`ENV_FOR_DYNACONF` selects which section of `settings.toml` is used
+(`default`, `stage`, `prod`, `satellite*`, `testing`, `local`, ...). Sections
+inherit keys they omit from the `default` section, so environment variables
+only need to carry the secrets of the selected environment.
+
+The precedence is: environment variables > `.secrets.toml` (git-ignored) >
+`settings.toml`. Because the sanitized settings file carries
+`candlepin.username` without the password, a password must always be
+supplied through the environment when running against a real candlepin —
+`pytest-client-tools` requires `candlepin.password` whenever
+`candlepin.username` is set, and activation keys alone do not satisfy
+that check. For example, to run the tests against stage:
+
+```
+export ENV_FOR_DYNACONF=stage
+export PYTEST_CLIENT_TOOLS_CANDLEPIN__USERNAME=...
+export PYTEST_CLIENT_TOOLS_CANDLEPIN__PASSWORD=...
+export PYTEST_CLIENT_TOOLS_CANDLEPIN__ACTIVATION_KEYS='["..."]'
 ```
 
-Previous example of configuration file will use production candlepin server.
-You can have more section in this configuration file. Another section could be for
-example for some Satellite server.
+For local overrides (including whole custom sections) use a git-ignored
+`.secrets.toml` file.
+
+The `[testing]` section targets the containerized Candlepin used by manual
+containerized runs; no automated job sets `ENV_FOR_DYNACONF=testing` today
+(CI jobs pick their environment at Testing Farm request time). Its
+container credentials are not part of the sanitized settings file either;
+`systemtest/tests/integration/test.sh` exports the well-known container
+values when `ENV_FOR_DYNACONF=testing` and no explicit credentials are set.
+
+The encrypted blobs in `.testing-farm.yaml` are rotated by the manual
+`rotate-tf-secrets.sh` script and a reviewed PR (see the CCT credentials
+how-to on the QE wiki); there is no automated sync job for them.
+
+### Vault-delivered credentials
+
+Testing Farm delivers four secrets to credentialed runs of this
+repository (`.testing-farm.yaml`): `SETTINGS_URL`, `VAULT_ADDR`,
+`VAULT_ROLE_ID` and `VAULT_SECRET_ID`. The served settings file carries
+non-secret values directly and secret values as `@vault:` sentinels: at
+config load, pytest-client-tools authenticates to the Vault instance
+named by `VAULT_ADDR` with the AppRole pair (`VAULT_ROLE_ID` +
+`VAULT_SECRET_ID`) and reads each sentinel's value from the
+`apps/data/cct-ci/*` KV namespace. Tokens issued by the AppRole carry
+the `app-ro-cct-ci` policy — read-only on that namespace, writes denied
+— and are short-lived (20 min TTL, 10 h max). `PYTEST_CLIENT_TOOLS_*`
+environment variables (or a local `.secrets.toml`) override any
+resolved value.
+
+Fork protection is structural, not policy: Testing Farm generates an
+RSA key pair per git repository URL and per API token, so a ciphertext
+decrypts only for a request against this repository's URL submitted
+with the token that encrypted it. A fork's CI runs against a different
+repository URL and cannot decrypt the blobs.
+
+Strict mode: `systemtest/tests/integration/test.sh` exports
+`PYTEST_CLIENT_TOOLS_VAULT_REQUIRED=1` whenever it downloads the served
+settings file, so an `@vault:` sentinel that cannot be resolved fails
+loudly at config load instead of degrading into a missing key and a
+skipped run. Runs without `SETTINGS_URL` (containerized, manual) are
+unaffected.
+
+The two public-ranch Packit jobs (`integration-tests/centos-stream` and
+`integration-tests/fedora` in `.packit.yaml`) deliberately receive none
+of these secrets — per the owner ruling of 2026-11-16 the public ranch
+must not be able to decrypt anything — so they run without the served
+settings file and without credentials, and the credentialed
+external-Candlepin tests skip by design while the non-credentialed
+tests still run (108 passed / 75 skipped on this head's public-ranch
+runs). Of the three Packit jobs, only the internal-ranch job
+(`integration-tests/rhel`, submitted with the Packit Production token)
+receives them; OSCI gating and team-submitted runs receive them with
+their own tokens.
 
 ### Local Candlepin
 
@@ -66,8 +142,9 @@ $ podman run -d --name candlepin \
 ```
 
 When local candlepin is deployed, then you have to do two things. First, you have
-to add configuration to your `settings.toml` file exactly like this to use your
-local candlepin:
+to add a `[local]` section to your `.secrets.toml` file exactly like this to use
+your local candlepin (a `.secrets.toml` section overrides the downloaded
+`settings.toml` and is git-ignored):
 
 ```toml
 [local]
