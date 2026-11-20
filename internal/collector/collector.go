@@ -160,7 +160,7 @@ func GetCollectors() ([]string, error) {
 			slog.Warn("Failed to load config", "error", err)
 		} else {
 			collectorId := strings.TrimSuffix(configName, ".toml")
-			if _, err = loadConfigFromFile(collectorId); err != nil {
+			if _, err = GetConfig(collectorId); err != nil {
 				slog.Warn("Failed to load config", "file", configName, "error", err)
 			} else {
 				collectors = append(collectors, collectorId)
@@ -171,13 +171,13 @@ func GetCollectors() ([]string, error) {
 	return collectors, nil
 }
 
-// GetConfig retrieves a collector configuration by its ID.
+// GetConfig validates the collector ID and retrieves its configuration.
 func GetConfig(id string) (Config, error) {
-	config, err := loadConfigFromFile(id)
+	id, err := ValidateID(id)
 	if err != nil {
 		return Config{}, err
 	}
-	return config, nil
+	return loadConfigFromFile(id)
 }
 
 // ReadTimerCache loads timer data from the cache for the specified collector ID.
@@ -435,15 +435,20 @@ func validateUnitName(name, suffix string) error {
 	return nil
 }
 
-// ValidateCollectorAndConnect validates that the collector exists and systemd is available,
-// then establishes a systemd connection for timer operations.
+// ValidateCollectorAndConnect checks systemd availability and loads the validated
+// collector configuration before connecting for timer operations.
 // Returns the systemd connection, the collector config, and any validation errors.
 func ValidateCollectorAndConnect(collectorID string) (*systemd.Conn, Config, error) {
+	validatedID, err := ValidateID(collectorID)
+	if err != nil {
+		return nil, Config{}, fmt.Errorf("collector %s: %w", collectorID, err)
+	}
+
 	if !systemd.IsSystemdAvailable() {
 		return nil, Config{}, fmt.Errorf("automatic execution requires systemd, which is not present in your environment")
 	}
 
-	config, err := GetConfig(collectorID)
+	config, err := GetConfig(validatedID)
 	if err != nil {
 		return nil, Config{}, fmt.Errorf("collector %s: %w", collectorID, err)
 	}
