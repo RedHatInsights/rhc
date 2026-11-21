@@ -1010,6 +1010,14 @@ func TestNewTimer(t *testing.T) {
 	}
 }
 
+func TestGetConfigRejectsInvalidID(t *testing.T) {
+	_, err := GetConfig("invalid-collector-id")
+	const want = `invalid collector ID "invalid-collector-id"`
+	if err == nil || err.Error() != want {
+		t.Errorf("GetConfig() error = %v, want %q", err, want)
+	}
+}
+
 func TestValidateID(t *testing.T) {
 	valid := [5]string{"com.redhat", "com.redhat.advisor", "org.example.collector.v1", "a.b", "v1.example2.collector3"}
 	for _, id := range valid {
