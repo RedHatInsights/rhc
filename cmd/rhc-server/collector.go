@@ -21,8 +21,14 @@ func buildCollectorInfo(id string) (*collectorapi.CollectorInfo, error) {
 	// Build basic collector info with paths and names
 	info := buildBasicCollectorInfo(id, config)
 
-	// Enrich with timing data (last run and next run)
-	setLastRunTime(info)
+	// Enrich with timing data (last run, last upload and next run). The timer
+	// cache is read once and shared by both event setters.
+	timerCache, err := collector.ReadTimerCache(id)
+	if err != nil {
+		slog.Debug("Failed to read timer cache", "id", id, "error", err)
+	}
+	setLastRunTime(info, timerCache)
+	setLastUploadTime(info, timerCache)
 	setNextRunTime(info)
 
 	return info, nil
@@ -47,14 +53,22 @@ func buildBasicCollectorInfo(id string, config collector.Config) *collectorapi.C
 	return info
 }
 
-// setLastRunTime sets the last run time from the timer cache if available.
-func setLastRunTime(info *collectorapi.CollectorInfo) {
-	timer, err := collector.ReadTimerCache(info.Id)
-	if err == nil && !timer.LastFinished.IsZero() {
+// setLastRunTime sets the last run time from the given timer cache if available.
+func setLastRunTime(info *collectorapi.CollectorInfo, timer *collector.Timer) {
+	if timer != nil && !timer.LastFinished.IsZero() {
 		lastRun := int(timer.LastFinished.Unix())
 		info.LastRun = &lastRun
-	} else if err != nil {
-		slog.Debug("Failed to read timer cache", "id", info.Id, "error", err)
+	}
+}
+
+// setLastUploadTime sets the last upload time and upload exit code from the given
+// timer cache if available.
+func setLastUploadTime(info *collectorapi.CollectorInfo, timer *collector.Timer) {
+	if timer != nil && !timer.LastUploaded.IsZero() {
+		lastUploaded := int(timer.LastUploaded.Unix())
+		info.LastUploaded = &lastUploaded
+		uploadExitCode := timer.UploadExitCode
+		info.UploadExitCode = &uploadExitCode
 	}
 }
 

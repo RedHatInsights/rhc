@@ -65,19 +65,21 @@ def test_collector_info_with_timer_cache(minimal_collector_timer_cache):
     :id: c3d4e5f6-a7b8-9012-cdef-123456789012
     :title: Verify collector Info includes timing information from cache
     :description:
-        Test that the Info method returns last_run timestamp when
-        timer cache exists for the shipped collector.
+        Test that the Info method returns last_run and last_uploaded timestamps
+        when timer cache exists for the shipped collector.
     :tags: Tier 2
     :steps:
-        1. Create timer cache with last run information for the shipped collector
+        1. Create timer cache with last run and last upload information for the
+           shipped collector
         2. Call com.redhat.rhc.collector.Info
-        3. Verify last_run field is present and correct
+        3. Verify last_run and last_uploaded fields are present and correct
     :expectedresults:
         1. Timer cache is created
         2. The varlink call succeeds
-        3. last_run timestamp matches cache value
+        3. last_run and last_uploaded timestamps match cache values
     """
     expected_last_run = minimal_collector_timer_cache["last_run"]
+    expected_last_uploaded = minimal_collector_timer_cache["last_uploaded"]
 
     response = run_varlinkctl(
         VARLINK_METHOD_COLLECTOR_INFO, {"id": MINIMAL_COLLECTOR_ID}
@@ -87,6 +89,9 @@ def test_collector_info_with_timer_cache(minimal_collector_timer_cache):
 
     assert "last_run" in info
     assert info["last_run"] == expected_last_run
+    assert "last_uploaded" in info
+    assert info["last_uploaded"] == expected_last_uploaded
+    assert info["upload_exit_code"] == minimal_collector_timer_cache["upload_exit_code"]
 
 
 @pytest.mark.tier2
@@ -230,6 +235,8 @@ def test_collector_info_without_cache_or_timer(collector_minimal):
     assert info.get("feature") == "analytics"
 
     assert "last_run" not in info or info.get("last_run") is None
+    assert "last_uploaded" not in info or info.get("last_uploaded") is None
+    assert "upload_exit_code" not in info or info.get("upload_exit_code") is None
     assert "next_run" not in info or info.get("next_run") is None
 
 
@@ -269,6 +276,7 @@ def test_collector_info_multiple_calls_consistency(minimal_collector_with_timing
             "timer_name",
             "feature",
             "last_run",
+            "last_uploaded",
         ]:
             assert responses[0].get(key) == responses[i].get(
                 key

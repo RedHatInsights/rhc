@@ -8,14 +8,16 @@ import (
 )
 
 type CollectorInfo struct {
-	ConfigPath  string  `json:"config_path"`
-	Feature     *string `json:"feature,omitempty"`
-	Id          string  `json:"id"`
-	LastRun     *int    `json:"last_run,omitempty"`
-	Name        string  `json:"name"`
-	NextRun     *int    `json:"next_run,omitempty"`
-	ServiceName string  `json:"service_name"`
-	TimerName   string  `json:"timer_name"`
+	ConfigPath     string  `json:"config_path"`
+	Feature        *string `json:"feature,omitempty"`
+	Id             string  `json:"id"`
+	LastRun        *int    `json:"last_run,omitempty"`
+	LastUploaded   *int    `json:"last_uploaded,omitempty"`
+	Name           string  `json:"name"`
+	NextRun        *int    `json:"next_run,omitempty"`
+	ServiceName    string  `json:"service_name"`
+	TimerName      string  `json:"timer_name"`
+	UploadExitCode *int    `json:"upload_exit_code,omitempty"`
 }
 
 type InvalidParameterError struct {
@@ -142,7 +144,7 @@ func (h Handler) HandleVarlink(call *govarlink.ServerCall, req *govarlink.Server
 
 func (h Handler) Register(reg *govarlink.Registry) {
 	reg.Add(&govarlink.RegistryInterface{
-		Definition: "interface com.redhat.rhc.collector\n# Collector API for rhc-server\n# This API is temporary and unstable\n\n# Generic error for invalid parameters\nerror InvalidParameter (parameter: string)\n\n# Error when a collector is not found\nerror NoSuchCollector (id: string)\n\n# Detailed collector information\ntype CollectorInfo (\n    id: string,\n    name: string,\n    feature: ?string,\n    last_run: ?int,\n    next_run: ?int,\n    config_path: string,\n    service_name: string,\n    timer_name: string\n)\n\n# List all available collectors with full details\nmethod List() -> (collectors: []CollectorInfo)\n\n# Get detailed information about a specific collector\nmethod Info(id: string) -> (info: CollectorInfo)\n",
+		Definition: "interface com.redhat.rhc.collector\n# Collector API for rhc-server\n# This API is temporary and unstable\n\n# Generic error for invalid parameters\nerror InvalidParameter (parameter: string)\n\n# Error when a collector is not found\nerror NoSuchCollector (id: string)\n\n# Detailed collector information\ntype CollectorInfo (\n    id: string,\n    name: string,\n    feature: ?string,\n    last_run: ?int,\n    last_uploaded: ?int,\n    upload_exit_code: ?int,\n    next_run: ?int,\n    config_path: string,\n    service_name: string,\n    timer_name: string\n)\n\n# List all available collectors with full details\nmethod List() -> (collectors: []CollectorInfo)\n\n# Get detailed information about a specific collector\nmethod Info(id: string) -> (info: CollectorInfo)\n",
 		Name:       "com.redhat.rhc.collector",
 	}, h)
 }

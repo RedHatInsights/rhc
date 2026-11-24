@@ -788,6 +788,75 @@ func TestNewTimer(t *testing.T) {
 			},
 		},
 		{
+			description: "valid timer with successful upload event",
+			id:          "test.collector.upload",
+			timerData: `{
+				"last_started": {
+					"timestamp": 1609459200
+				},
+				"last_finished": {
+					"timestamp": 1609462800,
+					"exit_code": 0
+				},
+				"last_upload": {
+					"timestamp": 1609462830,
+					"exit_code": 0
+				}
+			}`,
+			want: Timer{
+				ID:             "test.collector.upload",
+				LastStarted:    time.Unix(1609459200, 0),
+				LastFinished:   time.Unix(1609462800, 0),
+				ExitCode:       0,
+				LastUploaded:   time.Unix(1609462830, 0),
+				UploadExitCode: 0,
+			},
+		},
+		{
+			description: "valid timer with failed upload event",
+			id:          "test.collector.upload_error",
+			timerData: `{
+				"last_started": {
+					"timestamp": 1609459200
+				},
+				"last_finished": {
+					"timestamp": 1609462800,
+					"exit_code": 0
+				},
+				"last_upload": {
+					"timestamp": 1609462830,
+					"exit_code": 1
+				}
+			}`,
+			want: Timer{
+				ID:             "test.collector.upload_error",
+				LastStarted:    time.Unix(1609459200, 0),
+				LastFinished:   time.Unix(1609462800, 0),
+				ExitCode:       0,
+				LastUploaded:   time.Unix(1609462830, 0),
+				UploadExitCode: 1,
+			},
+		},
+		{
+			description: "timer data without upload event",
+			id:          "test.collector.no_upload",
+			timerData: `{
+				"last_started": {
+					"timestamp": 1609459200
+				},
+				"last_finished": {
+					"timestamp": 1609462800,
+					"exit_code": 0
+				}
+			}`,
+			want: Timer{
+				ID:           "test.collector.no_upload",
+				LastStarted:  time.Unix(1609459200, 0),
+				LastFinished: time.Unix(1609462800, 0),
+				ExitCode:     0,
+			},
+		},
+		{
 			description: "invalid JSON",
 			id:          "test.invalid",
 			timerData:   `{"last_started": {"timestamp": 1609459200`,
@@ -1016,6 +1085,136 @@ func TestGetConfigRejectsInvalidID(t *testing.T) {
 	if err == nil || err.Error() != want {
 		t.Errorf("GetConfig() error = %v, want %q", err, want)
 	}
+}
+
+// useTempTimerDir points the timer cache at a temporary directory, so that
+// cache writes in tests never touch the system cache.
+func useTempTimerDir(t *testing.T) {
+	t.Helper()
+	original := timerDir
+	timerDir = t.TempDir()
+	t.Cleanup(func() { timerDir = original })
+}
+
+// TestRecordResults verifies that recording one timer cache event keeps the
+// event recorded by the other writer. A run that fails before uploading must not
+// drop the last upload status, otherwise it becomes indistinguishable from a
+// collector that was never uploaded.
+func TestRecordResults(t *testing.T) {
+	seed := Timer{
+		LastStarted:    time.Unix(1609459200, 0),
+		LastFinished:   time.Unix(1609462800, 0),
+		ExitCode:       3,
+		LastUploaded:   time.Unix(1609462830, 0),
+		UploadExitCode: 1,
+	}
+	ran := Timer{
+		LastStarted:  time.Unix(1609545600, 0),
+		LastFinished: time.Unix(1609549200, 0),
+		ExitCode:     1,
+	}
+	uploaded := Timer{LastUploaded: time.Unix(1609545600, 0), UploadExitCode: 0}
+
+	tests := []struct {
+		description string
+		seed        *Timer
+		record      func(id string) error
+		want        Timer
+	}{
+		{
+			description: "run result keeps the last upload",
+			seed:        &seed,
+			record: func(id string) error {
+				return RecordRunResult(id, ran.LastStarted, ran.LastFinished, ran.ExitCode)
+			},
+			want: Timer{
+				LastStarted:    ran.LastStarted,
+				LastFinished:   ran.LastFinished,
+				ExitCode:       ran.ExitCode,
+				LastUploaded:   seed.LastUploaded,
+				UploadExitCode: seed.UploadExitCode,
+			},
+		},
+		{
+			description: "upload result keeps the run timing",
+			seed:        &seed,
+			record: func(id string) error {
+				return RecordUploadResult(id, uploaded.LastUploaded, uploaded.UploadExitCode)
+			},
+			want: Timer{
+				LastStarted:    seed.LastStarted,
+				LastFinished:   seed.LastFinished,
+				ExitCode:       seed.ExitCode,
+				LastUploaded:   uploaded.LastUploaded,
+				UploadExitCode: 0,
+			},
+		},
+		{
+			description: "run result without a cache file",
+			record: func(id string) error {
+				return RecordRunResult(id, ran.LastStarted, ran.LastFinished, ran.ExitCode)
+			},
+			want: ran,
+		},
+		{
+			description: "upload result without a cache file",
+			record: func(id string) error {
+				return RecordUploadResult(id, uploaded.LastUploaded, uploaded.UploadExitCode)
+			},
+			want: uploaded,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.description, func(t *testing.T) {
+			useTempTimerDir(t)
+			if test.seed != nil {
+				if err := WriteTimerCache("test.collector", *test.seed); err != nil {
+					t.Fatalf("failed to seed timer cache: %v", err)
+				}
+			}
+			if err := test.record("test.collector"); err != nil {
+				t.Fatalf("recording the event returned an unexpected error: %v", err)
+			}
+			got, err := ReadTimerCache("test.collector")
+			if err != nil {
+				t.Fatalf("failed to read timer cache: %v", err)
+			}
+			test.want.ID = "test.collector"
+			if diff := cmp.Diff(test.want, *got); diff != "" {
+				t.Errorf("timer cache mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+
+	t.Run("corrupted cache file is overwritten", func(t *testing.T) {
+		useTempTimerDir(t)
+		cacheFile := filepath.Join(timerDir, "test.collector.json")
+		if err := os.WriteFile(cacheFile, []byte("{not json"), 0644); err != nil {
+			t.Fatalf("failed to write corrupted timer cache: %v", err)
+		}
+		if err := RecordRunResult("test.collector", ran.LastStarted, ran.LastFinished, ran.ExitCode); err != nil {
+			t.Fatalf("recording the event returned an unexpected error: %v", err)
+		}
+		got, err := ReadTimerCache("test.collector")
+		if err != nil {
+			t.Fatalf("failed to read timer cache: %v", err)
+		}
+		want := ran
+		want.ID = "test.collector"
+		if diff := cmp.Diff(want, *got); diff != "" {
+			t.Errorf("timer cache mismatch (-want +got):\n%s", diff)
+		}
+	})
+
+	t.Run("invalid collector ID", func(t *testing.T) {
+		if err := RecordRunResult("invalid..id", time.Now(), time.Now(), 0); err == nil {
+			t.Error("RecordRunResult() expected error for invalid collector ID")
+		}
+		if err := RecordUploadResult("invalid..id", time.Now(), 0); err == nil {
+			t.Error("RecordUploadResult() expected error for invalid collector ID")
+		}
+	})
 }
 
 func TestValidateID(t *testing.T) {
