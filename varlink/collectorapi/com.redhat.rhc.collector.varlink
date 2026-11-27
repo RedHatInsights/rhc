@@ -14,6 +14,8 @@ type CollectorInfo (
     name: string,
     feature: ?string,
     last_run: ?int,
+    last_uploaded: ?int,
+    upload_exit_code: ?int,
     next_run: ?int,
     config_path: string,
     service_name: string,

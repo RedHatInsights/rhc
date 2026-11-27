@@ -78,12 +78,22 @@ Hint: Run 'rhc collector info COLLECTOR' to show more details.
 Name:      Minimal Host Inventory Collector
 Feature:   analytics
 
-Last run:  Wed 2026-06-17 17:21 CEST (1h 15m ago)
-Next run:  Wed 2026-06-17 20:00 CEST (1h 24m)
+Last run:      Wed 2026-06-17 17:21 CEST (1h 15m ago)
+Last upload:   Wed 2026-06-17 17:21 CEST (1h 15m ago) - success
+Next run:      Wed 2026-06-17 20:00 CEST (1h 24m)
 
-Config:   /usr/lib/rhc/collectors/com.redhat.minimal.toml
-Service:  rhc-collector-com.redhat.minimal.service
-Timer:    rhc-collector-com.redhat.minimal.timer
+Config:        /usr/lib/rhc/collectors/com.redhat.minimal.toml
+Service:       rhc-collector-com.redhat.minimal.service
+Timer:         rhc-collector-com.redhat.minimal.timer
+```
+
+A failed upload attempt is reported with its timestamp and exit code, so that a
+successful collection is not mistaken for a successful upload:
+
+```
+Last run:      Wed 2026-06-17 17:21 CEST (1h 15m ago)
+Last upload:   failed at Wed 2026-06-17 17:21 CEST (1h 15m ago, exit code 1)
+Next run:      Wed 2026-06-17 20:00 CEST (1h 24m)
 ```
 
 **Enable a collector with immediate data collection:**

@@ -40,14 +40,20 @@ type collectorTimersJSON struct {
 // --format json" output. It omits "id": the ID is already the CLI argument
 // the caller supplied, and it is not shown in the human-readable output
 // either.
+//
+// Optional values are always present and rendered as null when unset, matching
+// how last_run and next_run are reported. The varlink interface omits them
+// instead, because a varlink optional field is absent rather than null.
 type collectorInfoJSON struct {
-	Name        string  `json:"name"`
-	Feature     *string `json:"feature"`
-	LastRun     *int    `json:"last_run"`
-	NextRun     *int    `json:"next_run"`
-	ConfigPath  string  `json:"config_path"`
-	ServiceName string  `json:"service_name"`
-	TimerName   string  `json:"timer_name"`
+	Name           string  `json:"name"`
+	Feature        *string `json:"feature"`
+	LastRun        *int    `json:"last_run"`
+	LastUploaded   *int    `json:"last_uploaded"`
+	UploadExitCode *int    `json:"upload_exit_code"`
+	NextRun        *int    `json:"next_run"`
+	ConfigPath     string  `json:"config_path"`
+	ServiceName    string  `json:"service_name"`
+	TimerName      string  `json:"timer_name"`
 }
 
 // formatRelativeTime converts a duration into a human-readable relative time string.
@@ -95,13 +101,15 @@ func printMachineReadable(data interface{}) {
 func printCollectorInfo(info *collectorapi.CollectorInfo) {
 	if isOutputMachineReadable() {
 		printMachineReadable(collectorInfoJSON{
-			Name:        info.Name,
-			Feature:     info.Feature,
-			LastRun:     info.LastRun,
-			NextRun:     info.NextRun,
-			ConfigPath:  info.ConfigPath,
-			ServiceName: info.ServiceName,
-			TimerName:   info.TimerName,
+			Name:           info.Name,
+			Feature:        info.Feature,
+			LastRun:        info.LastRun,
+			LastUploaded:   info.LastUploaded,
+			UploadExitCode: info.UploadExitCode,
+			NextRun:        info.NextRun,
+			ConfigPath:     info.ConfigPath,
+			ServiceName:    info.ServiceName,
+			TimerName:      info.TimerName,
 		})
 		return
 	}
@@ -116,21 +124,34 @@ func printCollectorInfo(info *collectorapi.CollectorInfo) {
 	if info.LastRun != nil {
 		lastRunTime := time.Unix(int64(*info.LastRun), 0)
 		relativeTime := formatRelativeTime(time.Since(lastRunTime))
-		fmt.Printf("Last run:  %s (%s ago)\n", lastRunTime.Format(timeFormat), relativeTime)
+		fmt.Printf("Last run:      %s (%s ago)\n", lastRunTime.Format(timeFormat), relativeTime)
 	} else {
-		fmt.Printf("Last run:  -\n")
+		fmt.Printf("Last run:      -\n")
+	}
+	if info.LastUploaded != nil {
+		lastUploadedTime := time.Unix(int64(*info.LastUploaded), 0)
+		relativeTime := formatRelativeTime(time.Since(lastUploadedTime))
+		if info.UploadExitCode != nil && *info.UploadExitCode != 0 {
+			fmt.Printf("Last upload:   failed at %s (%s ago, exit code %d)\n",
+				lastUploadedTime.Format(timeFormat), relativeTime, *info.UploadExitCode)
+		} else {
+			fmt.Printf("Last upload:   %s (%s ago) - success\n",
+				lastUploadedTime.Format(timeFormat), relativeTime)
+		}
+	} else {
+		fmt.Printf("Last upload:   -\n")
 	}
 	if info.NextRun != nil {
 		nextRunTime := time.Unix(int64(*info.NextRun), 0)
 		relativeTime := formatRelativeTime(time.Until(nextRunTime))
-		fmt.Printf("Next run:  %s (%s)\n\n", nextRunTime.Format(timeFormat), relativeTime)
+		fmt.Printf("Next run:      %s (%s)\n\n", nextRunTime.Format(timeFormat), relativeTime)
 	} else {
-		fmt.Printf("Next run:  -\n\n")
+		fmt.Printf("Next run:      -\n\n")
 	}
 
-	fmt.Printf("Config:   %s\n", info.ConfigPath)
-	fmt.Printf("Service:  %s\n", info.ServiceName)
-	fmt.Printf("Timer:    %s\n", info.TimerName)
+	fmt.Printf("Config:        %s\n", info.ConfigPath)
+	fmt.Printf("Service:       %s\n", info.ServiceName)
+	fmt.Printf("Timer:         %s\n", info.TimerName)
 }
 
 // PrintCollectorTimers formats multiple CollectorInfo structs into a table showing timing information.

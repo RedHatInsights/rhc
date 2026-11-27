@@ -88,8 +88,20 @@ func run(collectorId, command string) error {
 		TLSVerify:  rhcCfg.InsightsIngress.TLSVerify,
 		Timeouts:   rhcCfg.HTTPTimeouts,
 	}
-	if err = uploadArchive(archivePath, config, serviceConfig); err != nil {
-		return err
+	// Record the upload outcome in the timer cache, so that "rhc collector info"
+	// can tell a successful collection from a successful upload. Failed attempts
+	// are recorded too, otherwise a failing upload is indistinguishable from a
+	// collection that was never uploaded.
+	uploadErr := uploadArchive(archivePath, config, serviceConfig)
+	uploadExitCode := exitcode.OK
+	if uploadErr != nil {
+		uploadExitCode = exitcode.Err
+	}
+	if cacheErr := collector.RecordUploadResult(collectorId, time.Now(), uploadExitCode); cacheErr != nil {
+		slog.Error("failed to record upload result", "error", cacheErr)
+	}
+	if uploadErr != nil {
+		return uploadErr
 	}
 	return nil
 }
@@ -149,14 +161,10 @@ func executeCollector(config collector.Config, workDir string) error {
 		}
 	}
 
-	// Timer payload and writing to cache
-	timerPayload := collector.Timer{
-		ID:           config.ID,
-		LastStarted:  startTime,
-		LastFinished: endTime,
-		ExitCode:     exitCode,
-	}
-	cacheErr := collector.WriteTimerCache(config.ID, timerPayload)
+	// Timer payload and writing to cache. RecordRunResult merges the run result
+	// into the existing cache instead of overwriting it, so the last upload
+	// attempt stays visible until this run records its own upload result.
+	cacheErr := collector.RecordRunResult(config.ID, startTime, endTime, exitCode)
 	if cacheErr != nil {
 		slog.Error("Failed to write timer cache", "error", cacheErr)
 	}

@@ -317,10 +317,12 @@ def minimal_collector_with_timing():
     cache_path = os.path.join(cache_dir, f"{MINIMAL_COLLECTOR_ID}.json")
     last_finished_timestamp = int(time.time()) - 3600
     last_started_timestamp = last_finished_timestamp - 30
+    last_uploaded_timestamp = last_finished_timestamp + 5
 
     cache_content = {
         "last_started": {"timestamp": last_started_timestamp},
         "last_finished": {"timestamp": last_finished_timestamp, "exit_code": 0},
+        "last_upload": {"timestamp": last_uploaded_timestamp, "exit_code": 0},
     }
     with open(cache_path, "w") as f:
         json.dump(cache_content, f)
@@ -337,6 +339,8 @@ def minimal_collector_with_timing():
         "config_path": MINIMAL_COLLECTOR_CONFIG_PATH,
         "cache_path": cache_path,
         "last_run": last_finished_timestamp,
+        "last_uploaded": last_uploaded_timestamp,
+        "upload_exit_code": 0,
     }
 
     subprocess.run(
@@ -359,15 +363,50 @@ def minimal_collector_timer_cache():
 
     cache_path = os.path.join(cache_dir, f"{MINIMAL_COLLECTOR_ID}.json")
     last_run_timestamp = int(time.time()) - 3600
+    last_uploaded_timestamp = last_run_timestamp + 5
 
     cache_content = {
         "last_started": {"timestamp": last_run_timestamp - 30},
         "last_finished": {"timestamp": last_run_timestamp, "exit_code": 0},
+        "last_upload": {"timestamp": last_uploaded_timestamp, "exit_code": 0},
     }
     with open(cache_path, "w") as f:
         json.dump(cache_content, f)
 
-    yield {"path": cache_path, "last_run": last_run_timestamp}
+    yield {
+        "path": cache_path,
+        "last_run": last_run_timestamp,
+        "last_uploaded": last_uploaded_timestamp,
+        "upload_exit_code": 0,
+    }
+
+    if os.path.exists(cache_path):
+        os.remove(cache_path)
+
+
+@pytest.fixture
+def minimal_collector_failed_upload():
+    """
+    Fixture to create a timer cache for the shipped com.redhat.minimal collector
+    recording a failed upload attempt, so that upload failure reporting can be
+    verified without having to make a real upload fail.
+    """
+    cache_path = os.path.join(TIMER_CACHE_DIR, f"{MINIMAL_COLLECTOR_ID}.json")
+    os.makedirs(TIMER_CACHE_DIR, exist_ok=True)
+    last_run = int(time.time()) - 3600
+    last_uploaded = last_run + 5
+
+    with open(cache_path, "w") as f:
+        json.dump(
+            {
+                "last_started": {"timestamp": last_run - 30},
+                "last_finished": {"timestamp": last_run, "exit_code": 0},
+                "last_upload": {"timestamp": last_uploaded, "exit_code": 1},
+            },
+            f,
+        )
+
+    yield {"last_uploaded": last_uploaded, "upload_exit_code": 1}
 
     if os.path.exists(cache_path):
         os.remove(cache_path)

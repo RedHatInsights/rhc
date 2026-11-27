@@ -79,6 +79,57 @@ def test_rhc_collector_writes_timer_cache(collector_config):
 
 
 @pytest.mark.tier2
+@pytest.mark.skipif(is_bootc_system(), reason="/usr is not writable on bootc systems")
+def test_rhc_collector_preserves_last_upload_on_failed_collection(
+    rhc, minimal_collector_timer_cache, failing_minimal_collector_executable
+):
+    """
+    :id: 9cad1e2f-3579-4802-bcde-f0123456789a
+    :title: Verify a failed collection keeps the last upload status
+    :description:
+        Test that a run which fails before it can upload keeps the upload status
+        recorded by the previous run, so a failing collection is still
+        distinguishable from a collector that was never uploaded.
+    :tags: Tier 2
+    :steps:
+        1. Create a timer cache recording a successful collection and upload
+        2. Run rhc-collector with a collector executable that fails
+        3. Verify the timer cache and 'rhc collector info' still report the upload
+    :expectedresults:
+        1. Timer cache is created
+        2. rhc-collector exits with a non-zero exit code
+        3. last_upload is preserved next to the non-zero last_finished.exit_code
+    """
+    cache_path = minimal_collector_timer_cache["path"]
+
+    result = subprocess.run(
+        [RHC_COLLECTOR, "run", MINIMAL_COLLECTOR_ID],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode != 0, result.stdout + result.stderr
+    with open(cache_path) as cache_file:
+        cache = json.load(cache_file)
+
+    assert cache["last_finished"]["exit_code"] != 0
+    assert cache["last_upload"]["timestamp"] == (
+        minimal_collector_timer_cache["last_uploaded"]
+    )
+    assert (
+        cache["last_upload"]["exit_code"]
+        == minimal_collector_timer_cache["upload_exit_code"]
+    )
+
+    info = rhc.run("collector", "info", MINIMAL_COLLECTOR_ID, check=False)
+
+    assert info.returncode == 0
+    assert "Last upload:" in info.stdout
+    assert "- success" in info.stdout
+
+
+@pytest.mark.tier2
 def test_minimal_collector_timer_randomization():
     """
     :id: 13248d22-5fd8-4aa2-9aac-dd81d71ce33a
@@ -483,11 +534,16 @@ def test_collector_cli_info(rhc, minimal_collector_timer_cache):
     :expectedresults:
         1. Timer cache is created
         2. Command succeeds with exit code 0
-        3. Output contains name, feature, config path, service, timer, and  last-run
+        3. Output contains name, feature, config path, service, timer, last-run,
+           and last-upload
     """
     expected_last_run = minimal_collector_timer_cache["last_run"]
     last_run_stamp = time.strftime(
         "%Y-%m-%d %H:%M", time.localtime(expected_last_run)
+    )
+    expected_last_uploaded = minimal_collector_timer_cache["last_uploaded"]
+    last_uploaded_stamp = time.strftime(
+        "%Y-%m-%d %H:%M", time.localtime(expected_last_uploaded)
     )
 
     result = rhc.run("collector", "info", MINIMAL_COLLECTOR_ID, check=False)
@@ -506,7 +562,51 @@ def test_collector_cli_info(rhc, minimal_collector_timer_cache):
     assert "Last run:" in result.stdout
     assert last_run_stamp in result.stdout
     assert "ago" in result.stdout
+    assert "Last upload:" in result.stdout
+    assert last_uploaded_stamp in result.stdout
+    assert "success" in result.stdout
     assert "Next run:" in result.stdout
+
+
+@pytest.mark.tier2
+def test_collector_cli_info_failed_upload(rhc, minimal_collector_failed_upload):
+    """
+    :id: 7a8b9c0d-1357-4680-9abc-def012345678
+    :title: Verify rhc collector info reports a failed upload attempt
+    :description:
+        Test that both output formats report the last upload attempt with its
+        exit code when the upload failed, so that a successful collection is not
+        mistaken for a successful upload.
+    :tags: Tier 2
+    :steps:
+        1. Create a timer cache recording a failed upload attempt
+        2. Run 'rhc collector info' with and without --format json
+    :expectedresults:
+        1. Timer cache is created
+        2. Both outputs report the upload as failed with the recorded exit code
+    """
+    expected_code = minimal_collector_failed_upload["upload_exit_code"]
+    last_uploaded_stamp = time.strftime(
+        "%Y-%m-%d %H:%M",
+        time.localtime(minimal_collector_failed_upload["last_uploaded"]),
+    )
+
+    result = rhc.run("collector", "info", MINIMAL_COLLECTOR_ID, check=False)
+
+    assert result.returncode == 0
+    assert "Last upload:" in result.stdout
+    assert "failed at" in result.stdout
+    assert last_uploaded_stamp in result.stdout
+    assert f"exit code {expected_code}" in result.stdout
+
+    result = rhc.run(
+        "collector", "info", "--format", "json", MINIMAL_COLLECTOR_ID, check=False
+    )
+
+    assert result.returncode == 0
+    info = json.loads(result.stdout)
+    assert info["last_uploaded"] == minimal_collector_failed_upload["last_uploaded"]
+    assert info["upload_exit_code"] == expected_code
 
 
 @pytest.mark.tier2
@@ -526,8 +626,8 @@ def test_collector_cli_info_format_json(rhc, minimal_collector_with_timing):
     :expectedresults:
         1. Timer and cache are set up
         2. Command succeeds with exit code 0
-        3. Output is a JSON object with name, feature, last_run, next_run,
-           config_path, service_name, and timer_name
+        3. Output is a JSON object with name, feature, last_run, last_uploaded,
+           upload_exit_code, next_run, config_path, service_name, and timer_name
     """
     result = rhc.run(
         "collector",
@@ -548,6 +648,8 @@ def test_collector_cli_info_format_json(rhc, minimal_collector_with_timing):
         "name": MINIMAL_COLLECTOR_NAME,
         "feature": "analytics",
         "last_run": minimal_collector_with_timing["last_run"],
+        "last_uploaded": minimal_collector_with_timing["last_uploaded"],
+        "upload_exit_code": minimal_collector_with_timing["upload_exit_code"],
         "config_path": MINIMAL_COLLECTOR_CONFIG_PATH,
         "service_name": MINIMAL_SERVICE_UNIT,
         "timer_name": MINIMAL_TIMER_UNIT,

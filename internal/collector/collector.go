@@ -31,6 +31,11 @@ const ConfigDir = "/usr/lib/rhc/collectors/"
 // TimerDir is the default directory path where information about collectors execution are stored.
 const TimerDir = "/var/cache/rhc/collectors/"
 
+// timerDir is the directory used to read and write timer caches. It defaults to
+// TimerDir and is a variable only so that tests can point it at a temporary
+// directory instead of the system cache.
+var timerDir = TimerDir
+
 const defaultMetaType = "ingress"
 const defaultUser = "root"
 const defaultGroup = "root"
@@ -93,6 +98,11 @@ type Timer struct {
 	LastFinished time.Time
 	// ExitCode is the exit code from the last execution (0 indicates success).
 	ExitCode int
+	// LastUploaded is the timestamp of the last upload attempt. It is the zero
+	// value when no upload has been recorded yet.
+	LastUploaded time.Time
+	// UploadExitCode is the exit code of the last upload attempt (0 indicates success).
+	UploadExitCode int
 }
 
 // startedEventDto represents a collector start event for JSON serialization.
@@ -110,6 +120,13 @@ type finishedEventDto struct {
 type timerDto struct {
 	LastStarted  *startedEventDto  `json:"last_started"`
 	LastFinished *finishedEventDto `json:"last_finished"`
+	LastUpload   *uploadEventDto   `json:"last_upload"`
+}
+
+// uploadEventDto represents a collector upload event for JSON serialization.
+type uploadEventDto struct {
+	Timestamp int64 `json:"timestamp"`
+	ExitCode  int   `json:"exit_code"`
 }
 
 // GetArchive generates an archive filename, creates a compressed archive
@@ -211,7 +228,59 @@ func WriteTimerCache(id string, timer Timer) error {
 			ExitCode:  timer.ExitCode,
 		}
 	}
+	if !timer.LastUploaded.IsZero() {
+		dto.LastUpload = &uploadEventDto{
+			Timestamp: timer.LastUploaded.Unix(),
+			ExitCode:  timer.UploadExitCode,
+		}
+	}
 	return writeTimerToFile(id, dto)
+}
+
+// RecordUploadResult stores the outcome of an upload attempt in the timer cache
+// without disturbing the collection timing data already recorded there.
+// A missing cache file is not considered an error, the upload result is then
+// written as the only known event.
+func RecordUploadResult(id string, uploadedAt time.Time, exitCode int) error {
+	return updateTimerCache(id, func(timer *Timer) {
+		timer.LastUploaded = uploadedAt
+		timer.UploadExitCode = exitCode
+	})
+}
+
+// RecordRunResult stores the outcome of a collection run in the timer cache
+// without disturbing the upload data recorded by a previous run. The last
+// upload attempt stays visible in "rhc collector info" until a new upload
+// result replaces it, even when the run fails before it can attempt an upload.
+// A missing cache file is not considered an error, the run result is then
+// written as the only known event.
+func RecordRunResult(id string, started, finished time.Time, exitCode int) error {
+	return updateTimerCache(id, func(timer *Timer) {
+		timer.LastStarted = started
+		timer.LastFinished = finished
+		timer.ExitCode = exitCode
+	})
+}
+
+// updateTimerCache applies update to the timer cache of the given collector and
+// writes the result back. Reading the existing cache first keeps events recorded
+// by other writers (a collection run, an upload attempt) from being dropped.
+// A cache file that is missing or cannot be parsed is not considered an error,
+// update is then applied to an empty timer and the file is overwritten.
+func updateTimerCache(id string, update func(timer *Timer)) error {
+	id, err := ValidateID(id)
+	if err != nil {
+		return err
+	}
+	timer, err := loadTimerFromFile(id)
+	if err != nil && !os.IsNotExist(err) {
+		// A cache file that cannot be parsed would otherwise make every
+		// following update fail, start from an empty timer and overwrite it.
+		slog.Debug("Failed to read timer cache, overwriting it", "id", id, "error", err)
+	}
+	timer.ID = id
+	update(&timer)
+	return WriteTimerCache(id, timer)
 }
 
 // ValidateID validates and sanitizes a collector ID.
@@ -263,12 +332,12 @@ func writeTimerToFile(id string, dto timerDto) error {
 	if err != nil {
 		return err
 	}
-	err = os.MkdirAll(TimerDir, 0755)
+	err = os.MkdirAll(timerDir, 0755)
 	if err != nil {
 		slog.Debug("Failed to create timer cache directory", "error", err)
 		return err
 	}
-	err = os.WriteFile(filepath.Join(TimerDir, id+".json"), jsonData, 0644)
+	err = os.WriteFile(filepath.Join(timerDir, id+".json"), jsonData, 0644)
 	if err != nil {
 		slog.Debug("Failed to write timer cache", "id", id, "error", err)
 		return err
@@ -279,7 +348,7 @@ func writeTimerToFile(id string, dto timerDto) error {
 // loadTimerFromFile reads timer data from the cache file and converts it to a Timer struct.
 // Returns an error if the file cannot be read or the timer data is invalid.
 func loadTimerFromFile(id string) (Timer, error) {
-	timerData, err := os.ReadFile(filepath.Join(TimerDir, id+".json"))
+	timerData, err := os.ReadFile(filepath.Join(timerDir, id+".json"))
 	if err != nil {
 		return Timer{}, err
 	}
@@ -302,6 +371,12 @@ func newTimer(id string, timerData []byte) (Timer, error) {
 	if t.LastFinished != nil {
 		timer.LastFinished = time.Unix(t.LastFinished.Timestamp, 0)
 		timer.ExitCode = t.LastFinished.ExitCode
+	}
+	// last_upload is absent in cache files written before upload status was
+	// recorded, those simply report no upload attempt.
+	if t.LastUpload != nil {
+		timer.LastUploaded = time.Unix(t.LastUpload.Timestamp, 0)
+		timer.UploadExitCode = t.LastUpload.ExitCode
 	}
 	return timer, nil
 }
